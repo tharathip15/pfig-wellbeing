@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PFIG Well Being - บันทึกสุขภาพท้าทาย 3 เดือน</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Header Section -->
+    <header>
+      <div class="logo-group">
+        <div class="logo-icon">
+          <span>🌱</span>
+        </div>
+        <div class="logo-text">
+          <h1>PFIG WELL BEING</h1>
+          <p>สุขภาพดี เริ่มที่พวกเรา เพื่อชีวิตที่ดีกว่า • บันทึกท้าทายเปรียบเทียบข้อมูล 3 เดือน</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="btn btn-secondary file-upload-btn">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          นำเข้า CSV
+          <input type="file" id="csv-file-input" accept=".csv">
+        </div>
+        <button class="btn btn-secondary" id="btn-export-csv">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          ส่งออก CSV
+        </button>
+        <button class="btn btn-secondary" id="btn-download-template" title="ดาวน์โหลดตัวอย่างไฟล์ Excel/CSV">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          ตัวอย่าง CSV
+        </button>
+        <button class="btn btn-primary" id="btn-add-employee">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          เพิ่มพนักงาน
+        </button>
+        <button class="btn btn-accent" id="btn-presentation-mode">
+          🎤 ประกาศรางวัล
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Grid Widgets -->
+    <div class="dashboard-grid">
+      <!-- Total Employees -->
+      <div class="widget-card widget-total">
+        <div class="widget-header">
+          <span class="widget-title">พนักงานที่เข้าร่วมทั้งหมด</span>
+          <div class="widget-icon">👥</div>
+        </div>
+        <div class="widget-value" id="stat-total-employees">0</div>
+        <div class="widget-subtext">เป้าหมายรองรับผู้ใช้: 40+ คน</div>
+      </div>
+
+      <!-- Avg Weight Loss -->
+      <div class="widget-card widget-weight">
+        <div class="widget-header">
+          <span class="widget-title">เฉลี๋ยน้ำหนักที่ลดได้รวม</span>
+          <div class="widget-icon">⚖️</div>
+        </div>
+        <div class="widget-value" id="stat-avg-weight-loss">0.0 kg</div>
+        <div class="widget-subtext" id="stat-weight-trend">
+          <span class="widget-trend-down">↓ 0.0%</span> จากเดือนที่ 1
+        </div>
+      </div>
+
+      <!-- Avg BMI Change -->
+      <div class="widget-card widget-bmi">
+        <div class="widget-header">
+          <span class="widget-title">เฉลี่ยดัชนีมวลกาย (BMI) ที่ลด</span>
+          <div class="widget-icon">📊</div>
+        </div>
+        <div class="widget-value" id="stat-avg-bmi-loss">0.0</div>
+        <div class="widget-subtext" id="stat-bmi-trend">
+          <span class="widget-trend-down">↓ 0.0</span> พัฒนาขึ้น
+        </div>
+      </div>
+
+      <!-- Top Body Age Reduction -->
+      <div class="widget-card widget-bodyage">
+        <div class="widget-header">
+          <span class="widget-title">ลดอายุร่างกายได้สูงสุด</span>
+          <div class="widget-icon">🔥</div>
+        </div>
+        <div class="widget-value" id="stat-max-bodyage-loss">0 ปี</div>
+        <div class="widget-subtext" id="stat-max-bodyage-winner">ไม่มีข้อมูล</div>
+      </div>
+    </div>
+
+    <!-- Performance Highlights Panel -->
+    <div class="performance-section">
+      
+      <!-- Top 5 Leaderboard -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span>🏆</span> 5 อันดับแรก ผู้ที่ลดอายุร่างกาย (Body Age) ได้มากที่สุด
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">เดือน 1 เทียบ เดือน 3</span>
+        </div>
+        <div class="leaderboard-list" id="leaderboard-container">
+          <!-- Items will be populated dynamically -->
+          <div class="empty-state" style="padding: 1.5rem;">
+            <p>ยังไม่มีข้อมูลเปรียบเทียบในขณะนี้</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Health Progression Summary Panel -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span>📈</span> สรุปผลความคืบหน้าผู้เข้าร่วม
+          </h2>
+        </div>
+        <div class="summary-chart-container">
+          <!-- Item 1: Body Age Decreased -->
+          <div class="progress-summary-item">
+            <div class="progress-summary-label">
+              <span>อายุร่างกายลดลง (พัฒนาดีขึ้น)</span>
+              <span id="summary-bodyage-percent">0% (0 คน)</span>
+            </div>
+            <div class="progress-bar-outer">
+              <div class="progress-bar-inner" id="bar-bodyage" style="width: 0%; background: var(--primary);"></div>
+            </div>
+          </div>
+          
+          <!-- Item 2: Weight Decreased -->
+          <div class="progress-summary-item">
+            <div class="progress-summary-label">
+              <span>น้ำหนักลดลง (สำเร็จ)</span>
+              <span id="summary-weight-percent">0% (0 คน)</span>
+            </div>
+            <div class="progress-bar-outer">
+              <div class="progress-bar-inner" id="bar-weight" style="width: 0%; background: var(--secondary);"></div>
+            </div>
+          </div>
+
+          <!-- Item 3: BMI Decreased -->
+          <div class="progress-summary-item">
+            <div class="progress-summary-label">
+              <span>BMI ลดลง (ฟิตหุ่นสำเร็จ)</span>
+              <span id="summary-bmi-percent">0% (0 คน)</span>
+            </div>
+            <div class="progress-bar-outer">
+              <div class="progress-bar-inner" id="bar-bmi" style="width: 0%; background: var(--warning);"></div>
+            </div>
+          </div>
+          
+          <div style="margin-top: auto; padding-top: 1rem; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              💡 การคำนวณเปรียบเทียบผลลัพธ์ยึดตาม <strong>น้ำหนัก และ อายุร่างกาย</strong> ที่ลดลงจากเดือนเริ่มต้น (เดือนที่ 1) ถึงเดือนปัจจุบันที่มีการบันทึก
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Filtering & Action Controls Bar -->
+    <div class="control-panel">
+      <div class="search-filters">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="search-box" placeholder="ค้นหาชื่อพนักงาน หรือแผนก...">
+        </div>
+        
+        <select class="select-filter" id="filter-department">
+          <option value="">ทุกแผนก</option>
+        </select>
+
+        <select class="select-filter" id="filter-progress">
+          <option value="all">ทั้งหมด</option>
+          <option value="has-records">มีข้อมูลบันทึกครบถ้วน</option>
+          <option value="missing-records">ข้อมูลยังไม่ครบ 3 เดือน</option>
+          <option value="bodyage-reduced">อายุร่างกายลดลง</option>
+        </select>
+
+        <select class="select-filter" id="select-page-size">
+          <option value="10">10 คน / หน้า</option>
+          <option value="25">25 คน / หน้า</option>
+          <option value="50">50 คน / หน้า</option>
+          <option value="100">100 คน / หน้า</option>
+          <option value="all">แสดงทั้งหมด</option>
+        </select>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-secondary" id="btn-generate-mock">
+          ⚡ สุ่มข้อมูล 45 คน
+        </button>
+        <button class="btn btn-danger" id="btn-clear-db">
+          ล้างฐานข้อมูล
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Employee Table Container -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" id="sort-name">รายชื่อพนักงาน</th>
+            <th>อายุ / สูง</th>
+            <th>แผนก</th>
+            <!-- Month 1 -->
+            <th>เดือน 1 (เริ่มต้น)</th>
+            <!-- Month 2 -->
+            <th>เดือน 2 (กลาง)</th>
+            <!-- Month 3 -->
+            <th>เดือน 3 (สรุปผล)</th>
+            <!-- Comparison -->
+            <th class="sortable" id="sort-w-diff">น.น. เปลี่ยนแปลง</th>
+            <th class="sortable" id="sort-age-diff">อายุร่างกายเปลี่ยน</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="employee-table-body">
+          <!-- Populate dynamically by app.js -->
+        </tbody>
+      </table>
+      
+      <!-- Empty DB Warning State -->
+      <div class="empty-state" id="table-empty-state" style="display: none;">
+        <div class="empty-state-icon">📋</div>
+        <div class="empty-state-title">ไม่พบข้อมูลพนักงาน</div>
+        <div class="empty-state-desc">ยังไม่มีข้อมูลในระบบ ลองเพิ่มข้อมูลพนักงานใหม่ หรือกดปุ่ม "สุ่มข้อมูล 45 คน" เพื่อทดลองใช้งานทันที</div>
+      </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="pagination-container">
+      <div class="pagination-info" id="pagination-summary">
+        กำลังแสดงผล 0 - 0 จากทั้งหมด 0 คน
+      </div>
+      <div class="pagination-controls" id="pagination-buttons">
+        <!-- Buttons added by app.js -->
+      </div>
+    </div>
+
+    <!-- Footer Copyright -->
+    <footer style="margin-top: 3rem; background: transparent; border: none; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1rem;">
+      <p>© 2026 PFIG Well Being Challenge Dashboard. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <!-- Add/Edit Modal Window -->
+  <div class="modal-overlay" id="employee-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-headline">บันทึก/แก้ไขข้อมูลพนักงาน</h3>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <form id="employee-form" onsubmit="event.preventDefault();">
+        <div class="modal-body">
+          <input type="hidden" id="form-emp-id">
+          
+          <!-- Section 1: Basic Information -->
+          <div class="form-grid">
+            <div class="form-section-title">ข้อมูลทั่วไปของพนักงาน</div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-name">ชื่อ - นามสกุล *</label>
+              <input type="text" class="form-control" id="form-name" placeholder="เช่น นายสมชาย ดีใจ" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-department">แผนก / ฝ่าย *</label>
+              <input type="text" class="form-control" id="form-department" placeholder="เช่น บัญชี, การตลาด, ไอที" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-age">อายุจริง (ปี) *</label>
+              <input type="number" class="form-control" id="form-age" min="15" max="100" placeholder="เช่น 28" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-height">ความสูง (cm) *</label>
+              <input type="number" class="form-control" id="form-height" min="100" max="250" placeholder="เช่น 170" required>
+            </div>
+          </div>
+
+          <!-- Section 2: Month 1 Metrics -->
+          <div class="month-record-grid">
+            <div class="month-label">
+              <span class="month-dot month-dot-1"></span>
+              <span>บันทึกข้อมูล เดือนที่ 1 (เริ่มต้น)</span>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m1-weight">น้ำหนัก (kg) *</label>
+              <input type="number" class="form-control" id="form-m1-weight" step="0.1" min="30" max="250" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m1-bodyage">อายุร่างกาย (ปี) *</label>
+              <input type="number" class="form-control" id="form-m1-bodyage" min="10" max="120" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
+              <input type="text" class="form-control" id="form-m1-bmi" disabled placeholder="-">
+            </div>
+          </div>
+
+          <!-- Section 3: Month 2 Metrics -->
+          <div class="month-record-grid">
+            <div class="month-label">
+              <span class="month-dot month-dot-2"></span>
+              <span>บันทึกข้อมูล เดือนที่ 2 (ความคืบหน้า)</span>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m2-weight">น้ำหนัก (kg)</label>
+              <input type="number" class="form-control" id="form-m2-weight" step="0.1" min="30" max="250">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m2-bodyage">อายุร่างกาย (ปี)</label>
+              <input type="number" class="form-control" id="form-m2-bodyage" min="10" max="120">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
+              <input type="text" class="form-control" id="form-m2-bmi" disabled placeholder="-">
+            </div>
+          </div>
+
+          <!-- Section 4: Month 3 Metrics -->
+          <div class="month-record-grid">
+            <div class="month-label">
+              <span class="month-dot month-dot-3"></span>
+              <span>บันทึกข้อมูล เดือนที่ 3 (ผลลัพธ์สุดท้าย)</span>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m3-weight">น้ำหนัก (kg)</label>
+              <input type="number" class="form-control" id="form-m3-weight" step="0.1" min="30" max="250">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="form-m3-bodyage">อายุร่างกาย (ปี)</label>
+              <input type="number" class="form-control" id="form-m3-bodyage" min="10" max="120">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
+              <input type="text" class="form-control" id="form-m3-bmi" disabled placeholder="-">
+            </div>
+          </div>
+
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">
+            * จำเป็นต้องระบุข้อมูลเบื้องต้นและเดือนที่ 1, ส่วนข้อมูลเดือนที่ 2 และ 3 สามารถทยอยกรอกภายหลังเมื่อผลลัพธ์ออกได้
+          </p>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-employee">บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Fullscreen Presentation Mode -->
+  <div class="presentation-overlay" id="presentation-overlay">
+    <!-- Confetti canvas -->
+    <canvas id="presentation-confetti-canvas"></canvas>
+
+    <!-- Top control buttons -->
+    <div class="pres-header">
+      <div class="pres-title">🌱 PFIG WELL BEING AWARDS</div>
+      <div style="display:flex; gap: 0.5rem; align-items:center;">
+        <button class="btn btn-secondary" id="pres-btn-sound" title="เปิด/ปิดเสียง" style="padding: 0.5rem 0.8rem; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; height: 38px; width: 42px;">🔊</button>
+        <button class="btn btn-danger" id="pres-btn-exit" style="height: 38px;">✖ ออกจากโหมดนำเสนอ</button>
+      </div>
+    </div>
+
+    <!-- Presentation Stages -->
+    <div class="pres-stage-container">
+      
+      <!-- Stage 0: Welcome Slide -->
+      <div class="pres-slide active" id="pres-slide-0">
+        <div class="pres-intro-card">
+          <div class="pres-intro-logo">🏆</div>
+          <h2 class="pres-intro-title" style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #ffffff, var(--primary-light), var(--secondary-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">พิธีประกาศรางวัลผลลัพธ์การดูแลสุขภาพ</h2>
+          <h3 class="pres-intro-subtitle" style="font-size: 1.3rem; color: var(--secondary-light); margin-bottom: 1.5rem; font-weight: 600; letter-spacing: 2px;">PFIG WELL BEING CHALLENGE</h3>
+          <p class="pres-intro-desc" style="color: var(--text-muted); max-width: 500px; margin: 0 auto 2rem; font-size: 0.95rem;">เตรียมพบกับพนักงานผู้ที่สามารถลดอายุร่างกาย (Body Age) ได้มากที่สุด 3 อันดับแรก ที่จะได้รับรางวัลพิเศษรวมมูลค่ากว่า 20,000 บาท!</p>
+          <button class="btn btn-primary" id="pres-btn-start" style="padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 12px;">
+            เริ่มการประกาศรางวัล 🚀
+          </button>
+        </div>
+      </div>
+
+      <!-- Stage 1, 2, 3: Award Reveals (3rd, 2nd, 1st Places) -->
+      <div class="pres-slide" id="pres-slide-reveal">
+        <div class="reveal-slide-content">
+          <h2 class="reveal-rank-title" id="pres-reveal-rank-title">รองชนะเลิศอันดับ 2 (อันดับ 3)</h2>
+          <h3 class="reveal-prize-title" id="pres-reveal-prize-title">เงินรางวัล 4,000 บาท</h3>
+          
+          <!-- Card Container for 3D Flip -->
+          <div class="pres-card-container">
+            <div class="pres-card" id="pres-reveal-card">
+              <!-- Front: Locked/Mystery silhouette -->
+              <div class="pres-card-face pres-card-front">
+                <div class="pres-card-mystery-icon" id="pres-card-mystery-icon">🥉</div>
+                <div class="pres-card-mystery-label" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text-muted);">ใครจะเป็นผู้พิชิตรางวัลนี้?</div>
+                <button class="btn btn-primary" id="pres-btn-reveal-action" style="font-weight: 700; border-radius: 50px; padding: 0.8rem 2rem; font-size: 1rem; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);">
+                  💥 เปิดเผยรายชื่อ
+                </button>
+              </div>
+              
+              <!-- Back: Revealed Employee Details -->
+              <div class="pres-card-face pres-card-back" id="pres-reveal-card-back">
+                <div class="revealed-trophy" id="pres-rev-trophy">🥉</div>
+                <div class="revealed-name" id="pres-rev-name">นายสมชาย ใจดี</div>
+                <div class="revealed-dept" id="pres-rev-dept">แผนกการตลาด</div>
+                
+                <div class="revealed-metrics">
+                  <div class="revealed-metric-box">
+                    <div class="revealed-box-label">อายุร่างกายเดิม</div>
+                    <div class="revealed-box-val" id="pres-rev-m1-age">45 ปี</div>
+                  </div>
+                  <div class="revealed-metric-box">
+                    <div class="revealed-box-label">อายุร่างกายใหม่</div>
+                    <div class="revealed-box-val" id="pres-rev-latest-age">40 ปี</div>
+                  </div>
+                  <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+                    <div class="revealed-box-label" style="color: var(--primary-light);">ลดลงได้</div>
+                    <div class="revealed-box-val" id="pres-rev-diff-age" style="color: var(--success); font-weight: 700;">-5 ปี</div>
+                  </div>
+                </div>
+                <div class="revealed-sub-stats" id="pres-rev-weight-stats">น้ำหนักลดลง -5.0 kg | BMI ลดลง -1.82</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 4: Overall Podium (Show all 3 winners together) -->
+      <div class="pres-slide" id="pres-slide-podium">
+        <div class="podium-slide-content">
+          <h2 class="podium-slide-title" style="font-size: 2.2rem; font-weight: 700; margin-bottom: 2rem; text-align: center; background: linear-gradient(135deg, #ffffff, var(--primary-light), var(--secondary-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🏆 ยินดีกับผู้ชนะโครงการ PFIG WELL BEING 🏆</h2>
+          
+          <div class="podium-wrapper">
+            <!-- 2nd Place (Left) -->
+            <div class="podium-place podium-place-2">
+              <div class="podium-winner-card">
+                <div class="podium-trophy">🥈</div>
+                <div class="podium-winner-name" id="podium-2-name">-</div>
+                <div class="podium-winner-dept" id="podium-2-dept">-</div>
+                <div class="podium-winner-stat" id="podium-2-stat">ลดลง - ปี</div>
+              </div>
+              <div class="podium-block podium-block-2">
+                <div class="podium-block-num">2</div>
+                <div class="podium-block-label">รองชนะเลิศอันดับ 1</div>
+                <div class="podium-block-prize">6,000 บาท</div>
+              </div>
+            </div>
+            
+            <!-- 1st Place (Center) -->
+            <div class="podium-place podium-place-1">
+              <div class="podium-winner-card">
+                <div class="podium-trophy">🥇</div>
+                <div class="podium-winner-name" id="podium-1-name">-</div>
+                <div class="podium-winner-dept" id="podium-1-dept">-</div>
+                <div class="podium-winner-stat" id="podium-1-stat">ลดลง - ปี</div>
+              </div>
+              <div class="podium-block podium-block-1">
+                <div class="podium-block-num">1</div>
+                <div class="podium-block-label">ชนะเลิศอันดับ 1</div>
+                <div class="podium-block-prize">10,000 บาท</div>
+              </div>
+            </div>
+            
+            <!-- 3rd Place (Right) -->
+            <div class="podium-place podium-place-3">
+              <div class="podium-winner-card">
+                <div class="podium-trophy">🥉</div>
+                <div class="podium-winner-name" id="podium-3-name">-</div>
+                <div class="podium-winner-dept" id="podium-3-dept">-</div>
+                <div class="podium-winner-stat" id="podium-3-stat">ลดลง - ปี</div>
+              </div>
+              <div class="podium-block podium-block-3">
+                <div class="podium-block-num">3</div>
+                <div class="podium-block-label">รองชนะเลิศอันดับ 2</div>
+                <div class="podium-block-prize">4,000 บาท</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- Presentation Footer Controls -->
+    <div class="pres-footer">
+      <button class="btn btn-secondary" id="pres-btn-back" style="min-width: 120px;">&laquo; ย้อนกลับ</button>
+      
+      <!-- Bullet indicator for slide progress -->
+      <div class="pres-indicators" id="pres-indicators">
+        <span class="pres-dot active"></span>
+        <span class="pres-dot"></span>
+        <span class="pres-dot"></span>
+        <span class="pres-dot"></span>
+        <span class="pres-dot"></span>
+      </div>
+      
+      <button class="btn btn-primary" id="pres-btn-next" style="min-width: 140px;">ถัดไป &raquo;</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-wrapper"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
