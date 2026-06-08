@@ -17,6 +17,10 @@ let currentPresentationStage = 0; // 0 = Intro, 1 = 3rd, 2 = 2nd, 3 = 1st, 4 = P
 let presentationWinners = []; // Will hold top 3 winners
 let cardRevealed = false; // Whether the current slide card is revealed
 
+// Personal Lookup and PIN Verification State
+let currentView = 'admin'; // 'admin' or 'personal'
+const ADMIN_PIN = '1234';
+
 // DOM Elements
 const elements = {
   tableBody: document.getElementById('employee-table-body'),
@@ -100,7 +104,22 @@ const elements = {
   presRevealCardBack: document.getElementById('pres-reveal-card-back'),
   presRevealRankTitle: document.getElementById('pres-reveal-rank-title'),
   presRevealPrizeTitle: document.getElementById('pres-reveal-prize-title'),
-  presIndicators: document.getElementById('pres-indicators')
+  presIndicators: document.getElementById('pres-indicators'),
+
+  // Personal View and PIN Modal selectors
+  btnToggleView: document.getElementById('btn-toggle-view'),
+  adminView: document.getElementById('admin-view'),
+  personalView: document.getElementById('personal-view'),
+  personalSearchInput: document.getElementById('personal-search-input'),
+  personalSuggestions: document.getElementById('personal-suggestions'),
+  personalProfileDisplay: document.getElementById('personal-profile-display'),
+  headerImportCsv: document.getElementById('header-import-csv'),
+  pinModal: document.getElementById('pin-modal'),
+  btnClosePinModal: document.getElementById('btn-close-pin-modal'),
+  btnSubmitPin: document.getElementById('btn-submit-pin'),
+  pinDigits: document.querySelectorAll('.pin-digit'),
+  pinErrorMsg: document.getElementById('pin-error-msg'),
+  pin1: document.getElementById('pin-1')
 };
 
 
@@ -474,6 +493,85 @@ function setupEventListeners() {
       if (e.target === galleryModal) window.closePhotoGallery();
     });
   }
+
+  // View Switcher Button
+  elements.btnToggleView.addEventListener('click', () => {
+    if (currentView === 'admin') {
+      switchToPersonalView();
+    } else {
+      openPinModal();
+    }
+  });
+
+  // Personal Search Autocomplete suggestions
+  elements.personalSearchInput.addEventListener('input', (e) => {
+    const val = e.target.value.trim().toLowerCase();
+    if (!val) {
+      elements.personalSuggestions.innerHTML = '';
+      elements.personalSuggestions.style.display = 'none';
+      return;
+    }
+
+    const matches = employees.filter(emp => 
+      emp.name.toLowerCase().includes(val)
+    );
+
+    if (matches.length > 0) {
+      elements.personalSuggestions.innerHTML = '';
+      matches.forEach(emp => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.innerHTML = `
+          <span class="suggestion-name">${emp.name}</span>
+          <span class="suggestion-dept">${emp.department}</span>
+        `;
+        div.addEventListener('click', () => {
+          elements.personalSearchInput.value = emp.name;
+          elements.personalSuggestions.style.display = 'none';
+          showPersonalProfile(emp.id);
+        });
+        elements.personalSuggestions.appendChild(div);
+      });
+      elements.personalSuggestions.style.display = 'block';
+    } else {
+      elements.personalSuggestions.innerHTML = `
+        <div style="padding: 0.85rem 1.5rem; color: var(--text-muted); font-size: 0.9rem; font-style: italic;">
+          ไม่พบรายชื่อพนักงาน
+        </div>
+      `;
+      elements.personalSuggestions.style.display = 'block';
+    }
+  });
+
+  // Click outside suggestions list to close it
+  document.addEventListener('click', (e) => {
+    if (!elements.personalSearchInput.contains(e.target) && !elements.personalSuggestions.contains(e.target)) {
+      elements.personalSuggestions.style.display = 'none';
+    }
+  });
+
+  // PIN Input digits auto-focus progression
+  elements.pinDigits.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      input.value = input.value.replace(/[^0-9]/g, '');
+      if (input.value.length === 1) {
+        if (index < 3) {
+          elements.pinDigits[index + 1].focus();
+        } else {
+          handlePinVerification();
+        }
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+        elements.pinDigits[index - 1].focus();
+      }
+    });
+  });
+
+  elements.btnClosePinModal.addEventListener('click', closePinModal);
+  elements.btnSubmitPin.addEventListener('click', handlePinVerification);
 }
 
 
@@ -2045,4 +2143,298 @@ window.openPhotoGallery = function(empId) {
 window.closePhotoGallery = function() {
   document.getElementById('photo-gallery-modal').classList.remove('active');
 };
+
+// --- View Switcher & PIN Verification Helpers ---
+function switchToPersonalView() {
+  currentView = 'personal';
+  elements.adminView.style.display = 'none';
+  elements.personalView.style.display = 'block';
+  
+  // Hide Admin actions in header
+  elements.btnToggleView.textContent = '📊 แผงควบคุมระบบ (Admin)';
+  elements.btnToggleView.className = 'btn btn-secondary';
+  
+  elements.btnExportCsv.style.display = 'none';
+  elements.btnDownloadTemplate.style.display = 'none';
+  elements.headerImportCsv.style.display = 'none';
+  elements.btnAddEmployee.style.display = 'none';
+  elements.btnPresentationMode.style.display = 'none';
+  
+  // Clear any inputs/states
+  elements.personalSearchInput.value = '';
+  elements.personalSuggestions.innerHTML = '';
+  elements.personalSuggestions.style.display = 'none';
+  elements.personalProfileDisplay.innerHTML = '';
+  elements.personalProfileDisplay.style.display = 'none';
+}
+
+function openPinModal() {
+  elements.pinDigits.forEach(input => input.value = '');
+  elements.pinErrorMsg.style.display = 'none';
+  elements.pinModal.classList.add('active');
+  
+  setTimeout(() => {
+    if (elements.pin1) elements.pin1.focus();
+  }, 100);
+}
+
+function closePinModal() {
+  elements.pinModal.classList.remove('active');
+}
+
+function handlePinVerification() {
+  let pin = '';
+  elements.pinDigits.forEach(input => pin += input.value);
+  
+  if (pin === ADMIN_PIN) {
+    closePinModal();
+    switchToAdminView();
+    showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ 🔓', 'success');
+  } else {
+    elements.pinErrorMsg.style.display = 'block';
+    elements.pinDigits.forEach(input => input.value = '');
+    if (elements.pin1) elements.pin1.focus();
+    showToast('รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่', 'error');
+  }
+}
+
+function switchToAdminView() {
+  currentView = 'admin';
+  elements.personalView.style.display = 'none';
+  elements.adminView.style.display = 'block';
+  
+  // Restore Admin actions in header
+  elements.btnToggleView.textContent = '👤 ข้อมูลส่วนตัวพนักงาน';
+  elements.btnToggleView.className = 'btn btn-accent';
+  
+  elements.btnExportCsv.style.display = 'inline-flex';
+  elements.btnDownloadTemplate.style.display = 'inline-flex';
+  elements.headerImportCsv.style.display = 'inline-flex';
+  elements.btnAddEmployee.style.display = 'inline-flex';
+  elements.btnPresentationMode.style.display = 'inline-flex';
+  
+  updateUI();
+}
+
+// --- Dynamic Personal Profile Renderer ---
+function showPersonalProfile(empId) {
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+
+  const comp = getComparison(emp);
+  const m1 = emp.months.m1 || {};
+  const m2 = emp.months.m2;
+  const m3 = emp.months.m3;
+  
+  // Format statistics change panels
+  const formatDiff = (diffVal, unit, isPositiveImprovement = false) => {
+    if (!comp.hasProgress) return `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
+    
+    // For Weight, BMI, Fat, Body Age: negative difference is improvement
+    // For Muscle: positive difference is improvement
+    const isImproved = isPositiveImprovement ? (diffVal > 0) : (diffVal < 0);
+    const isWorsened = isPositiveImprovement ? (diffVal < 0) : (diffVal > 0);
+    const sign = diffVal > 0 ? '+' : '';
+    
+    if (isImproved) {
+      return `<span style="color: var(--success); font-weight: 700;">${sign}${diffVal} ${unit}</span>`;
+    } else if (isWorsened) {
+      return `<span style="color: var(--danger); font-weight: 700;">${sign}${diffVal} ${unit}</span>`;
+    } else {
+      return `<span style="color: var(--text-main); font-weight: 600;">คงที่</span>`;
+    }
+  };
+
+  const weightChangeHtml = formatDiff(comp.weightDiff, 'kg', false);
+  const bmiChangeHtml = formatDiff(comp.bmiDiff, '', false);
+  const bodyageChangeHtml = formatDiff(comp.bodyageDiff, 'ปี', false);
+  
+  const muscleChangeHtml = (m1.muscle !== undefined && m1.muscle !== null && comp.hasProgress) ? formatDiff(comp.muscleDiff, '%', true) : `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
+  const fatChangeHtml = (m1.fat !== undefined && m1.fat !== null && comp.hasProgress) ? formatDiff(comp.fatDiff, '%', false) : `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
+
+  // Build Monthly Columns
+  const renderMonthColumn = (m, label, badgeClass) => {
+    if (!m || (m.weight === undefined && m.bodyage === undefined && !m.photo)) {
+      return `
+        <div class="personal-month-card">
+          <div class="personal-month-card-header ${badgeClass}">
+            <span>📅</span> ${label}
+          </div>
+          <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 150px; flex-direction: column;">
+            <span style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.3;">📭</span>
+            <span style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">ยังไม่มีการบันทึกข้อมูล</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    const bmiText = m.bmi ? m.bmi : (calcBMI(m.weight, emp.height) || '-');
+    const muscleText = (m.muscle !== undefined && m.muscle !== null) ? `${m.muscle}%` : '-';
+    const fatText = (m.fat !== undefined && m.fat !== null) ? `${m.fat}%` : '-';
+    const weightText = m.weight ? `${m.weight} kg` : '- kg';
+    const bodyageText = m.bodyage ? `${m.bodyage} ปี` : '- ปี';
+    
+    const photoFrame = m.photo 
+      ? `<div class="personal-photo-frame"><img src="${m.photo}" alt="${label}"></div>`
+      : `<div class="personal-photo-frame"><div class="image-placeholder">ไม่มีรูปถ่ายความคืบหน้า</div></div>`;
+      
+    return `
+      <div class="personal-month-card">
+        <div class="personal-month-card-header ${badgeClass}">
+          <span>📅</span> ${label}
+        </div>
+        <div class="personal-metrics-list">
+          <div class="personal-metric-item">
+            <span class="personal-metric-name">⚖️ น้ำหนัก</span>
+            <span class="personal-metric-val">${weightText}</span>
+          </div>
+          <div class="personal-metric-item">
+            <span class="personal-metric-name">🧠 อายุร่างกาย</span>
+            <span class="personal-metric-val">${bodyageText}</span>
+          </div>
+          <div class="personal-metric-item">
+            <span class="personal-metric-name">📊 ค่า BMI</span>
+            <span class="personal-metric-val">${bmiText}</span>
+          </div>
+          <div class="personal-metric-item">
+            <span class="personal-metric-name">💪 กล้ามเนื้อ</span>
+            <span class="personal-metric-val">${muscleText}</span>
+          </div>
+          <div class="personal-metric-item">
+            <span class="personal-metric-name">📉 ไขมัน</span>
+            <span class="personal-metric-val">${fatText}</span>
+          </div>
+        </div>
+        ${photoFrame}
+      </div>
+    `;
+  };
+
+  const colM1 = renderMonthColumn(m1, 'เดือน 1 (เริ่มต้น)', 'personal-month-badge-1');
+  const colM2 = renderMonthColumn(m2, 'เดือน 2 (ความคืบหน้า)', 'personal-month-badge-2');
+  const colM3 = renderMonthColumn(m3, 'เดือน 3 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-3');
+
+  // side-by-side progression photo comparison if any photos exist
+  const hasPhotos = (m1.photo) || (m2 && m2.photo) || (m3 && m3.photo);
+  let galleryHtml = '';
+  if (hasPhotos) {
+    const renderGalleryItem = (m, label) => {
+      const img = (m && m.photo) 
+        ? `<img src="${m.photo}" alt="${label}">`
+        : `<div style="font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.5rem;">📸</div><div style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">ไม่ได้อัปโหลดรูปภาพ</div>`;
+      const weightText = (m && m.weight) ? `${m.weight} kg` : '- kg';
+      const bmiText = (m && m.bmi) ? `BMI: ${m.bmi}` : 'BMI: -';
+      
+      return `
+        <div class="progression-gallery-item">
+          <div class="progression-item-label">${label}</div>
+          <div class="progression-item-image">${img}</div>
+          <div class="progression-item-meta">${weightText} | ${bmiText}</div>
+        </div>
+      `;
+    };
+    
+    galleryHtml = `
+      <div class="progression-gallery-section animate-fade">
+        <div class="progression-gallery-title">
+          <span>🖼️</span> อัปเดตรูปร่าง เปรียบเทียบความเปลี่ยนแปลงรายเดือน
+        </div>
+        <div class="progression-gallery-grid">
+          ${renderGalleryItem(m1, 'เดือน 1 (เริ่มต้น)')}
+          ${renderGalleryItem(m2, 'เดือน 2 (กลาง)')}
+          ${renderGalleryItem(m3, 'เดือน 3 (สุดท้าย)')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Generate Profile HTML
+  elements.personalProfileDisplay.innerHTML = `
+    <div class="personal-profile-card">
+      <!-- Profile Info Header -->
+      <div class="personal-profile-header">
+        <div class="personal-profile-title-group">
+          <div class="personal-avatar">👤</div>
+          <div class="personal-name">
+            <h3>${emp.name}</h3>
+            <div class="personal-meta-info">
+              <span class="personal-meta-badge personal-meta-badge-dept">🏢 แผนก: ${emp.department}</span>
+              <span class="personal-meta-badge">🎂 อายุจริง: ${emp.age} ปี</span>
+              <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
+            </div>
+          </div>
+        </div>
+        <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+          ID: ${emp.id.substring(0, 8)}...
+        </div>
+      </div>
+
+      <!-- Comparative stats grid (latest vs month 1) -->
+      <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
+        <span>🏆</span> สรุปความเปลี่ยนแปลงทั้งหมด (เริ่มต้น ➔ ล่าสุดที่บันทึก)
+      </h4>
+      <div class="personal-stats-grid">
+        <!-- Stat 1: Weight change -->
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary-light);">⚖️</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">น้ำหนักเปลี่ยนแปลง</span>
+            <span class="personal-stat-value">${weightChangeHtml}</span>
+          </div>
+        </div>
+        
+        <!-- Stat 2: Body Age change -->
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--secondary-glow); color: var(--secondary-light);">🧠</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">อายุร่างกายเปลี่ยนแปลง</span>
+            <span class="personal-stat-value">${bodyageChangeHtml}</span>
+          </div>
+        </div>
+        
+        <!-- Stat 3: BMI change -->
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">📊</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">ดัชนีมวลกาย (BMI)</span>
+            <span class="personal-stat-value">${bmiChangeHtml}</span>
+          </div>
+        </div>
+        
+        <!-- Stat 4: Muscle change -->
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary);">💪</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">มวลกล้ามเนื้อ</span>
+            <span class="personal-stat-value">${muscleChangeHtml}</span>
+          </div>
+        </div>
+
+        <!-- Stat 5: Fat change -->
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #f87171;">📉</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">อัตราไขมัน</span>
+            <span class="personal-stat-value">${fatChangeHtml}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 columns months details -->
+      <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
+        <span>📈</span> รายละเอียดข้อมูลรายเดือน
+      </h4>
+      <div class="personal-months-grid">
+        ${colM1}
+        ${colM2}
+        ${colM3}
+      </div>
+
+      <!-- side by side progression photos -->
+      ${galleryHtml}
+    </div>
+  `;
+  
+  elements.personalProfileDisplay.style.display = 'block';
+}
 
