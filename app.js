@@ -107,8 +107,8 @@ const elements = {
 
 
 // Supabase Configuration
-const SUPABASE_URL = 'https://cgjiscsjzqqhmslxzcnl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnamlzY3NqenFxaG1zbHh6Y25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTM3NjcsImV4cCI6MjA4MDk2OTc2N30.PKdCz6m5p9VJpTbmdU454r3E_BpIbeY2h0lIz77V54w';
+const SUPABASE_URL = 'https://qbexpencecrkpsqxiwbd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXhwZW5jZWNya3BzcXhpd2JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NjczMDMsImV4cCI6MjA5NjQ0MzMwM30.AZidMwQN-szC2BgrciaSwOhEp-sz9M18kiAbxBDmAbo';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
