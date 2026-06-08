@@ -2427,8 +2427,8 @@ function showPersonalProfile(empId, selectedGender = null) {
     
     let muscleHtml = '-';
     if (m.muscle !== undefined && m.muscle !== null) {
-      if (selectedGender) {
-        const status = getMuscleStatus(m.muscle, selectedGender);
+      if (gender) {
+        const status = getMuscleStatus(m.muscle, gender);
         muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
       } else {
         muscleHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.muscle}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
@@ -2437,8 +2437,8 @@ function showPersonalProfile(empId, selectedGender = null) {
     
     let fatHtml = '-';
     if (m.fat !== undefined && m.fat !== null) {
-      if (selectedGender) {
-        const status = getFatStatus(m.fat, selectedGender);
+      if (gender) {
+        const status = getFatStatus(m.fat, gender);
         fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
       } else {
         fatHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.fat}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
@@ -2505,8 +2505,8 @@ function showPersonalProfile(empId, selectedGender = null) {
               <!-- Inline Gender Selector -->
               <span class="personal-meta-badge" style="background: rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
                 ⚧️ ระบุเพศ:
-                <button onclick="setProfileGender('male')" style="background: ${selectedGender === 'male' ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${selectedGender === 'male' ? 'var(--primary-light)' : 'rgba(255,255,255,0.1)'}; color: ${selectedGender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${selectedGender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
-                <button onclick="setProfileGender('female')" style="background: ${selectedGender === 'female' ? '#ec4899' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${selectedGender === 'female' ? '#ff85c0' : 'rgba(255,255,255,0.1)'}; color: ${selectedGender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${selectedGender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
+                <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'rgba(255,255,255,0.1)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
+                <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? '#ec4899' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${gender === 'female' ? '#ff85c0' : 'rgba(255,255,255,0.1)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
               </span>
             </div>
           </div>
