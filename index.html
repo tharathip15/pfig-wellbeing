@@ -269,7 +269,14 @@
             
             <div class="form-group">
               <label class="form-label" for="form-department">แผนก / ฝ่าย *</label>
-              <input type="text" class="form-control" id="form-department" placeholder="เช่น บัญชี, การตลาด, ไอที" required>
+              <select class="form-control" id="form-department" required>
+                <option value="" disabled selected>-- เลือกแผนก --</option>
+                <option value="Corporate">Corporate</option>
+                <option value="Finance & Acc">Finance & Acc</option>
+                <option value="Logistics">Logistics</option>
+                <option value="Sales">Sales</option>
+                <option value="Procurement">Procurement</option>
+              </select>
             </div>
 
             <div class="form-group">

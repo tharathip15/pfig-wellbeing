@@ -566,7 +566,9 @@ function updateUI() {
 
 // Dynamically populate department dropdown based on available departments in DB
 function populateDepartmentFilter() {
-  const depts = [...new Set(employees.map(emp => emp.department))].filter(Boolean).sort();
+  const predefined = ['Corporate', 'Finance & Acc', 'Logistics', 'Sales', 'Procurement'];
+  const dbDepts = employees.map(emp => emp.department).filter(Boolean);
+  const depts = [...new Set([...predefined, ...dbDepts])].sort();
   
   // Save current selection value
   const currentVal = elements.filterDept.value;
@@ -584,6 +586,7 @@ function populateDepartmentFilter() {
   if (depts.includes(currentVal)) {
     elements.filterDept.value = currentVal;
   } else {
+    elements.filterDept.value = '';
     currentFilterDept = '';
   }
 }
