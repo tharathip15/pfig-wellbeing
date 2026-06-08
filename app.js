@@ -2409,48 +2409,44 @@ function showPersonalProfile(empId) {
         <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
           <span>📋</span> ตารางเกณฑ์ค่ามาตรฐานสุขภาพสำหรับเปรียบเทียบแนวทาง
         </h4>
-        <div class="reference-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        <div class="reference-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem;">
           <!-- BMI Card -->
           <div class="reference-card" style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 1.25rem;">
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-light); display: flex; align-items: center; gap: 0.4rem;">
               <span>📊</span> ดัชนีมวลกาย (BMI) - เกณฑ์เอเชีย
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-                  <th style="padding: 0.4rem; color: var(--text-muted);">ช่วงค่า BMI</th>
-                  <th style="padding: 0.4rem; color: var(--text-muted);">ความหมาย</th>
-                  <th style="padding: 0.4rem; color: var(--text-muted); text-align: right;">สถานะ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                  <td style="padding: 0.4rem;">น้อยกว่า 18.5</td>
-                  <td style="padding: 0.4rem;">น้ำหนักน้อยกว่าเกณฑ์ / ผอม</td>
-                  <td style="padding: 0.4rem; text-align: right; color: var(--warning);">บางเกินไป</td>
-                </tr>
-                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.03); background: rgba(16, 185, 129, 0.05);">
-                  <td style="padding: 0.4rem; font-weight: 600; color: var(--primary-light);">18.5 - 22.9</td>
-                  <td style="padding: 0.4rem; font-weight: 600; color: var(--primary-light);">สมส่วน / น้ำหนักปกติ</td>
-                  <td style="padding: 0.4rem; text-align: right; color: var(--success); font-weight: 600;">สุขภาพดี 🌱</td>
-                </tr>
-                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                  <td style="padding: 0.4rem;">23.0 - 24.9</td>
-                  <td style="padding: 0.4rem;">น้ำหนักเกินเกณฑ์มาตรฐาน</td>
-                  <td style="padding: 0.4rem; text-align: right; color: var(--warning);">น้ำหนักเกิน / เริ่มท้วม</td>
-                </tr>
-                <tr style="border-bottom: 1px dashed rgba(255,255,255,0.03);">
-                  <td style="padding: 0.4rem;">25.0 - 29.9</td>
-                  <td style="padding: 0.4rem;">โรคอ้วน ระดับ 1</td>
-                  <td style="padding: 0.4rem; text-align: right; color: var(--danger);">อ้วนระดับ 1</td>
-                </tr>
-                <tr>
-                  <td style="padding: 0.4rem;">30.0 ขึ้นไป</td>
-                  <td style="padding: 0.4rem;">โรคอ้วน ระดับ 2</td>
-                  <td style="padding: 0.4rem; text-align: right; color: var(--danger); font-weight: 600;">อ้วนระดับ 2 ⚠️</td>
-                </tr>
-              </tbody>
-            </table>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.4rem; color: var(--text-muted); font-weight: 600; gap: 0.5rem;">
+                <span style="flex: 1.2; min-width: 80px;">ช่วงค่า BMI</span>
+                <span style="flex: 2;">ความหมาย</span>
+                <span style="flex: 1.5; text-align: right;">สถานะ</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+                <span style="flex: 1.2; min-width: 80px;">น้อยกว่า 18.5</span>
+                <span style="flex: 2; color: var(--text-muted);">น้ำหนักน้อยกว่าเกณฑ์ / ผอม</span>
+                <span style="flex: 1.5; text-align: right; color: var(--warning);">บางเกินไป</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0.4rem; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center; background: rgba(16, 185, 129, 0.05); margin: 0 -0.4rem; border-radius: 6px;">
+                <span style="flex: 1.2; min-width: 80px; font-weight: 600; color: var(--primary-light);">18.5 - 22.9</span>
+                <span style="flex: 2; font-weight: 600; color: var(--primary-light);">สมส่วน / น้ำหนักปกติ</span>
+                <span style="flex: 1.5; text-align: right; color: var(--success); font-weight: 600;">สุขภาพดี 🌱</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+                <span style="flex: 1.2; min-width: 80px;">23.0 - 24.9</span>
+                <span style="flex: 2; color: var(--text-muted);">น้ำหนักเกินเกณฑ์มาตรฐาน</span>
+                <span style="flex: 1.5; text-align: right; color: var(--warning);">น้ำหนักเกิน / เริ่มท้วม</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+                <span style="flex: 1.2; min-width: 80px;">25.0 - 29.9</span>
+                <span style="flex: 2; color: var(--text-muted);">โรคอ้วน ระดับ 1</span>
+                <span style="flex: 1.5; text-align: right; color: var(--danger);">อ้วนระดับ 1</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; gap: 0.5rem; align-items: center;">
+                <span style="flex: 1.2; min-width: 80px;">30.0 ขึ้นไป</span>
+                <span style="flex: 2; color: var(--text-muted);">โรคอ้วน ระดับ 2</span>
+                <span style="flex: 1.5; text-align: right; color: var(--danger); font-weight: 600;">อ้วนระดับ 2 ⚠️</span>
+              </div>
+            </div>
           </div>
 
           <!-- Body Fat Card -->
@@ -2458,19 +2454,19 @@ function showPersonalProfile(empId) {
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: #f87171; display: flex; align-items: center; gap: 0.4rem;">
               <span>📉</span> ไขมันในร่างกาย (Body Fat %)
             </div>
-            <div style="display: flex; gap: 1rem;">
-              <div style="flex: 1;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
+              <div>
                 <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0;">
+                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--text-main);">6 - 13%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">14 - 17%:</span> หุ่นฟิต สมส่วน</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">18 - 24%:</span> สุขภาพดีมาตรฐาน</li>
                   <li><span style="color: var(--danger); font-weight: 600;">&ge; 25%:</span> สูงเกินเกณฑ์ (อ้วน)</li>
                 </ul>
               </div>
-              <div style="flex: 1;">
+              <div>
                 <div style="font-size: 0.8rem; font-weight: 600; color: #ec4899; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0;">
+                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--text-main);">14 - 20%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">21 - 24%:</span> หุ่นฟิต สมส่วน</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">25 - 31%:</span> สุขภาพดีมาตรฐาน</li>
@@ -2485,18 +2481,18 @@ function showPersonalProfile(empId) {
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary-light); display: flex; align-items: center; gap: 0.4rem;">
               <span>💪</span> มวลกล้ามเนื้อในร่างกาย (Muscle %)
             </div>
-            <div style="display: flex; gap: 1rem;">
-              <div style="flex: 1;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
+              <div>
                 <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0;">
+                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 33%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">33 - 40%:</span> มาตรฐานปกติ</li>
                   <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 40%:</span> มวลกล้ามเนื้อสูง/ฟิต</li>
                 </ul>
               </div>
-              <div style="flex: 1;">
+              <div>
                 <div style="font-size: 0.8rem; font-weight: 600; color: #ec4899; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0;">
+                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 27%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">27 - 35%:</span> มาตรฐานปกติ</li>
                   <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 35%:</span> มวลกล้ามเนื้อสูง/ฟิต</li>
