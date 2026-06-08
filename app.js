@@ -454,6 +454,49 @@ function setupEventListeners() {
   elements.presBtnNext.addEventListener('click', handlePresentationNext);
   elements.presBtnBack.addEventListener('click', handlePresentationBack);
   elements.presBtnRevealAction.addEventListener('click', revealAwardCard);
+
+  // Photo input event listeners
+  const setupPhotoInput = (inputId, previewId, hiddenInputId) => {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    const hidden = document.getElementById(hiddenInputId);
+    
+    if (input) {
+      input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        showLoader(true);
+        try {
+          const compressedBase64 = await compressImage(file, 400, 400, 0.7);
+          hidden.value = compressedBase64;
+          preview.querySelector('img').src = compressedBase64;
+          preview.style.display = 'block';
+          showToast('โหลดรูปภาพสำเร็จ', 'success', 2000);
+        } catch (err) {
+          console.error(err);
+          showToast('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ', 'error');
+        }
+        showLoader(false);
+      });
+    }
+  };
+  
+  setupPhotoInput('form-m1-photo-input', 'form-m1-photo-preview', 'form-m1-photo-data');
+  setupPhotoInput('form-m2-photo-input', 'form-m2-photo-preview', 'form-m2-photo-data');
+  setupPhotoInput('form-m3-photo-input', 'form-m3-photo-preview', 'form-m3-photo-data');
+
+  // Close gallery listeners
+  const closeGalleryBtn = document.getElementById('btn-close-gallery-modal');
+  if (closeGalleryBtn) {
+    closeGalleryBtn.addEventListener('click', window.closePhotoGallery);
+  }
+  const galleryModal = document.getElementById('photo-gallery-modal');
+  if (galleryModal) {
+    galleryModal.addEventListener('click', (e) => {
+      if (e.target === galleryModal) window.closePhotoGallery();
+    });
+  }
 }
 
 
@@ -708,9 +751,24 @@ function renderTable(filteredEmployees) {
     
     // Col 1: Basic Info Name
     const tdName = document.createElement('td');
+    const hasPhotos = (emp.months.m1 && emp.months.m1.photo) || 
+                      (emp.months.m2 && emp.months.m2.photo) || 
+                      (emp.months.m3 && emp.months.m3.photo);
+                      
+    const galleryBtn = hasPhotos 
+      ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>`
+      : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
+      
     tdName.innerHTML = `
-      <div class="td-name">${emp.name}</div>
-      <div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; width: 100%;">
+        <div>
+          <div class="td-name">${emp.name}</div>
+          <div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div>
+        </div>
+        <div>
+          ${galleryBtn}
+        </div>
+      </div>
     `;
     tr.appendChild(tdName);
     
@@ -967,6 +1025,11 @@ function openModal(mode, id = null) {
     elements.formM1Bmi.value = '';
     elements.formM2Bmi.value = '';
     elements.formM3Bmi.value = '';
+    
+    // Reset Photos
+    removePhoto(1);
+    removePhoto(2);
+    removePhoto(3);
   } else {
     elements.modalHeadline.textContent = 'แก้ไขข้อมูลพนักงาน';
     const emp = employees.find(e => e.id === id);
@@ -988,6 +1051,14 @@ function openModal(mode, id = null) {
     elements.formM1Muscle.value = emp.months.m1.muscle || '';
     elements.formM1Fat.value = emp.months.m1.fat || '';
     
+    if (emp.months.m1.photo) {
+      document.getElementById('form-m1-photo-data').value = emp.months.m1.photo;
+      document.getElementById('form-m1-photo-preview').querySelector('img').src = emp.months.m1.photo;
+      document.getElementById('form-m1-photo-preview').style.display = 'block';
+    } else {
+      removePhoto(1);
+    }
+    
     // Fill Month 2
     if (emp.months.m2) {
       elements.formM2Weight.value = emp.months.m2.weight || '';
@@ -995,12 +1066,21 @@ function openModal(mode, id = null) {
       elements.formM2Bmi.value = emp.months.m2.bmi || '';
       elements.formM2Muscle.value = emp.months.m2.muscle || '';
       elements.formM2Fat.value = emp.months.m2.fat || '';
+      
+      if (emp.months.m2.photo) {
+        document.getElementById('form-m2-photo-data').value = emp.months.m2.photo;
+        document.getElementById('form-m2-photo-preview').querySelector('img').src = emp.months.m2.photo;
+        document.getElementById('form-m2-photo-preview').style.display = 'block';
+      } else {
+        removePhoto(2);
+      }
     } else {
       elements.formM2Weight.value = '';
       elements.formM2Bodyage.value = '';
       elements.formM2Bmi.value = '';
       elements.formM2Muscle.value = '';
       elements.formM2Fat.value = '';
+      removePhoto(2);
     }
     
     // Fill Month 3
@@ -1010,12 +1090,21 @@ function openModal(mode, id = null) {
       elements.formM3Bmi.value = emp.months.m3.bmi || '';
       elements.formM3Muscle.value = emp.months.m3.muscle || '';
       elements.formM3Fat.value = emp.months.m3.fat || '';
+      
+      if (emp.months.m3.photo) {
+        document.getElementById('form-m3-photo-data').value = emp.months.m3.photo;
+        document.getElementById('form-m3-photo-preview').querySelector('img').src = emp.months.m3.photo;
+        document.getElementById('form-m3-photo-preview').style.display = 'block';
+      } else {
+        removePhoto(3);
+      }
     } else {
       elements.formM3Weight.value = '';
       elements.formM3Bodyage.value = '';
       elements.formM3Bmi.value = '';
       elements.formM3Muscle.value = '';
       elements.formM3Fat.value = '';
+      removePhoto(3);
     }
   }
   
@@ -1041,12 +1130,14 @@ async function saveForm() {
   const m1_muscle = parseFloat(elements.formM1Muscle.value);
   const m1_fat = parseFloat(elements.formM1Fat.value);
   const m1_bmi = calcBMI(m1_weight, height);
+  const m1_photo = document.getElementById('form-m1-photo-data').value || null;
   
   // Month 2
   const m2_weight = parseFloat(elements.formM2Weight.value);
   const m2_bodyage = parseInt(elements.formM2Bodyage.value);
   const m2_muscle = parseFloat(elements.formM2Muscle.value);
   const m2_fat = parseFloat(elements.formM2Fat.value);
+  const m2_photo = document.getElementById('form-m2-photo-data').value || null;
   let m2 = null;
   if (!isNaN(m2_weight) && !isNaN(m2_bodyage)) {
     m2 = {
@@ -1054,7 +1145,17 @@ async function saveForm() {
       bodyage: m2_bodyage,
       bmi: calcBMI(m2_weight, height),
       muscle: isNaN(m2_muscle) ? null : m2_muscle,
-      fat: isNaN(m2_fat) ? null : m2_fat
+      fat: isNaN(m2_fat) ? null : m2_fat,
+      photo: m2_photo
+    };
+  } else if (m2_photo) {
+    m2 = {
+      weight: null,
+      bodyage: null,
+      bmi: null,
+      muscle: null,
+      fat: null,
+      photo: m2_photo
     };
   }
   
@@ -1063,6 +1164,7 @@ async function saveForm() {
   const m3_bodyage = parseInt(elements.formM3Bodyage.value);
   const m3_muscle = parseFloat(elements.formM3Muscle.value);
   const m3_fat = parseFloat(elements.formM3Fat.value);
+  const m3_photo = document.getElementById('form-m3-photo-data').value || null;
   let m3 = null;
   if (!isNaN(m3_weight) && !isNaN(m3_bodyage)) {
     m3 = {
@@ -1070,12 +1172,29 @@ async function saveForm() {
       bodyage: m3_bodyage,
       bmi: calcBMI(m3_weight, height),
       muscle: isNaN(m3_muscle) ? null : m3_muscle,
-      fat: isNaN(m3_fat) ? null : m3_fat
+      fat: isNaN(m3_fat) ? null : m3_fat,
+      photo: m3_photo
+    };
+  } else if (m3_photo) {
+    m3 = {
+      weight: null,
+      bodyage: null,
+      bmi: null,
+      muscle: null,
+      fat: null,
+      photo: m3_photo
     };
   }
   
   const months = {
-    m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: isNaN(m1_muscle) ? null : m1_muscle, fat: isNaN(m1_fat) ? null : m1_fat },
+    m1: { 
+      weight: m1_weight, 
+      bodyage: m1_bodyage, 
+      bmi: m1_bmi, 
+      muscle: isNaN(m1_muscle) ? null : m1_muscle, 
+      fat: isNaN(m1_fat) ? null : m1_fat,
+      photo: m1_photo
+    },
     m2,
     m3
   };
@@ -1863,4 +1982,90 @@ function handlePresentationBack() {
     goPresentationStage(currentPresentationStage - 1);
   }
 }
+
+// Compress image client side using Canvas
+function compressImage(file, maxWidth = 500, maxHeight = 500, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+// Remove photo helper
+window.removePhoto = function(monthNum) {
+  const fileInput = document.getElementById(`form-m${monthNum}-photo-input`);
+  const dataInput = document.getElementById(`form-m${monthNum}-photo-data`);
+  const previewDiv = document.getElementById(`form-m${monthNum}-photo-preview`);
+  
+  if (fileInput) fileInput.value = '';
+  if (dataInput) dataInput.value = '';
+  if (previewDiv) {
+    previewDiv.style.display = 'none';
+    previewDiv.querySelector('img').src = '';
+  }
+};
+
+// Photo Gallery Modal triggers
+window.openPhotoGallery = function(empId) {
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+  
+  document.getElementById('photo-gallery-title').textContent = `รูปภาพเปรียบเทียบความคืบหน้า - ${emp.name}`;
+  
+  const renderCard = (monthKey, label, imgContainerId, metaId) => {
+    const m = emp.months[monthKey];
+    const container = document.getElementById(imgContainerId);
+    const meta = document.getElementById(metaId);
+    
+    if (m && m.photo) {
+      container.innerHTML = `<img src="${m.photo}" alt="${label}">`;
+      const wText = m.weight ? `${m.weight} kg` : '- kg';
+      const bmiText = m.bmi ? `BMI: ${m.bmi}` : 'BMI: -';
+      meta.textContent = `${wText} | ${bmiText}`;
+    } else {
+      container.innerHTML = `<div class="image-placeholder">ไม่มีรูปถ่าย</div>`;
+      meta.textContent = `- kg | BMI: -`;
+    }
+  };
+  
+  renderCard('m1', 'เดือน 1', 'gallery-m1-img-container', 'gallery-m1-meta');
+  renderCard('m2', 'เดือน 2', 'gallery-m2-img-container', 'gallery-m2-meta');
+  renderCard('m3', 'เดือน 3', 'gallery-m3-img-container', 'gallery-m3-meta');
+  
+  document.getElementById('photo-gallery-modal').classList.add('active');
+};
+
+window.closePhotoGallery = function() {
+  document.getElementById('photo-gallery-modal').classList.remove('active');
+};
 

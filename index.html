@@ -321,6 +321,19 @@
               <label class="form-label" for="form-m1-fat">ไขมัน (%) *</label>
               <input type="number" class="form-control" id="form-m1-fat" step="0.1" min="3" max="95" required>
             </div>
+
+            <div class="form-group">
+              <label class="form-label">รูปถ่ายความคืบหน้า</label>
+              <div class="image-upload-wrapper">
+                <input type="file" id="form-m1-photo-input" accept="image/*" capture="environment" style="display: none;">
+                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m1-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
+                <input type="hidden" id="form-m1-photo-data">
+                <div class="photo-preview-thumbnail" id="form-m1-photo-preview" style="display: none;">
+                  <img src="" alt="preview">
+                  <span class="remove-photo-btn" onclick="removePhoto(1)">&times;</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Section 3: Month 2 Metrics -->
@@ -353,6 +366,19 @@
             <div class="form-group">
               <label class="form-label" for="form-m2-fat">ไขมัน (%)</label>
               <input type="number" class="form-control" id="form-m2-fat" step="0.1" min="3" max="95">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">รูปถ่ายความคืบหน้า</label>
+              <div class="image-upload-wrapper">
+                <input type="file" id="form-m2-photo-input" accept="image/*" capture="environment" style="display: none;">
+                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m2-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
+                <input type="hidden" id="form-m2-photo-data">
+                <div class="photo-preview-thumbnail" id="form-m2-photo-preview" style="display: none;">
+                  <img src="" alt="preview">
+                  <span class="remove-photo-btn" onclick="removePhoto(2)">&times;</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -387,6 +413,19 @@
               <label class="form-label" for="form-m3-fat">ไขมัน (%)</label>
               <input type="number" class="form-control" id="form-m3-fat" step="0.1" min="3" max="95">
             </div>
+
+            <div class="form-group">
+              <label class="form-label">รูปถ่ายความคืบหน้า</label>
+              <div class="image-upload-wrapper">
+                <input type="file" id="form-m3-photo-input" accept="image/*" capture="environment" style="display: none;">
+                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m3-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
+                <input type="hidden" id="form-m3-photo-data">
+                <div class="photo-preview-thumbnail" id="form-m3-photo-preview" style="display: none;">
+                  <img src="" alt="preview">
+                  <span class="remove-photo-btn" onclick="removePhoto(3)">&times;</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <p style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">
@@ -399,6 +438,44 @@
           <button type="submit" class="btn btn-primary" id="btn-save-employee">บันทึกข้อมูล</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Photo Comparison Gallery Modal -->
+  <div class="modal-overlay" id="photo-gallery-modal">
+    <div class="modal-content" style="max-width: 750px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="photo-gallery-title">รูปภาพเปรียบเทียบความคืบหน้า</h3>
+        <button class="modal-close" id="btn-close-gallery-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="photo-comparison-grid">
+          <!-- Month 1 -->
+          <div class="comparison-card">
+            <div class="comparison-card-header">เดือน 1 (เริ่มต้น)</div>
+            <div class="comparison-card-image" id="gallery-m1-img-container">
+              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
+            </div>
+            <div class="comparison-card-meta" id="gallery-m1-meta">- kg | BMI: -</div>
+          </div>
+          <!-- Month 2 -->
+          <div class="comparison-card">
+            <div class="comparison-card-header">เดือน 2 (ความคืบหน้า)</div>
+            <div class="comparison-card-image" id="gallery-m2-img-container">
+              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
+            </div>
+            <div class="comparison-card-meta" id="gallery-m2-meta">- kg | BMI: -</div>
+          </div>
+          <!-- Month 3 -->
+          <div class="comparison-card">
+            <div class="comparison-card-header">เดือน 3 (ผลลัพธ์สุดท้าย)</div>
+            <div class="comparison-card-image" id="gallery-m3-img-container">
+              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
+            </div>
+            <div class="comparison-card-meta" id="gallery-m3-meta">- kg | BMI: -</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
