@@ -43,7 +43,6 @@ const elements = {
   filterDept: document.getElementById('filter-department'),
   filterProgress: document.getElementById('filter-progress'),
   pageSizeSelect: document.getElementById('select-page-size'),
-  btnClearDb: document.getElementById('btn-clear-db'),
   btnExportCsv: document.getElementById('btn-export-csv'),
   btnDownloadTemplate: document.getElementById('btn-download-template'),
   csvFileInput: document.getElementById('csv-file-input'),
@@ -406,29 +405,7 @@ function setupEventListeners() {
     updateUI();
   });
 
-  // Clear Database
-  elements.btnClearDb.addEventListener('click', async () => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างฐานข้อมูลพนักงานทั้งหมด? การดำเนินการนี้ไม่สามารถย้อนกลับได้')) {
-      showLoader(true);
-      try {
-        const { error } = await supabaseClient
-          .from('pfig_employees')
-          .delete()
-          .gte('created_at', '1970-01-01T00:00:00Z');
-          
-        if (error) {
-          showToast('เกิดข้อผิดพลาดในการล้างฐานข้อมูล: ' + error.message, 'error');
-          console.error(error);
-        } else {
-          showToast('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success');
-        }
-      } catch (err) {
-        console.error(err);
-        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
-      }
-      showLoader(false);
-    }
-  });
+
 
 
 
