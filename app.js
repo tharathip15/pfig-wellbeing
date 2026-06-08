@@ -1269,6 +1269,11 @@ async function saveForm() {
     };
   }
   
+  // Preserve existing gender value if editing
+  const editingId = elements.formId.value;
+  const existingEmp = modalMode === 'edit' ? employees.find(e => e.id === editingId) : null;
+  const existingGender = existingEmp && existingEmp.months ? existingEmp.months.gender : null;
+
   const months = {
     m1: { 
       weight: m1_weight, 
@@ -1281,6 +1286,10 @@ async function saveForm() {
     m2,
     m3
   };
+  
+  if (existingGender) {
+    months.gender = existingGender;
+  }
   
   showLoader(true);
   try {
@@ -2227,8 +2236,40 @@ function switchToAdminView() {
 // --- Dynamic Personal Profile Renderer ---
 let currentProfileEmpId = null;
 
-window.setProfileGender = function(gender) {
-  if (currentProfileEmpId) {
+window.setProfileGender = async function(gender) {
+  if (!currentProfileEmpId) return;
+  
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  if (!emp) return;
+  
+  const currentSavedGender = emp.months ? emp.months.gender : null;
+  if (currentSavedGender !== gender) {
+    if (!emp.months) emp.months = {};
+    emp.months.gender = gender;
+    
+    // Immediately show changes on screen
+    showPersonalProfile(currentProfileEmpId, gender);
+    
+    // Save selection to Supabase database
+    try {
+      showLoader(true);
+      const { error } = await supabaseClient
+        .from('pfig_employees')
+        .update({ months: emp.months })
+        .eq('id', emp.id);
+        
+      if (error) {
+        console.error('Failed to save gender:', error);
+        showToast('ไม่สามารถบันทึกเพศในฐานข้อมูลได้: ' + error.message, 'error');
+      } else {
+        showToast('บันทึกข้อมูลเพศลงฐานข้อมูลเรียบร้อยแล้ว', 'success');
+      }
+    } catch (err) {
+      console.error('Error saving gender to DB:', err);
+    } finally {
+      showLoader(false);
+    }
+  } else {
     showPersonalProfile(currentProfileEmpId, gender);
   }
 };
@@ -2237,6 +2278,9 @@ function showPersonalProfile(empId, selectedGender = null) {
   currentProfileEmpId = empId;
   const emp = employees.find(e => e.id === empId);
   if (!emp) return;
+
+  // Use saved gender from DB by default, fallback to selectedGender parameter
+  const gender = selectedGender || (emp.months ? emp.months.gender : null);
 
   // Status evaluators
   const getBmiStatus = (bmiVal) => {
