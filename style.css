@@ -1629,3 +1629,80 @@ td {
   }
 }
 
+/* --- Additional Mobile Optimization Styles --- */
+@media (max-width: 600px) {
+  header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1.5rem;
+  }
+  .logo-group {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 0.5rem;
+  }
+  .header-actions .btn {
+    flex-grow: 1;
+    font-size: 0.8rem !important;
+    padding: 0.5rem 0.8rem;
+    justify-content: center;
+  }
+  .control-panel {
+    padding: 1rem;
+  }
+  .search-filters {
+    flex-direction: column;
+    width: 100%;
+  }
+  .search-input-wrapper {
+    max-width: 100% !important;
+    width: 100%;
+    min-width: 100%;
+  }
+  .select-filter {
+    width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Award presentation card scaling */
+  .pres-card-container {
+    width: 290px;
+    height: 400px;
+  }
+  .reveal-rank-title {
+    font-size: 1.8rem;
+  }
+  .reveal-prize-title {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+  }
+  .revealed-trophy {
+    font-size: 3.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .revealed-name {
+    font-size: 1.4rem;
+  }
+  .revealed-dept {
+    margin-bottom: 1rem;
+  }
+  .revealed-metrics {
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+  .revealed-box-val {
+    font-size: 0.9rem;
+  }
+  .revealed-sub-stats {
+    padding-top: 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+
