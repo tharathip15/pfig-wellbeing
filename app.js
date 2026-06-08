@@ -2282,6 +2282,52 @@ function showPersonalProfile(empId, selectedGender = null) {
   // Use saved gender from DB by default, fallback to selectedGender parameter
   const gender = selectedGender || (emp.months ? emp.months.gender : null);
 
+  // Show gender selection popup modal if not yet set in database
+  if (!gender && !selectedGender) {
+    let existingModal = document.getElementById('gender-selection-modal');
+    if (!existingModal) {
+      const modalOverlay = document.createElement('div');
+      modalOverlay.className = 'modal-overlay active';
+      modalOverlay.id = 'gender-selection-modal';
+      modalOverlay.style.zIndex = '2000';
+      modalOverlay.style.display = 'flex';
+      modalOverlay.style.alignItems = 'center';
+      modalOverlay.style.justifyContent = 'center';
+      
+      modalOverlay.innerHTML = `
+        <div class="modal-content animate-scale" style="max-width: 380px; text-align: center; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); padding: 2rem; border-radius: 16px;">
+          <div style="font-size: 3rem; margin-bottom: 0.75rem;">⚧️</div>
+          <h3 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">ระบุเพศของคุณ</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5; font-family: 'Outfit', sans-serif;">เพื่อใช้เปรียบเทียบและประเมินผลลัพธ์มวลกล้ามเนื้อและปริมาณไขมันในร่างกายตามเกณฑ์มาตรฐานสุขภาพ</p>
+          
+          <div style="display: flex; gap: 0.85rem; justify-content: center;">
+            <button onclick="saveSelectedGender('male')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--primary); color: var(--primary-light); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
+              <span style="font-size: 1.5rem;">👨</span>
+              <span style="font-weight: 600;">ชาย (Men)</span>
+            </button>
+            <button onclick="saveSelectedGender('female')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: rgba(236, 72, 153, 0.1); border: 1px solid #ec4899; color: #ff85c0; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
+              <span style="font-size: 1.5rem;">👩</span>
+              <span style="font-weight: 600;">หญิง (Women)</span>
+            </button>
+          </div>
+          
+          <button onclick="cancelGenderSelection()" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; margin-top: 1.25rem; cursor: pointer; text-decoration: underline; font-family: 'Outfit', sans-serif;">ข้ามไปก่อน (Skip)</button>
+        </div>
+      `;
+      
+      document.body.appendChild(modalOverlay);
+      
+      window.saveSelectedGender = async function(chosenGender) {
+        modalOverlay.remove();
+        await setProfileGender(chosenGender);
+      };
+      
+      window.cancelGenderSelection = function() {
+        modalOverlay.remove();
+      };
+    }
+  }
+
   // Status evaluators
   const getBmiStatus = (bmiVal) => {
     const bmi = parseFloat(bmiVal);
