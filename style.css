@@ -1641,6 +1641,9 @@ td {
     align-items: center;
     gap: 0.5rem;
   }
+  .logo-text h1 {
+    justify-content: center;
+  }
   .header-actions {
     flex-wrap: wrap;
     justify-content: center;
