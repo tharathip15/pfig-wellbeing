@@ -290,7 +290,7 @@
           <div class="month-record-grid">
             <div class="month-label">
               <span class="month-dot month-dot-1"></span>
-              <span>บันทึกข้อมูล เดือนที่ 1 (เริ่มต้น)</span>
+              <span>บันทึกข้อมูล เดือนที่ 1 (เริ่มต้น) *</span>
             </div>
             
             <div class="form-group">
@@ -306,6 +306,16 @@
             <div class="form-group">
               <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
               <input type="text" class="form-control" id="form-m1-bmi" disabled placeholder="-">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m1-muscle">กล้ามเนื้อ (%) *</label>
+              <input type="number" class="form-control" id="form-m1-muscle" step="0.1" min="5" max="95" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m1-fat">ไขมัน (%) *</label>
+              <input type="number" class="form-control" id="form-m1-fat" step="0.1" min="3" max="95" required>
             </div>
           </div>
 
@@ -330,6 +340,16 @@
               <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
               <input type="text" class="form-control" id="form-m2-bmi" disabled placeholder="-">
             </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m2-muscle">กล้ามเนื้อ (%)</label>
+              <input type="number" class="form-control" id="form-m2-muscle" step="0.1" min="5" max="95">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m2-fat">ไขมัน (%)</label>
+              <input type="number" class="form-control" id="form-m2-fat" step="0.1" min="3" max="95">
+            </div>
           </div>
 
           <!-- Section 4: Month 3 Metrics -->
@@ -352,6 +372,16 @@
             <div class="form-group">
               <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
               <input type="text" class="form-control" id="form-m3-bmi" disabled placeholder="-">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m3-muscle">กล้ามเนื้อ (%)</label>
+              <input type="number" class="form-control" id="form-m3-muscle" step="0.1" min="5" max="95">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-m3-fat">ไขมัน (%)</label>
+              <input type="number" class="form-control" id="form-m3-fat" step="0.1" min="3" max="95">
             </div>
           </div>
 

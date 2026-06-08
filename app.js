@@ -71,14 +71,20 @@ const elements = {
   formM1Weight: document.getElementById('form-m1-weight'),
   formM1Bodyage: document.getElementById('form-m1-bodyage'),
   formM1Bmi: document.getElementById('form-m1-bmi'),
+  formM1Muscle: document.getElementById('form-m1-muscle'),
+  formM1Fat: document.getElementById('form-m1-fat'),
   
   formM2Weight: document.getElementById('form-m2-weight'),
   formM2Bodyage: document.getElementById('form-m2-bodyage'),
   formM2Bmi: document.getElementById('form-m2-bmi'),
+  formM2Muscle: document.getElementById('form-m2-muscle'),
+  formM2Fat: document.getElementById('form-m2-fat'),
   
   formM3Weight: document.getElementById('form-m3-weight'),
   formM3Bodyage: document.getElementById('form-m3-bodyage'),
   formM3Bmi: document.getElementById('form-m3-bmi'),
+  formM3Muscle: document.getElementById('form-m3-muscle'),
+  formM3Fat: document.getElementById('form-m3-fat'),
   
   // Toast container
   toastWrapper: document.getElementById('toast-wrapper'),
@@ -335,6 +341,8 @@ function generateMockData() {
     // Body age could be higher than actual age (stressed/overweight)
     const m1_bodyage = age + Math.floor(Math.random() * 8) - 1; // age-1 to age+6
     const m1_bmi = calcBMI(m1_weight, height);
+    const m1_muscle = parseFloat((25 + Math.random() * 15).toFixed(1));
+    const m1_fat = parseFloat((15 + Math.random() * 25).toFixed(1));
     
     // Generate records for Month 2 and Month 3 (with varying degree of success)
     // 85% of people completed month 2, 75% completed month 3
@@ -352,10 +360,13 @@ function generateMockData() {
       // Month 2 progress (partial weight loss)
       const m2_weight = parseFloat((m1_weight * (1 - weightLossRate * 0.4)).toFixed(1));
       const m2_bodyage = Math.max(15, m1_bodyage - Math.floor(bodyAgeDrop * 0.4));
+      const wLoss = m1_weight - m2_weight;
       m2 = {
         weight: m2_weight,
         bodyage: m2_bodyage,
-        bmi: calcBMI(m2_weight, height)
+        bmi: calcBMI(m2_weight, height),
+        muscle: parseFloat((m1_muscle + wLoss * 0.12).toFixed(1)),
+        fat: parseFloat(Math.max(3, m1_fat - wLoss * 0.45).toFixed(1))
       };
     }
     
@@ -363,10 +374,13 @@ function generateMockData() {
       // Month 3 progress (full weight loss)
       const m3_weight = parseFloat((m1_weight * (1 - weightLossRate)).toFixed(1));
       const m3_bodyage = Math.max(15, m1_bodyage - bodyAgeDrop);
+      const wLoss = m1_weight - m3_weight;
       m3 = {
         weight: m3_weight,
         bodyage: m3_bodyage,
-        bmi: calcBMI(m3_weight, height)
+        bmi: calcBMI(m3_weight, height),
+        muscle: parseFloat((m1_muscle + wLoss * 0.12).toFixed(1)),
+        fat: parseFloat(Math.max(3, m1_fat - wLoss * 0.45).toFixed(1))
       };
     }
     
@@ -377,7 +391,7 @@ function generateMockData() {
       age: age,
       height: height,
       months: {
-        m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi },
+        m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: m1_muscle, fat: m1_fat },
         m2: m2,
         m3: m3
       }
@@ -659,20 +673,24 @@ function renderTable(filteredEmployees) {
     
     // Col 4: Month 1
     const tdM1 = document.createElement('td');
+    const m1_muscle_text = m1.muscle !== undefined && m1.muscle !== null ? `${m1.muscle}%` : '-';
+    const m1_fat_text = m1.fat !== undefined && m1.fat !== null ? `${m1.fat}%` : '-';
     tdM1.innerHTML = `
       <div>⚖️ ${m1.weight} kg</div>
-      <div class="td-subtitle">🧠 อายุร่างกาย: ${m1.bodyage} ปี</div>
-      <div class="td-subtitle">📊 BMI: ${m1.bmi}</div>
+      <div class="td-subtitle">🧠 อายุร่างกาย: ${m1.bodyage} ปี (BMI: ${m1.bmi})</div>
+      <div class="td-subtitle">💪 กล้ามเนื้อ: ${m1_muscle_text} | 📉 ไขมัน: ${m1_fat_text}</div>
     `;
     tr.appendChild(tdM1);
     
     // Col 5: Month 2
     const tdM2 = document.createElement('td');
     if (m2 && m2.weight) {
+      const m2_muscle_text = m2.muscle !== undefined && m2.muscle !== null ? `${m2.muscle}%` : '-';
+      const m2_fat_text = m2.fat !== undefined && m2.fat !== null ? `${m2.fat}%` : '-';
       tdM2.innerHTML = `
         <div>⚖️ ${m2.weight} kg</div>
-        <div class="td-subtitle">🧠 อายุร่างกาย: ${m2.bodyage} ปี</div>
-        <div class="td-subtitle">📊 BMI: ${m2.bmi}</div>
+        <div class="td-subtitle">🧠 อายุร่างกาย: ${m2.bodyage} ปี (BMI: ${m2.bmi})</div>
+        <div class="td-subtitle">💪 กล้ามเนื้อ: ${m2_muscle_text} | 📉 ไขมัน: ${m2_fat_text}</div>
       `;
     } else {
       tdM2.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">ยังไม่บันทึก</span>`;
@@ -682,10 +700,12 @@ function renderTable(filteredEmployees) {
     // Col 6: Month 3
     const tdM3 = document.createElement('td');
     if (m3 && m3.weight) {
+      const m3_muscle_text = m3.muscle !== undefined && m3.muscle !== null ? `${m3.muscle}%` : '-';
+      const m3_fat_text = m3.fat !== undefined && m3.fat !== null ? `${m3.fat}%` : '-';
       tdM3.innerHTML = `
         <div>⚖️ ${m3.weight} kg</div>
-        <div class="td-subtitle">🧠 อายุร่างกาย: ${m3.bodyage} ปี</div>
-        <div class="td-subtitle">📊 BMI: ${m3.bmi}</div>
+        <div class="td-subtitle">🧠 อายุร่างกาย: ${m3.bodyage} ปี (BMI: ${m3.bmi})</div>
+        <div class="td-subtitle">💪 กล้ามเนื้อ: ${m3_muscle_text} | 📉 ไขมัน: ${m3_fat_text}</div>
       `;
     } else {
       tdM3.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">ยังไม่บันทึก</span>`;
@@ -909,16 +929,22 @@ function openModal(mode, id = null) {
     elements.formM1Weight.value = emp.months.m1.weight;
     elements.formM1Bodyage.value = emp.months.m1.bodyage;
     elements.formM1Bmi.value = emp.months.m1.bmi || calcBMI(emp.months.m1.weight, emp.height);
+    elements.formM1Muscle.value = emp.months.m1.muscle || '';
+    elements.formM1Fat.value = emp.months.m1.fat || '';
     
     // Fill Month 2
     if (emp.months.m2) {
       elements.formM2Weight.value = emp.months.m2.weight || '';
       elements.formM2Bodyage.value = emp.months.m2.bodyage || '';
       elements.formM2Bmi.value = emp.months.m2.bmi || '';
+      elements.formM2Muscle.value = emp.months.m2.muscle || '';
+      elements.formM2Fat.value = emp.months.m2.fat || '';
     } else {
       elements.formM2Weight.value = '';
       elements.formM2Bodyage.value = '';
       elements.formM2Bmi.value = '';
+      elements.formM2Muscle.value = '';
+      elements.formM2Fat.value = '';
     }
     
     // Fill Month 3
@@ -926,10 +952,14 @@ function openModal(mode, id = null) {
       elements.formM3Weight.value = emp.months.m3.weight || '';
       elements.formM3Bodyage.value = emp.months.m3.bodyage || '';
       elements.formM3Bmi.value = emp.months.m3.bmi || '';
+      elements.formM3Muscle.value = emp.months.m3.muscle || '';
+      elements.formM3Fat.value = emp.months.m3.fat || '';
     } else {
       elements.formM3Weight.value = '';
       elements.formM3Bodyage.value = '';
       elements.formM3Bmi.value = '';
+      elements.formM3Muscle.value = '';
+      elements.formM3Fat.value = '';
     }
   }
   
@@ -951,29 +981,39 @@ function saveForm() {
   // Month 1
   const m1_weight = parseFloat(elements.formM1Weight.value);
   const m1_bodyage = parseInt(elements.formM1Bodyage.value);
+  const m1_muscle = parseFloat(elements.formM1Muscle.value);
+  const m1_fat = parseFloat(elements.formM1Fat.value);
   const m1_bmi = calcBMI(m1_weight, height);
   
   // Month 2
   const m2_weight = parseFloat(elements.formM2Weight.value);
   const m2_bodyage = parseInt(elements.formM2Bodyage.value);
+  const m2_muscle = parseFloat(elements.formM2Muscle.value);
+  const m2_fat = parseFloat(elements.formM2Fat.value);
   let m2 = null;
   if (!isNaN(m2_weight) && !isNaN(m2_bodyage)) {
     m2 = {
       weight: m2_weight,
       bodyage: m2_bodyage,
-      bmi: calcBMI(m2_weight, height)
+      bmi: calcBMI(m2_weight, height),
+      muscle: isNaN(m2_muscle) ? null : m2_muscle,
+      fat: isNaN(m2_fat) ? null : m2_fat
     };
   }
   
   // Month 3
   const m3_weight = parseFloat(elements.formM3Weight.value);
   const m3_bodyage = parseInt(elements.formM3Bodyage.value);
+  const m3_muscle = parseFloat(elements.formM3Muscle.value);
+  const m3_fat = parseFloat(elements.formM3Fat.value);
   let m3 = null;
   if (!isNaN(m3_weight) && !isNaN(m3_bodyage)) {
     m3 = {
       weight: m3_weight,
       bodyage: m3_bodyage,
-      bmi: calcBMI(m3_weight, height)
+      bmi: calcBMI(m3_weight, height),
+      muscle: isNaN(m3_muscle) ? null : m3_muscle,
+      fat: isNaN(m3_fat) ? null : m3_fat
     };
   }
   
@@ -983,7 +1023,7 @@ function saveForm() {
     age,
     height,
     months: {
-      m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi },
+      m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: isNaN(m1_muscle) ? null : m1_muscle, fat: isNaN(m1_fat) ? null : m1_fat },
       m2,
       m3
     }
@@ -1058,7 +1098,7 @@ function exportCSV() {
   }
   
   let csvContent = "\ufeff"; // UTF-8 BOM for Excel compatibility with Thai text
-  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3\n";
+  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,กล้ามเนื้อ% เดือน 1,ไขมัน% เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,กล้ามเนื้อ% เดือน 2,ไขมัน% เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3,กล้ามเนื้อ% เดือน 3,ไขมัน% เดือน 3\n";
   
   employees.forEach(emp => {
     const m1 = emp.months.m1 || {};
@@ -1072,10 +1112,16 @@ function exportCSV() {
       emp.height,
       m1.weight || '',
       m1.bodyage || '',
+      m1.muscle || '',
+      m1.fat || '',
       m2.weight || '',
       m2.bodyage || '',
+      m2.muscle || '',
+      m2.fat || '',
       m3.weight || '',
-      m3.bodyage || ''
+      m3.bodyage || '',
+      m3.muscle || '',
+      m3.fat || ''
     ];
     
     csvContent += row.join(",") + "\n";
@@ -1095,9 +1141,9 @@ function exportCSV() {
 // Download CSV template
 function downloadTemplateCSV() {
   let csvContent = "\ufeff"; // UTF-8 BOM
-  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3\n";
-  csvContent += "นายสมชาย ใจงาม,การตลาด,30,175,85.5,42,83.0,40,79.5,38\n";
-  csvContent += "นางสาวสมหญิง ยิ้มแย้ม,การเงิน,28,160,65.0,32,64.2,32,62.1,30\n";
+  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,กล้ามเนื้อ% เดือน 1,ไขมัน% เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,กล้ามเนื้อ% เดือน 2,ไขมัน% เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3,กล้ามเนื้อ% เดือน 3,ไขมัน% เดือน 3\n";
+  csvContent += "นายสมชาย ใจงาม,การตลาด,30,175,85.5,42,32.5,28.4,83.0,40,33.1,27.2,79.5,38,34.0,25.8\n";
+  csvContent += "นางสาวสมหญิง ยิ้มแย้ม,การเงิน,28,160,65.0,32,25.0,35.5,64.2,32,25.2,35.0,62.1,30,26.0,32.8\n";
   
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1160,8 +1206,8 @@ function parseCSV(text) {
     }
     columns.push(currentColumn.trim());
     
-    // Validate we have minimum columns (Name, Dept, Age, Height, M1_W, M1_BA)
-    if (columns.length < 6) {
+    // Validate we have minimum columns (Name, Dept, Age, Height, M1_W, M1_BA, M1_M, M1_F)
+    if (columns.length < 8) {
       errorCount++;
       continue;
     }
@@ -1174,6 +1220,8 @@ function parseCSV(text) {
     // M1
     const m1_weight = parseFloat(columns[4]);
     const m1_bodyage = parseInt(columns[5]);
+    const m1_muscle = parseFloat(columns[6]);
+    const m1_fat = parseFloat(columns[7]);
     
     if (!name || !department || isNaN(age) || isNaN(height) || isNaN(m1_weight) || isNaN(m1_bodyage)) {
       errorCount++;
@@ -1182,28 +1230,36 @@ function parseCSV(text) {
     
     // Optional M2
     let m2 = null;
-    if (columns.length >= 8) {
-      const m2_weight = parseFloat(columns[6]);
-      const m2_bodyage = parseInt(columns[7]);
+    if (columns.length >= 12) {
+      const m2_weight = parseFloat(columns[8]);
+      const m2_bodyage = parseInt(columns[9]);
+      const m2_muscle = parseFloat(columns[10]);
+      const m2_fat = parseFloat(columns[11]);
       if (!isNaN(m2_weight) && !isNaN(m2_bodyage)) {
         m2 = {
           weight: m2_weight,
           bodyage: m2_bodyage,
-          bmi: calcBMI(m2_weight, height)
+          bmi: calcBMI(m2_weight, height),
+          muscle: isNaN(m2_muscle) ? null : m2_muscle,
+          fat: isNaN(m2_fat) ? null : m2_fat
         };
       }
     }
     
     // Optional M3
     let m3 = null;
-    if (columns.length >= 10) {
-      const m3_weight = parseFloat(columns[8]);
-      const m3_bodyage = parseInt(columns[9]);
+    if (columns.length >= 16) {
+      const m3_weight = parseFloat(columns[12]);
+      const m3_bodyage = parseInt(columns[13]);
+      const m3_muscle = parseFloat(columns[14]);
+      const m3_fat = parseFloat(columns[15]);
       if (!isNaN(m3_weight) && !isNaN(m3_bodyage)) {
         m3 = {
           weight: m3_weight,
           bodyage: m3_bodyage,
-          bmi: calcBMI(m3_weight, height)
+          bmi: calcBMI(m3_weight, height),
+          muscle: isNaN(m3_muscle) ? null : m3_muscle,
+          fat: isNaN(m3_fat) ? null : m3_fat
         };
       }
     }
@@ -1218,7 +1274,9 @@ function parseCSV(text) {
         m1: {
           weight: m1_weight,
           bodyage: m1_bodyage,
-          bmi: calcBMI(m1_weight, height)
+          bmi: calcBMI(m1_weight, height),
+          muscle: isNaN(m1_muscle) ? null : m1_muscle,
+          fat: isNaN(m1_fat) ? null : m1_fat
         },
         m2: m2,
         m3: m3
@@ -1632,12 +1690,18 @@ function goPresentationStage(stageIndex) {
     
     document.getElementById('pres-rev-diff-age').textContent = `ลดลง ${winnerData.reduction} ปี`;
     
-    // Extra details (Weight, BMI changes)
-    document.getElementById('pres-rev-weight-stats').innerHTML = `
-      ⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> 
-      &nbsp;&nbsp;|&nbsp;&nbsp; 
-      📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>
-    `;
+    // Extra details (Weight, BMI, Muscle, Fat changes)
+    const muscleSign = winnerData.muscleDiff > 0 ? '+' : '';
+    const fatSign = winnerData.fatDiff > 0 ? '+' : '';
+    const muscleText = winnerData.muscleDiff !== 0 ? `💪 กล้ามเนื้อ: <strong>${muscleSign}${winnerData.muscleDiff}%</strong>` : '';
+    const fatText = winnerData.fatDiff !== 0 ? `📉 ไขมัน: <strong>${fatSign}${winnerData.fatDiff}%</strong>` : '';
+    
+    let subStatsHtml = `⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
+    if (muscleText || fatText) {
+      subStatsHtml += `<br>${muscleText} ${muscleText && fatText ? '&nbsp;&nbsp;|&nbsp;&nbsp;' : ''} ${fatText}`;
+    }
+    
+    document.getElementById('pres-rev-weight-stats').innerHTML = subStatsHtml;
     
     // Autostart snare drum roll sound to build suspense
     AudioSynth.startDrumroll();
