@@ -18,7 +18,7 @@ let presentationWinners = []; // Will hold top 3 winners
 let cardRevealed = false; // Whether the current slide card is revealed
 
 // Personal Lookup and PIN Verification State
-let currentView = 'admin'; // 'admin' or 'personal'
+let currentView = 'personal'; // 'admin' or 'personal'
 const ADMIN_PIN = '1504';
 
 // DOM Elements
@@ -201,6 +201,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   updateUI();
   showLoader(false);
+  
+  if (currentView === 'personal') {
+    switchToPersonalView();
+  } else {
+    switchToAdminView();
+  }
   
   // Setup realtime listener
   setupRealtimeListener();

@@ -22,34 +22,34 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-accent" id="btn-toggle-view">
-          👤 ข้อมูลส่วนตัวพนักงาน
+        <button class="btn btn-secondary" id="btn-toggle-view">
+          📊 แผงควบคุมระบบ (Admin)
         </button>
-        <div class="btn btn-secondary file-upload-btn" id="header-import-csv">
+        <div class="btn btn-secondary file-upload-btn" id="header-import-csv" style="display: none;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           นำเข้า CSV
           <input type="file" id="csv-file-input" accept=".csv">
         </div>
-        <button class="btn btn-secondary" id="btn-export-csv">
+        <button class="btn btn-secondary" id="btn-export-csv" style="display: none;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           ส่งออก CSV
         </button>
-        <button class="btn btn-secondary" id="btn-download-template" title="ดาวน์โหลดตัวอย่างไฟล์ Excel/CSV">
+        <button class="btn btn-secondary" id="btn-download-template" title="ดาวน์โหลดตัวอย่างไฟล์ Excel/CSV" style="display: none;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           ตัวอย่าง CSV
         </button>
-        <button class="btn btn-primary" id="btn-add-employee">
+        <button class="btn btn-primary" id="btn-add-employee" style="display: none;">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           เพิ่มพนักงาน
         </button>
-        <button class="btn btn-accent" id="btn-presentation-mode">
+        <button class="btn btn-accent" id="btn-presentation-mode" style="display: none;">
           🎤 ประกาศรางวัล
         </button>
       </div>
     </header>
 
     <!-- Admin View Wrapper -->
-    <main id="admin-view">
+    <main id="admin-view" style="display: none;">
       <!-- Dashboard Grid Widgets -->
       <div class="dashboard-grid">
         <!-- Total Employees -->
@@ -242,7 +242,7 @@
     </main>
 
     <!-- Personal View Wrapper -->
-    <main id="personal-view" style="display: none;">
+    <main id="personal-view">
       <!-- Personal Search Card -->
       <div class="personal-search-card">
         <div class="personal-search-header">
