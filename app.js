@@ -43,7 +43,6 @@ const elements = {
   filterDept: document.getElementById('filter-department'),
   filterProgress: document.getElementById('filter-progress'),
   pageSizeSelect: document.getElementById('select-page-size'),
-  btnGenerateMock: document.getElementById('btn-generate-mock'),
   btnClearDb: document.getElementById('btn-clear-db'),
   btnExportCsv: document.getElementById('btn-export-csv'),
   btnDownloadTemplate: document.getElementById('btn-download-template'),
@@ -105,24 +104,7 @@ const elements = {
   presIndicators: document.getElementById('pres-indicators')
 };
 
-// Mock data presets for generating 45 realistic employees
-const mockThaiNames = [
-  "สมชาย", "วิชัย", "ณรงค์", "พรชัย", "สุรพล", "สมพงษ์", "อภิชาติ", "เกรียงไกร", "ธีรพล", "ปกรณ์",
-  "นิรันดร์", "เกียรติ", "จิตรา", "วรรณภา", "รัตนา", "สิริพร", "มยุรี", "พรทิพย์", "นงลักษณ์", "นภา",
-  "จริยา", "พัชรา", "สุวรรณา", "ธนพล", "อนันต์", "ประเสริฐ", "ทรงพล", "เอกชัย", "วิรัช", "มงคล",
-  "กิตติ", "ชูชาติ", "สุชาติ", "นพดล", "มานพ", "ศักดิ์ชัย", "สุรชัย", "ประวิทย์", "ชลลดา", "พรรณิภา",
-  "อรัญญา", "ดาริกา", "สุนิสา", "วิภาดา", "รุ่งทิพย์"
-];
 
-const mockThaiSurnames = [
-  "ดีใจ", "แก้วมณี", "รุ่งเรือง", "เลิศวิไล", "ศรีสุข", "เจริญผล", "สุขใจ", "พาณิชย์", "ทองคำ", "แสงสว่าง",
-  "มั่นคง", "รักดี", "มีทรัพย์", "ยินดี", "ใจกว้าง", "เพิ่มบุญ", "บุญช่วย", "ทรัพย์สิน", "วงศ์ษา", "วงศ์วิไล",
-  "ปรีชา", "โพธิ์ทอง", "บัวแก้ว", "สุวรรณ", "เจริญรุ่งเรือง", "เลิศปัญญา", "แก้วประเสริฐ", "เจริญสุข", "ประดับเพชร", "รักษ์ดี"
-];
-
-const mockDepartments = [
-  "บัญชี", "ไอที", "การตลาด", "คลังสินค้า", "ฝ่ายขาย", "บุคคล", "ขนส่ง", "ประชาสัมพันธ์"
-];
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -130,9 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   updateUI();
   
-  // Check if DB is empty and show toast recommending mock data
+  // Check if DB is empty and show welcome toast
   if (employees.length === 0) {
-    showToast('ยินดีต้อนรับ! สามารถกดปุ่ม "สุ่มข้อมูล 45 คน" เพื่อดูตัวอย่างแอปพลิเคชันได้ทันที', 'info', 6000);
+    showToast('ยินดีต้อนรับสู่ระบบ PFIG Well Being! เริ่มบันทึกข้อมูลพนักงานใหม่ได้ทันที', 'info', 5000);
   }
 });
 
@@ -290,10 +272,7 @@ function setupEventListeners() {
     }
   });
 
-  // Generate 45 Mock Data
-  elements.btnGenerateMock.addEventListener('click', () => {
-    generateMockData();
-  });
+
 
   // Export CSV
   elements.btnExportCsv.addEventListener('click', exportCSV);
@@ -319,91 +298,7 @@ function setupEventListeners() {
   elements.presBtnRevealAction.addEventListener('click', revealAwardCard);
 }
 
-// Generate Mock Data for 45 people
-function generateMockData() {
-  const generated = [];
-  const deptCount = mockDepartments.length;
-  
-  for (let i = 1; i <= 45; i++) {
-    const nameIndex = Math.floor(Math.random() * mockThaiNames.length);
-    const surnameIndex = Math.floor(Math.random() * mockThaiSurnames.length);
-    const firstName = mockThaiNames[nameIndex];
-    const lastName = mockThaiSurnames[surnameIndex];
-    
-    // Avoid exact duplicate names easily
-    const fullname = `${firstName} ${lastName}`;
-    const department = mockDepartments[Math.floor(Math.random() * deptCount)];
-    const age = Math.floor(Math.random() * 33) + 22; // 22 to 54
-    const height = Math.floor(Math.random() * 31) + 155; // 155 to 185
-    
-    // Baseline Month 1
-    const m1_weight = parseFloat((Math.random() * 45 + 55).toFixed(1)); // 55kg to 100kg
-    // Body age could be higher than actual age (stressed/overweight)
-    const m1_bodyage = age + Math.floor(Math.random() * 8) - 1; // age-1 to age+6
-    const m1_bmi = calcBMI(m1_weight, height);
-    const m1_muscle = parseFloat((25 + Math.random() * 15).toFixed(1));
-    const m1_fat = parseFloat((15 + Math.random() * 25).toFixed(1));
-    
-    // Generate records for Month 2 and Month 3 (with varying degree of success)
-    // 85% of people completed month 2, 75% completed month 3
-    const hasMonth2 = Math.random() < 0.85;
-    const hasMonth3 = hasMonth2 && (Math.random() < 0.88); // only if month 2 exists
-    
-    // Success factors
-    const weightLossRate = (Math.random() * 0.12); // Max 12% weight loss overall
-    const bodyAgeDrop = Math.floor(Math.random() * 7); // drop up to 6 years
-    
-    let m2 = null;
-    let m3 = null;
-    
-    if (hasMonth2) {
-      // Month 2 progress (partial weight loss)
-      const m2_weight = parseFloat((m1_weight * (1 - weightLossRate * 0.4)).toFixed(1));
-      const m2_bodyage = Math.max(15, m1_bodyage - Math.floor(bodyAgeDrop * 0.4));
-      const wLoss = m1_weight - m2_weight;
-      m2 = {
-        weight: m2_weight,
-        bodyage: m2_bodyage,
-        bmi: calcBMI(m2_weight, height),
-        muscle: parseFloat((m1_muscle + wLoss * 0.12).toFixed(1)),
-        fat: parseFloat(Math.max(3, m1_fat - wLoss * 0.45).toFixed(1))
-      };
-    }
-    
-    if (hasMonth3) {
-      // Month 3 progress (full weight loss)
-      const m3_weight = parseFloat((m1_weight * (1 - weightLossRate)).toFixed(1));
-      const m3_bodyage = Math.max(15, m1_bodyage - bodyAgeDrop);
-      const wLoss = m1_weight - m3_weight;
-      m3 = {
-        weight: m3_weight,
-        bodyage: m3_bodyage,
-        bmi: calcBMI(m3_weight, height),
-        muscle: parseFloat((m1_muscle + wLoss * 0.12).toFixed(1)),
-        fat: parseFloat(Math.max(3, m1_fat - wLoss * 0.45).toFixed(1))
-      };
-    }
-    
-    generated.push({
-      id: 'mock-' + Date.now() + '-' + i + '-' + Math.floor(Math.random()*1000),
-      name: fullname,
-      department: department,
-      age: age,
-      height: height,
-      months: {
-        m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: m1_muscle, fat: m1_fat },
-        m2: m2,
-        m3: m3
-      }
-    });
-  }
-  
-  // Merge or replace? We replace database for the mock demonstration
-  employees = generated;
-  saveData();
-  updateUI();
-  showToast('สุ่มข้อมูลตัวอย่างพนักงาน 45 คน เรียบร้อยแล้ว!', 'success');
-}
+
 
 // Handling Column Sorts
 function handleSort(field) {
