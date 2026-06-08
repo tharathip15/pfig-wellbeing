@@ -19,7 +19,7 @@ let cardRevealed = false; // Whether the current slide card is revealed
 
 // Personal Lookup and PIN Verification State
 let currentView = 'admin'; // 'admin' or 'personal'
-const ADMIN_PIN = '1234';
+const ADMIN_PIN = '1504';
 
 // DOM Elements
 const elements = {
