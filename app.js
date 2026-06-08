@@ -2320,40 +2320,6 @@ function showPersonalProfile(empId) {
   const colM2 = renderMonthColumn(m2, 'เดือน 2 (ความคืบหน้า)', 'personal-month-badge-2');
   const colM3 = renderMonthColumn(m3, 'เดือน 3 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-3');
 
-  // side-by-side progression photo comparison if any photos exist
-  const hasPhotos = (m1.photo) || (m2 && m2.photo) || (m3 && m3.photo);
-  let galleryHtml = '';
-  if (hasPhotos) {
-    const renderGalleryItem = (m, label) => {
-      const img = (m && m.photo) 
-        ? `<img src="${m.photo}" alt="${label}">`
-        : `<div style="font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.5rem;">📸</div><div style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">ไม่ได้อัปโหลดรูปภาพ</div>`;
-      const weightText = (m && m.weight) ? `${m.weight} kg` : '- kg';
-      const bmiText = (m && m.bmi) ? `BMI: ${m.bmi}` : 'BMI: -';
-      
-      return `
-        <div class="progression-gallery-item">
-          <div class="progression-item-label">${label}</div>
-          <div class="progression-item-image">${img}</div>
-          <div class="progression-item-meta">${weightText} | ${bmiText}</div>
-        </div>
-      `;
-    };
-    
-    galleryHtml = `
-      <div class="progression-gallery-section animate-fade">
-        <div class="progression-gallery-title">
-          <span>🖼️</span> อัปเดตรูปร่าง เปรียบเทียบความเปลี่ยนแปลงรายเดือน
-        </div>
-        <div class="progression-gallery-grid">
-          ${renderGalleryItem(m1, 'เดือน 1 (เริ่มต้น)')}
-          ${renderGalleryItem(m2, 'เดือน 2 (กลาง)')}
-          ${renderGalleryItem(m3, 'เดือน 3 (สุดท้าย)')}
-        </div>
-      </div>
-    `;
-  }
-
   // Generate Profile HTML
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
@@ -2435,9 +2401,6 @@ function showPersonalProfile(empId) {
         ${colM2}
         ${colM3}
       </div>
-
-      <!-- side by side progression photos -->
-      ${galleryHtml}
     </div>
   `;
   
