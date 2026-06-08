@@ -106,11 +106,86 @@ const elements = {
 
 
 
+// Supabase Configuration
+const SUPABASE_URL = 'https://cgjiscsjzqqhmslxzcnl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnamlzY3NqenFxaG1zbHh6Y25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTM3NjcsImV4cCI6MjA4MDk2OTc2N30.PKdCz6m5p9VJpTbmdU454r3E_BpIbeY2h0lIz77V54w';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// DB Sync Loader helper
+function showLoader(show) {
+  let loader = document.getElementById('db-sync-loader');
+  if (show) {
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.id = 'db-sync-loader';
+      loader.style.position = 'fixed';
+      loader.style.top = '0';
+      loader.style.left = '0';
+      loader.style.width = '100vw';
+      loader.style.height = '100vh';
+      loader.style.background = 'rgba(0, 0, 0, 0.5)';
+      loader.style.backdropFilter = 'blur(4px)';
+      loader.style.zIndex = '9999';
+      loader.style.display = 'flex';
+      loader.style.alignItems = 'center';
+      loader.style.justifyContent = 'center';
+      loader.style.flexDirection = 'column';
+      loader.style.color = '#fff';
+      loader.style.fontFamily = 'var(--font-main)';
+      
+      const spinner = document.createElement('div');
+      spinner.className = 'loader-spinner';
+      spinner.style.border = '4px solid rgba(255, 255, 255, 0.1)';
+      spinner.style.borderLeftColor = 'var(--primary)';
+      spinner.style.borderRadius = '50%';
+      spinner.style.width = '40px';
+      spinner.style.height = '40px';
+      spinner.style.animation = 'spin-anim 0.8s linear infinite';
+      
+      const text = document.createElement('div');
+      text.id = 'db-sync-loader-text';
+      text.style.marginTop = '1rem';
+      text.style.fontSize = '0.95rem';
+      text.style.fontWeight = '500';
+      text.textContent = 'กำลังเชื่อมต่อฐานข้อมูลออนไลน์...';
+      
+      if (!document.getElementById('loader-spin-style')) {
+        const style = document.createElement('style');
+        style.id = 'loader-spin-style';
+        style.innerHTML = `
+          @keyframes spin-anim {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      loader.appendChild(spinner);
+      loader.appendChild(text);
+      document.body.appendChild(loader);
+    } else {
+      loader.style.display = 'flex';
+      document.getElementById('db-sync-loader-text').textContent = 'กำลังซิงก์ข้อมูล...';
+    }
+  } else {
+    if (loader) {
+      loader.style.display = 'none';
+    }
+  }
+}
+
 // Initialize Application
-document.addEventListener('DOMContentLoaded', () => {
-  loadData();
+document.addEventListener('DOMContentLoaded', async () => {
+  showLoader(true);
   setupEventListeners();
+  await loadData();
   updateUI();
+  showLoader(false);
+  
+  // Setup realtime listener
+  setupRealtimeListener();
   
   // Check if DB is empty and show welcome toast
   if (employees.length === 0) {
@@ -118,24 +193,81 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Load data from localStorage
-function loadData() {
-  const stored = localStorage.getItem('pfig_wellbeing_employees');
-  if (stored) {
-    try {
-      employees = JSON.parse(stored);
-    } catch (e) {
-      console.error("Error parsing localStorage data:", e);
+// Load data from Supabase
+async function loadData() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('pfig_employees')
+      .select('*')
+      .order('created_at', { ascending: true });
+      
+    if (error) {
+      console.error("Error loading data from Supabase:", error);
+      showToast('ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้: ' + error.message, 'error');
       employees = [];
+      return;
     }
-  } else {
+    
+    employees = data.map(item => ({
+      id: item.id,
+      name: item.name,
+      department: item.department,
+      age: item.age,
+      height: item.height,
+      months: item.months
+    }));
+  } catch (err) {
+    console.error("Network error:", err);
+    showToast('เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล', 'error');
     employees = [];
   }
 }
 
-// Save data to localStorage
+// Setup Realtime Sync
+function setupRealtimeListener() {
+  console.log("Setting up Supabase Realtime channel...");
+  
+  supabaseClient
+    .channel('pfig_employees_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'pfig_employees'
+      },
+      async (payload) => {
+        console.log('Realtime change event received:', payload.eventType, payload);
+        
+        let syncMsg = 'ข้อมูลในระบบอัปเดตเรียบร้อยแล้ว';
+        if (payload.eventType === 'INSERT') {
+          syncMsg = `เพิ่มพนักงานใหม่: ${payload.new.name}`;
+        } else if (payload.eventType === 'UPDATE') {
+          syncMsg = `อัปเดตข้อมูลพนักงาน: ${payload.new.name}`;
+        } else if (payload.eventType === 'DELETE') {
+          syncMsg = `ลบข้อมูลพนักงานเรียบร้อย`;
+        }
+        
+        showToast(syncMsg, 'info', 2000);
+        
+        await loadData();
+        updateUI();
+      }
+    )
+    .subscribe((status) => {
+      console.log('Realtime subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        showToast('เชื่อมต่อฐานข้อมูลเรียลไทม์ออนไลน์สำเร็จ 🟢', 'success', 2500);
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('Realtime subscription channel error');
+        showToast('เกิดข้อผิดพลาดในการซิงก์ข้อมูลเรียลไทม์', 'error', 3000);
+      }
+    });
+}
+
+// Placeholder saveData helper
 function saveData() {
-  localStorage.setItem('pfig_wellbeing_employees', JSON.stringify(employees));
+  // Saved directly in asynchronous operations now
 }
 
 // Helper: Calculate BMI
@@ -170,15 +302,27 @@ function getComparison(emp) {
       weightDiff: 0,
       bmiDiff: 0,
       bodyageDiff: 0,
+      muscleDiff: 0,
+      fatDiff: 0,
       hasProgress: false,
       latestLabel: '-'
     };
   }
   
+  const muscleDiff = (latest.muscle !== undefined && latest.muscle !== null && m1.muscle !== undefined && m1.muscle !== null)
+    ? parseFloat((latest.muscle - m1.muscle).toFixed(1))
+    : 0;
+    
+  const fatDiff = (latest.fat !== undefined && latest.fat !== null && m1.fat !== undefined && m1.fat !== null)
+    ? parseFloat((latest.fat - m1.fat).toFixed(1))
+    : 0;
+  
   return {
     weightDiff: parseFloat((latest.weight - m1.weight).toFixed(1)),
     bmiDiff: parseFloat((latest.bmi - m1.bmi).toFixed(2)),
     bodyageDiff: parseInt(latest.bodyage - m1.bodyage),
+    muscleDiff,
+    fatDiff,
     hasProgress: true,
     latestLabel: label
   };
@@ -263,12 +407,26 @@ function setupEventListeners() {
   });
 
   // Clear Database
-  elements.btnClearDb.addEventListener('click', () => {
+  elements.btnClearDb.addEventListener('click', async () => {
     if (confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างฐานข้อมูลพนักงานทั้งหมด? การดำเนินการนี้ไม่สามารถย้อนกลับได้')) {
-      employees = [];
-      saveData();
-      updateUI();
-      showToast('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success');
+      showLoader(true);
+      try {
+        const { error } = await supabaseClient
+          .from('pfig_employees')
+          .delete()
+          .gte('created_at', '1970-01-01T00:00:00Z');
+          
+        if (error) {
+          showToast('เกิดข้อผิดพลาดในการล้างฐานข้อมูล: ' + error.message, 'error');
+          console.error(error);
+        } else {
+          showToast('ล้างฐานข้อมูลเรียบร้อยแล้ว', 'success');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+      }
+      showLoader(false);
     }
   });
 
@@ -867,7 +1025,8 @@ function closeModal() {
 }
 
 // Save Form Data (Add or Edit)
-function saveForm() {
+// Save Form Data (Add or Edit)
+async function saveForm() {
   const name = elements.formName.value.trim();
   const department = elements.formDept.value.trim();
   const age = parseInt(elements.formAge.value);
@@ -912,51 +1071,72 @@ function saveForm() {
     };
   }
   
-  const record = {
-    name,
-    department,
-    age,
-    height,
-    months: {
-      m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: isNaN(m1_muscle) ? null : m1_muscle, fat: isNaN(m1_fat) ? null : m1_fat },
-      m2,
-      m3
-    }
+  const months = {
+    m1: { weight: m1_weight, bodyage: m1_bodyage, bmi: m1_bmi, muscle: isNaN(m1_muscle) ? null : m1_muscle, fat: isNaN(m1_fat) ? null : m1_fat },
+    m2,
+    m3
   };
   
-  if (modalMode === 'add') {
-    record.id = 'emp-' + Date.now();
-    employees.push(record);
-    showToast('เพิ่มพนักงานสำเร็จเรียบร้อย', 'success');
-  } else {
-    const id = elements.formId.value;
-    const index = employees.findIndex(e => e.id === id);
-    if (index !== -1) {
-      record.id = id;
-      employees[index] = record;
-      showToast('อัปเดตข้อมูลพนักงานสำเร็จ', 'success');
+  showLoader(true);
+  try {
+    if (modalMode === 'add') {
+      const { error } = await supabaseClient
+        .from('pfig_employees')
+        .insert([{ name, department, age, height, months }]);
+        
+      if (error) {
+        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message, 'error');
+        console.error(error);
+      } else {
+        showToast('เพิ่มพนักงานสำเร็จเรียบร้อย', 'success');
+      }
     } else {
-      showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
-      closeModal();
-      return;
+      const id = elements.formId.value;
+      const { error } = await supabaseClient
+        .from('pfig_employees')
+        .update({ name, department, age, height, months })
+        .eq('id', id);
+        
+      if (error) {
+        showToast('เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + error.message, 'error');
+        console.error(error);
+      } else {
+        showToast('อัปเดตข้อมูลพนักงานสำเร็จ', 'success');
+      }
     }
+  } catch (err) {
+    console.error(err);
+    showToast('เกิดข้อผิดพลาดในการสื่อสารกับเซิร์ฟเวอร์', 'error');
   }
   
-  saveData();
   closeModal();
-  updateUI();
+  showLoader(false);
 }
 
 // Delete Employee record
-function deleteEmployee(id) {
+async function deleteEmployee(id) {
   const emp = employees.find(e => e.id === id);
   if (!emp) return;
   
   if (confirm(`คุณต้องการลบข้อมูลของ ${emp.name} ใช่หรือไม่?`)) {
-    employees = employees.filter(e => e.id !== id);
-    saveData();
-    updateUI();
-    showToast('ลบข้อมูลพนักงานเรียบร้อย', 'success');
+    showLoader(true);
+    try {
+      const { error } = await supabaseClient
+        .from('pfig_employees')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        showToast('เกิดข้อผิดพลาดในการลบข้อมูล: ' + error.message, 'error');
+        console.error(error);
+      } else {
+        showToast('ลบข้อมูลพนักงานเรียบร้อย', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('เกิดข้อผิดพลาดในการสื่อสารกับเซิร์ฟเวอร์', 'error');
+    }
+    showLoader(false);
   }
 }
 
@@ -1067,7 +1247,8 @@ function handleCSVImport(event) {
 }
 
 // Parse CSV content into employee objects
-function parseCSV(text) {
+// Parse CSV content into employee objects
+async function parseCSV(text) {
   const lines = text.split(/\r\n|\n/);
   if (lines.length < 2) {
     showToast('ไฟล์ CSV ไม่มีข้อมูลเพียงพอ', 'error');
@@ -1160,7 +1341,6 @@ function parseCSV(text) {
     }
     
     importedList.push({
-      id: 'csv-' + Date.now() + '-' + successCount + '-' + Math.floor(Math.random() * 1000),
       name: name,
       department: department,
       age: age,
@@ -1182,11 +1362,23 @@ function parseCSV(text) {
   }
   
   if (successCount > 0) {
-    // Append or replace? Let's append to existing list
-    employees = [...employees, ...importedList];
-    saveData();
-    updateUI();
-    showToast(`นำเข้าพนักงานสำเร็จ ${successCount} คน ${errorCount > 0 ? `(ผิดพลาด ${errorCount} แถว)` : ''}`, 'success');
+    showLoader(true);
+    try {
+      const { error } = await supabaseClient
+        .from('pfig_employees')
+        .insert(importedList);
+        
+      if (error) {
+        showToast('เกิดข้อผิดพลาดในการนำเข้าข้อมูล: ' + error.message, 'error');
+        console.error(error);
+      } else {
+        showToast(`นำเข้าพนักงานสำเร็จ ${successCount} คน ${errorCount > 0 ? `(ผิดพลาด ${errorCount} แถว)` : ''}`, 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+    }
+    showLoader(false);
   } else {
     showToast('ไม่มีข้อมูลพนักงานที่ถูกต้องได้รับการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์', 'error');
   }
@@ -1471,7 +1663,9 @@ function startPresentation() {
         emp: emp,
         reduction: -comp.bodyageDiff,
         weightLoss: -comp.weightDiff,
-        bmiLoss: -comp.bmiDiff
+        bmiLoss: -comp.bmiDiff,
+        muscleDiff: comp.muscleDiff,
+        fatDiff: comp.fatDiff
       };
     })
     .sort((a, b) => b.reduction - a.reduction); // Sorted highest reduction first
