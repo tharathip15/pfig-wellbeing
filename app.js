@@ -690,7 +690,7 @@ function updateUI() {
 
 // Dynamically populate department dropdown based on available departments in DB
 function populateDepartmentFilter() {
-  const predefined = ['Corporate', 'Finance & Acc', 'Logistics', 'Sales', 'Procurement'];
+  const predefined = ['Corporate', 'Finance & Acc', 'Logistics', 'Sales', 'Procurement', 'Executive'];
   const dbDepts = employees.map(emp => emp.department).filter(Boolean);
   const depts = [...new Set([...predefined, ...dbDepts])].sort();
   
@@ -746,11 +746,13 @@ function calculateWidgets() {
       weightLossCount++;
       bmiLossCount++;
       
-      // Top body age reduction (bodyageDiff is negative, e.g. -5 is reduction of 5)
-      const reduction = -comp.bodyageDiff;
-      if (reduction > maxAgeLoss) {
-        maxAgeLoss = reduction;
-        maxAgeWinner = emp;
+      // Top body age reduction (exclude 'Executive')
+      if (emp.department !== 'Executive') {
+        const reduction = -comp.bodyageDiff;
+        if (reduction > maxAgeLoss) {
+          maxAgeLoss = reduction;
+          maxAgeWinner = emp;
+        }
       }
     }
   });
@@ -1007,7 +1009,7 @@ function renderLeaderboard() {
   const achievers = employees
     .filter(emp => {
       const comp = getComparison(emp);
-      return comp.hasProgress && comp.bodyageDiff < 0;
+      return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
     })
     .map(emp => {
       const comp = getComparison(emp);
@@ -1858,7 +1860,7 @@ function startPresentation() {
   const achievers = employees
     .filter(emp => {
       const comp = getComparison(emp);
-      return comp.hasProgress && comp.bodyageDiff < 0;
+      return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
     })
     .map(emp => {
       const comp = getComparison(emp);
