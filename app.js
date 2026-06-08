@@ -2225,41 +2225,18 @@ function switchToAdminView() {
 }
 
 // --- Dynamic Personal Profile Renderer ---
-function showPersonalProfile(empId) {
+let currentProfileEmpId = null;
+
+window.setProfileGender = function(gender) {
+  if (currentProfileEmpId) {
+    showPersonalProfile(currentProfileEmpId, gender);
+  }
+};
+
+function showPersonalProfile(empId, selectedGender = null) {
+  currentProfileEmpId = empId;
   const emp = employees.find(e => e.id === empId);
   if (!emp) return;
-
-  // Analyze name to guess gender (for reference standards)
-  const guessGender = (name) => {
-    const lowerName = name.toLowerCase();
-    const femalePatterns = [
-      'khemika', 'panitporn', 'pronchanok', 'sarusa', 'benjaporn', 'chaninat', 'chindaphorn', 
-      'rinlita', 'sudarat', 'pornchitar', 'jirapa', 'natthanida', 'sasipha', 'fuanglada', 
-      'kotchamon', 'tawida', 'pinpawee', 'nuntaporn', 'cholanan'
-    ];
-    
-    for (const pat of femalePatterns) {
-      if (lowerName.includes(pat)) return 'female';
-    }
-    
-    if (lowerName.endsWith('porn') || 
-        lowerName.endsWith('phorn') || 
-        lowerName.endsWith('lita') || 
-        lowerName.endsWith('rat') || 
-        lowerName.endsWith('da') || 
-        lowerName.endsWith('pha') || 
-        lowerName.endsWith('pa') || 
-        lowerName.endsWith('ka') || 
-        lowerName.endsWith('sa') || 
-        lowerName.endsWith('wan') || 
-        lowerName.endsWith('nuch') || 
-        lowerName.endsWith('nee')) {
-      return 'female';
-    }
-    return 'male';
-  };
-
-  const gender = guessGender(emp.name);
 
   // Status evaluators
   const getBmiStatus = (bmiVal) => {
@@ -2360,14 +2337,22 @@ function showPersonalProfile(empId) {
     
     let muscleHtml = '-';
     if (m.muscle !== undefined && m.muscle !== null) {
-      const status = getMuscleStatus(m.muscle, gender);
-      muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+      if (selectedGender) {
+        const status = getMuscleStatus(m.muscle, selectedGender);
+        muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+      } else {
+        muscleHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.muscle}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
+      }
     }
     
     let fatHtml = '-';
     if (m.fat !== undefined && m.fat !== null) {
-      const status = getFatStatus(m.fat, gender);
-      fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+      if (selectedGender) {
+        const status = getFatStatus(m.fat, selectedGender);
+        fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+      } else {
+        fatHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.fat}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
+      }
     }
     
     const weightText = m.weight ? `${m.weight} kg` : '- kg';
@@ -2422,11 +2407,17 @@ function showPersonalProfile(empId) {
           <div class="personal-avatar">👤</div>
           <div class="personal-name">
             <h3>${emp.name}</h3>
-            <div class="personal-meta-info">
+            <div class="personal-meta-info" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.4rem;">
               <span class="personal-meta-badge personal-meta-badge-dept">🏢 แผนก: ${emp.department}</span>
               <span class="personal-meta-badge">🎂 อายุจริง: ${emp.age} ปี</span>
               <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
-              <span class="personal-meta-badge" style="background: rgba(255,255,255,0.05);">⚧️ เพศ: ${gender === 'female' ? 'หญิง' : 'ชาย'}</span>
+              
+              <!-- Inline Gender Selector -->
+              <span class="personal-meta-badge" style="background: rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
+                ⚧️ ระบุเพศ:
+                <button onclick="setProfileGender('male')" style="background: ${selectedGender === 'male' ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${selectedGender === 'male' ? 'var(--primary-light)' : 'rgba(255,255,255,0.1)'}; color: ${selectedGender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${selectedGender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
+                <button onclick="setProfileGender('female')" style="background: ${selectedGender === 'female' ? '#ec4899' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${selectedGender === 'female' ? '#ff85c0' : 'rgba(255,255,255,0.1)'}; color: ${selectedGender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${selectedGender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
+              </span>
             </div>
           </div>
         </div>
