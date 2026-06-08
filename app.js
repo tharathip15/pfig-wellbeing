@@ -2229,6 +2229,81 @@ function showPersonalProfile(empId) {
   const emp = employees.find(e => e.id === empId);
   if (!emp) return;
 
+  // Analyze name to guess gender (for reference standards)
+  const guessGender = (name) => {
+    const lowerName = name.toLowerCase();
+    const femalePatterns = [
+      'khemika', 'panitporn', 'pronchanok', 'sarusa', 'benjaporn', 'chaninat', 'chindaphorn', 
+      'rinlita', 'sudarat', 'pornchitar', 'jirapa', 'natthanida', 'sasipha', 'fuanglada', 
+      'kotchamon', 'tawida', 'pinpawee', 'nuntaporn', 'cholanan'
+    ];
+    
+    for (const pat of femalePatterns) {
+      if (lowerName.includes(pat)) return 'female';
+    }
+    
+    if (lowerName.endsWith('porn') || 
+        lowerName.endsWith('phorn') || 
+        lowerName.endsWith('lita') || 
+        lowerName.endsWith('rat') || 
+        lowerName.endsWith('da') || 
+        lowerName.endsWith('pha') || 
+        lowerName.endsWith('pa') || 
+        lowerName.endsWith('ka') || 
+        lowerName.endsWith('sa') || 
+        lowerName.endsWith('wan') || 
+        lowerName.endsWith('nuch') || 
+        lowerName.endsWith('nee')) {
+      return 'female';
+    }
+    return 'male';
+  };
+
+  const gender = guessGender(emp.name);
+
+  // Status evaluators
+  const getBmiStatus = (bmiVal) => {
+    const bmi = parseFloat(bmiVal);
+    if (isNaN(bmi)) return { text: '', color: '' };
+    if (bmi < 18.5) return { text: 'บางเกินไป', color: 'var(--warning)' };
+    if (bmi <= 22.9) return { text: 'สมส่วน', color: 'var(--success)' };
+    if (bmi <= 24.9) return { text: 'น้ำหนักเกิน', color: 'var(--warning)' };
+    if (bmi <= 29.9) return { text: 'อ้วนระดับ 1', color: 'var(--danger)' };
+    return { text: 'อ้วนระดับ 2', color: 'var(--danger)' };
+  };
+
+  const getFatStatus = (fatVal, gender) => {
+    const fat = parseFloat(fatVal);
+    if (isNaN(fat)) return { text: '', color: '' };
+    if (gender === 'female') {
+      if (fat < 14) return { text: 'ต่ำเกินไป', color: 'var(--warning)' };
+      if (fat <= 20) return { text: 'ระดับนักกีฬา', color: 'var(--success)' };
+      if (fat <= 24) return { text: 'หุ่นฟิต สมส่วน', color: 'var(--success)' };
+      if (fat <= 31) return { text: 'สุขภาพดีมาตรฐาน', color: 'var(--success)' };
+      return { text: 'สูงเกินเกณฑ์', color: 'var(--danger)' };
+    } else {
+      if (fat < 6) return { text: 'ต่ำเกินไป', color: 'var(--warning)' };
+      if (fat <= 13) return { text: 'ระดับนักกีฬา', color: 'var(--success)' };
+      if (fat <= 17) return { text: 'หุ่นฟิต สมส่วน', color: 'var(--success)' };
+      if (fat <= 24) return { text: 'สุขภาพดีมาตรฐาน', color: 'var(--success)' };
+      return { text: 'สูงเกินเกณฑ์', color: 'var(--danger)' };
+    }
+  };
+
+  const getMuscleStatus = (muscleVal, gender) => {
+    const muscle = parseFloat(muscleVal);
+    if (isNaN(muscle)) return { text: '', color: '' };
+    if (gender === 'female') {
+      if (muscle < 27) return { text: 'กล้ามเนื้อต่ำ', color: 'var(--danger)' };
+      if (muscle <= 35) return { text: 'มาตรฐานปกติ', color: 'var(--success)' };
+      return { text: 'กล้ามเนื้อสูง/ฟิต', color: 'var(--secondary-light)' };
+    } else {
+      if (muscle < 33) return { text: 'กล้ามเนื้อต่ำ', color: 'var(--danger)' };
+      if (muscle <= 40) return { text: 'มาตรฐานปกติ', color: 'var(--success)' };
+      return { text: 'กล้ามเนื้อสูง/ฟิต', color: 'var(--secondary-light)' };
+    }
+  };
+
   const comp = getComparison(emp);
   const m1 = emp.months.m1 || {};
   const m2 = emp.months.m2;
@@ -2276,9 +2351,25 @@ function showPersonalProfile(empId) {
       `;
     }
     
-    const bmiText = m.bmi ? m.bmi : (calcBMI(m.weight, emp.height) || '-');
-    const muscleText = (m.muscle !== undefined && m.muscle !== null) ? `${m.muscle}%` : '-';
-    const fatText = (m.fat !== undefined && m.fat !== null) ? `${m.fat}%` : '-';
+    const bmiVal = m.bmi ? m.bmi : (calcBMI(m.weight, emp.height) || null);
+    let bmiHtml = '-';
+    if (bmiVal) {
+      const status = getBmiStatus(bmiVal);
+      bmiHtml = `<span style="color: ${status.color}; font-weight: 700;">${bmiVal} <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+    }
+    
+    let muscleHtml = '-';
+    if (m.muscle !== undefined && m.muscle !== null) {
+      const status = getMuscleStatus(m.muscle, gender);
+      muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+    }
+    
+    let fatHtml = '-';
+    if (m.fat !== undefined && m.fat !== null) {
+      const status = getFatStatus(m.fat, gender);
+      fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+    }
+    
     const weightText = m.weight ? `${m.weight} kg` : '- kg';
     const bodyageText = m.bodyage ? `${m.bodyage} ปี` : '- ปี';
     
@@ -2294,23 +2385,23 @@ function showPersonalProfile(empId) {
         <div class="personal-metrics-list">
           <div class="personal-metric-item">
             <span class="personal-metric-name">⚖️ น้ำหนัก</span>
-            <span class="personal-metric-val">${weightText}</span>
+            <span class="personal-metric-val" style="color: var(--text-main); font-weight: 700;">${weightText}</span>
           </div>
           <div class="personal-metric-item">
             <span class="personal-metric-name">🧠 อายุร่างกาย</span>
-            <span class="personal-metric-val">${bodyageText}</span>
+            <span class="personal-metric-val" style="color: var(--text-main); font-weight: 700;">${bodyageText}</span>
           </div>
           <div class="personal-metric-item">
             <span class="personal-metric-name">📊 ค่า BMI</span>
-            <span class="personal-metric-val">${bmiText}</span>
+            <span class="personal-metric-val">${bmiHtml}</span>
           </div>
           <div class="personal-metric-item">
             <span class="personal-metric-name">💪 กล้ามเนื้อ</span>
-            <span class="personal-metric-val">${muscleText}</span>
+            <span class="personal-metric-val">${muscleHtml}</span>
           </div>
           <div class="personal-metric-item">
             <span class="personal-metric-name">📉 ไขมัน</span>
-            <span class="personal-metric-val">${fatText}</span>
+            <span class="personal-metric-val">${fatHtml}</span>
           </div>
         </div>
         ${photoFrame}
@@ -2335,6 +2426,7 @@ function showPersonalProfile(empId) {
               <span class="personal-meta-badge personal-meta-badge-dept">🏢 แผนก: ${emp.department}</span>
               <span class="personal-meta-badge">🎂 อายุจริง: ${emp.age} ปี</span>
               <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
+              <span class="personal-meta-badge" style="background: rgba(255,255,255,0.05);">⚧️ เพศ: ${gender === 'female' ? 'หญิง' : 'ชาย'}</span>
             </div>
           </div>
         </div>
