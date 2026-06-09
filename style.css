@@ -22,6 +22,9 @@
   --secondary-light: #22d3ee;
   --secondary-glow: rgba(6, 182, 212, 0.15);
   
+  --accent: #06b6d4;
+  --accent-light: #22d3ee;
+  
   --gold: #f59e0b;
   --silver: #94a3b8;
   --bronze: #b45309;
@@ -2160,5 +2163,17 @@ td {
   outline: none;
   border-color: var(--primary-light);
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+}
+
+/* Custom styling for winning criteria selector */
+#filter-criteria {
+  border-color: var(--accent) !important;
+  color: var(--accent-light) !important;
+  font-weight: 600;
+}
+#filter-criteria option {
+  background: #0f172a;
+  color: var(--text-main);
+  font-weight: normal;
 }
 

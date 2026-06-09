@@ -186,6 +186,12 @@
             <option value="bodyage-reduced">อายุร่างกายลดลง</option>
           </select>
 
+          <select class="select-filter" id="filter-criteria" style="border-color: var(--accent);">
+            <option value="bodyage" selected>🏆 ชนะ: ลดอายุร่างกายมากที่สุด</option>
+            <option value="weight">🏆 ชนะ: ลดน้ำหนักมากที่สุด</option>
+            <option value="bmi_closest">🏆 ชนะ: BMI มาตรฐานดีที่สุด (ใกล้ 20.7)</option>
+          </select>
+
           <select class="select-filter" id="select-page-size">
             <option value="10">10 คน / หน้า</option>
             <option value="25">25 คน / หน้า</option>
@@ -557,7 +563,7 @@
                 <div class="revealed-name" id="pres-rev-name">John Doe</div>
                 <div class="revealed-dept" id="pres-rev-dept">แผนกการตลาด</div>
                 
-                <div class="revealed-metrics">
+                <div class="revealed-metrics" id="pres-revealed-metrics">
                   <div class="revealed-metric-box">
                     <div class="revealed-box-label">อายุร่างกายเดิม</div>
                     <div class="revealed-box-val" id="pres-rev-m1-age">45 ปี</div>

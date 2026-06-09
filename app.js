@@ -20,6 +20,7 @@ let cardRevealed = false; // Whether the current slide card is revealed
 // Personal Lookup and PIN Verification State
 let currentView = 'personal'; // 'admin' or 'personal'
 const ADMIN_PIN = '1504';
+let currentWinningCriteria = 'bodyage'; // Default winning criteria
 
 // DOM Elements
 const elements = {
@@ -46,6 +47,7 @@ const elements = {
   searchBox: document.getElementById('search-box'),
   filterDept: document.getElementById('filter-department'),
   filterProgress: document.getElementById('filter-progress'),
+  filterCriteria: document.getElementById('filter-criteria'),
   pageSizeSelect: document.getElementById('select-page-size'),
   btnExportCsv: document.getElementById('btn-export-csv'),
   btnDownloadTemplate: document.getElementById('btn-download-template'),
@@ -329,7 +331,13 @@ function getComparison(emp) {
       muscleDiff: 0,
       fatDiff: 0,
       hasProgress: false,
-      latestLabel: '-'
+      latestLabel: '-',
+      latestWeight: null,
+      latestBmi: null,
+      latestBodyage: null,
+      m1Weight: null,
+      m1Bmi: null,
+      m1Bodyage: null
     };
   }
   
@@ -348,7 +356,13 @@ function getComparison(emp) {
     muscleDiff,
     fatDiff,
     hasProgress: true,
-    latestLabel: label
+    latestLabel: label,
+    latestWeight: latest.weight,
+    latestBmi: latest.bmi,
+    latestBodyage: latest.bodyage,
+    m1Weight: m1.weight,
+    m1Bmi: m1.bmi,
+    m1Bodyage: m1.bodyage
   };
 }
 
@@ -447,6 +461,14 @@ function setupEventListeners() {
   document.getElementById('sort-name').addEventListener('click', () => handleSort('name'));
   document.getElementById('sort-w-diff').addEventListener('click', () => handleSort('weightDiff'));
   document.getElementById('sort-age-diff').addEventListener('click', () => handleSort('bodyageDiff'));
+
+  // Winning Criteria selector
+  if (elements.filterCriteria) {
+    elements.filterCriteria.addEventListener('change', (e) => {
+      currentWinningCriteria = e.target.value;
+      updateUI();
+    });
+  }
 
   // Presentation Mode event listeners
   elements.btnPresentationMode.addEventListener('click', startPresentation);
@@ -1001,37 +1023,80 @@ function renderPaginationControls(totalPages) {
   elements.paginationButtons.appendChild(nextBtn);
 }
 
-// Render Top 5 Leaderboard (Decreased Body Age)
+// Render Top 5 Leaderboard (Based on selected winning criteria)
 function renderLeaderboard() {
   elements.leaderboardContainer.innerHTML = '';
   
-  // Get all employees who have progressed and sort by body age reduction (most negative bodyageDiff)
-  const achievers = employees
-    .filter(emp => {
-      const comp = getComparison(emp);
-      return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
-    })
-    .map(emp => {
-      const comp = getComparison(emp);
-      return {
-        emp: emp,
-        reduction: -comp.bodyageDiff // make it positive for display
-      };
-    })
-    .sort((a, b) => b.reduction - a.reduction) // highest reduction first
-    .slice(0, 5);
-    
-  if (achievers.length === 0) {
+  let achievers = [];
+  let emptyMsg = '';
+  
+  if (currentWinningCriteria === 'bodyage') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        return {
+          emp: emp,
+          valText: `-${Math.abs(comp.bodyageDiff)} ปี`,
+          descText: 'อายุร่างกายลดลง',
+          sortKey: -comp.bodyageDiff
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+    emptyMsg = 'ยังไม่มีข้อมูลพนักงานที่ลดอายุร่างกายได้ในระบบขณะนี้';
+  } else if (currentWinningCriteria === 'weight') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        return {
+          emp: emp,
+          valText: `-${Math.abs(comp.weightDiff).toFixed(1)} kg`,
+          descText: 'น้ำหนักตัวลดลง',
+          sortKey: -comp.weightDiff
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+    emptyMsg = 'ยังไม่มีข้อมูลพนักงานที่ลดน้ำหนักตัวได้ในระบบขณะนี้';
+  } else if (currentWinningCriteria === 'bmi_closest') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        const distance = Math.abs(comp.latestBmi - 20.7);
+        return {
+          emp: emp,
+          valText: `${comp.latestBmi.toFixed(2)}`,
+          descText: `ห่างเป้า ${distance.toFixed(2)}`,
+          sortKey: distance
+        };
+      })
+      .sort((a, b) => a.sortKey - b.sortKey); // closest (lowest distance) first
+    emptyMsg = 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้';
+  }
+  
+  const topAchievers = achievers.slice(0, 5);
+  
+  if (topAchievers.length === 0) {
     elements.leaderboardContainer.innerHTML = `
       <div class="empty-state" style="padding: 2rem;">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌿</div>
-        <p>ยังไม่มีข้อมูลพนักงานที่ลดอายุร่างกายได้ในระบบขณะนี้</p>
+        <p>${emptyMsg}</p>
       </div>
     `;
     return;
   }
   
-  achievers.forEach((item, index) => {
+  topAchievers.forEach((item, index) => {
     const rank = index + 1;
     let badgeClass = 'rank-other';
     if (rank === 1) badgeClass = 'rank-1';
@@ -1047,8 +1112,8 @@ function renderLeaderboard() {
         <div class="leaderboard-dept">${item.emp.department} • อายุจริง ${item.emp.age} ปี</div>
       </div>
       <div class="leaderboard-metric">
-        <div class="leaderboard-val">-${item.reduction} ปี</div>
-        <div class="leaderboard-desc">อายุร่างกายลดลง</div>
+        <div class="leaderboard-val">${item.valText}</div>
+        <div class="leaderboard-desc">${item.descText}</div>
       </div>
     `;
     elements.leaderboardContainer.appendChild(div);
@@ -1865,36 +1930,87 @@ const Confetti = {
 
 // --- Presentation Mode Controller ---
 function startPresentation() {
-  // Grab top 3 winners (body age reducers)
-  const achievers = employees
-    .filter(emp => {
-      const comp = getComparison(emp);
-      return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
-    })
-    .map(emp => {
-      const comp = getComparison(emp);
-      return {
-        emp: emp,
-        reduction: -comp.bodyageDiff,
-        weightLoss: -comp.weightDiff,
-        bmiLoss: -comp.bmiDiff,
-        muscleDiff: comp.muscleDiff,
-        fatDiff: comp.fatDiff
-      };
-    })
-    .sort((a, b) => b.reduction - a.reduction); // Sorted highest reduction first
-    
+  let achievers = [];
+  
+  if (currentWinningCriteria === 'bodyage') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        return {
+          emp: emp,
+          sortKey: -comp.bodyageDiff
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+  } else if (currentWinningCriteria === 'weight') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        return {
+          emp: emp,
+          sortKey: -comp.weightDiff
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+  } else if (currentWinningCriteria === 'bmi_closest') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
+      })
+      .map(emp => {
+        const comp = getComparison(emp);
+        const distance = Math.abs(comp.latestBmi - 20.7);
+        return {
+          emp: emp,
+          sortKey: distance
+        };
+      })
+      .sort((a, b) => a.sortKey - b.sortKey);
+  }
+  
   if (achievers.length < 3) {
-    // Fail safe check: We need at least 3 people with progress who decreased body age
-    // To make it easy to test, if we don't have enough, warn the user.
-    showToast('กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดอายุร่างกายสำเร็จอย่างน้อย 3 คนก่อนประกาศผล', 'error', 5000);
+    let errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
+    if (currentWinningCriteria === 'bodyage') {
+      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดอายุร่างกายสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
+    } else if (currentWinningCriteria === 'weight') {
+      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดน้ำหนักสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
+    } else if (currentWinningCriteria === 'bmi_closest') {
+      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
+    }
+    showToast(errMsg, 'error', 5000);
     return;
   }
   
   // Rank 1: index 0 (Winner, Gold)
   // Rank 2: index 1 (Silver)
   // Rank 3: index 2 (Bronze)
-  presentationWinners = [achievers[0], achievers[1], achievers[2]];
+  presentationWinners = achievers.slice(0, 3).map(item => {
+    const comp = getComparison(item.emp);
+    return {
+      emp: item.emp,
+      bodyageDiff: comp.bodyageDiff,
+      weightLoss: -comp.weightDiff,
+      bmiLoss: -comp.bmiDiff,
+      muscleDiff: comp.muscleDiff,
+      fatDiff: comp.fatDiff,
+      latestBmi: comp.latestBmi,
+      latestWeight: comp.latestWeight,
+      latestBodyage: comp.latestBodyage,
+      m1Bmi: comp.m1Bmi,
+      m1Weight: comp.m1Weight,
+      m1Bodyage: comp.m1Bodyage,
+      distance: comp.latestBmi ? Math.abs(comp.latestBmi - 20.7) : 999
+    };
+  });
   
   // Set up elements
   Confetti.init(elements.presentationOverlay.querySelector('#presentation-confetti-canvas'));
@@ -1983,15 +2099,54 @@ function goPresentationStage(stageIndex) {
     document.getElementById('pres-rev-name').textContent = winnerData.emp.name;
     document.getElementById('pres-rev-dept').textContent = `${winnerData.emp.department} • อายุจริง ${winnerData.emp.age} ปี`;
     
-    document.getElementById('pres-rev-m1-age').textContent = `${winnerData.emp.months.m1.bodyage} ปี`;
-    
-    // Latest body age calculation
-    const comp = getComparison(winnerData.emp);
-    const m3 = winnerData.emp.months.m3;
-    const latestAge = m3 ? m3.bodyage : winnerData.emp.months.m2.bodyage;
-    document.getElementById('pres-rev-latest-age').textContent = `${latestAge} ปี`;
-    
-    document.getElementById('pres-rev-diff-age').textContent = `ลดลง ${winnerData.reduction} ปี`;
+    // Dynamically render metrics box container based on active criteria
+    const metricsContainer = document.getElementById('pres-revealed-metrics');
+    if (currentWinningCriteria === 'bodyage') {
+      metricsContainer.innerHTML = `
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">อายุร่างกายเดิม</div>
+          <div class="revealed-box-val">${winnerData.m1Bodyage} ปี</div>
+        </div>
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">อายุร่างกายใหม่</div>
+          <div class="revealed-box-val">${winnerData.latestBodyage} ปี</div>
+        </div>
+        <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+          <div class="revealed-box-label" style="color: var(--primary-light);">ลดลงได้</div>
+          <div class="revealed-box-val" style="color: var(--success); font-weight: 700;">-${Math.abs(winnerData.bodyageDiff)} ปี</div>
+        </div>
+      `;
+    } else if (currentWinningCriteria === 'weight') {
+      metricsContainer.innerHTML = `
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">น้ำหนักเดิม</div>
+          <div class="revealed-box-val">${winnerData.m1Weight.toFixed(1)} kg</div>
+        </div>
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">น้ำหนักใหม่</div>
+          <div class="revealed-box-val">${winnerData.latestWeight.toFixed(1)} kg</div>
+        </div>
+        <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+          <div class="revealed-box-label" style="color: var(--primary-light);">ลดลงได้</div>
+          <div class="revealed-box-val" style="color: var(--success); font-weight: 700;">-${Math.abs(winnerData.weightLoss).toFixed(1)} kg</div>
+        </div>
+      `;
+    } else if (currentWinningCriteria === 'bmi_closest') {
+      metricsContainer.innerHTML = `
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">BMI แรกเริ่ม</div>
+          <div class="revealed-box-val">${winnerData.m1Bmi.toFixed(2)}</div>
+        </div>
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">BMI ล่าสุด</div>
+          <div class="revealed-box-val">${winnerData.latestBmi.toFixed(2)}</div>
+        </div>
+        <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+          <div class="revealed-box-label" style="color: var(--primary-light);">ห่างจากเป้า (20.7)</div>
+          <div class="revealed-box-val" style="color: var(--success); font-weight: 700;">${winnerData.distance.toFixed(2)}</div>
+        </div>
+      `;
+    }
     
     // Extra details (Weight, BMI, Muscle, Fat changes)
     const muscleSign = winnerData.muscleDiff > 0 ? '+' : '';
@@ -1999,7 +2154,19 @@ function goPresentationStage(stageIndex) {
     const muscleText = winnerData.muscleDiff !== 0 ? `💪 กล้ามเนื้อ: <strong>${muscleSign}${winnerData.muscleDiff}%</strong>` : '';
     const fatText = winnerData.fatDiff !== 0 ? `📉 ไขมัน: <strong>${fatSign}${winnerData.fatDiff}%</strong>` : '';
     
-    let subStatsHtml = `⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
+    let subStatsHtml = '';
+    if (currentWinningCriteria === 'bodyage') {
+      subStatsHtml = `⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
+    } else if (currentWinningCriteria === 'weight') {
+      const ageDiffVal = winnerData.bodyageDiff;
+      const ageText = ageDiffVal < 0 ? `ลดลง ${Math.abs(ageDiffVal)} ปี` : ageDiffVal > 0 ? `เพิ่มขึ้น +${ageDiffVal} ปี` : 'คงที่';
+      subStatsHtml = `🌿 อายุร่างกาย: <strong>${ageText}</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
+    } else if (currentWinningCriteria === 'bmi_closest') {
+      const ageDiffVal = winnerData.bodyageDiff;
+      const ageText = ageDiffVal < 0 ? `ลดลง ${Math.abs(ageDiffVal)} ปี` : ageDiffVal > 0 ? `เพิ่มขึ้น +${ageDiffVal} ปี` : 'คงที่';
+      subStatsHtml = `🌿 อายุร่างกาย: <strong>${ageText}</strong> &nbsp;&nbsp;|&nbsp;&nbsp; ⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong>`;
+    }
+    
     if (muscleText || fatText) {
       subStatsHtml += `<br>${muscleText} ${muscleText && fatText ? '&nbsp;&nbsp;|&nbsp;&nbsp;' : ''} ${fatText}`;
     }
@@ -2020,17 +2187,31 @@ function goPresentationStage(stageIndex) {
     // Winner 1st
     document.getElementById('podium-1-name').textContent = p1.emp.name;
     document.getElementById('podium-1-dept').textContent = p1.emp.department;
-    document.getElementById('podium-1-stat').textContent = `ลดอายุร่างกายได้ -${p1.reduction} ปี`;
     
     // Winner 2nd
     document.getElementById('podium-2-name').textContent = p2.emp.name;
     document.getElementById('podium-2-dept').textContent = p2.emp.department;
-    document.getElementById('podium-2-stat').textContent = `ลดอายุร่างกายได้ -${p2.reduction} ปี`;
     
     // Winner 3rd
     document.getElementById('podium-3-name').textContent = p3.emp.name;
     document.getElementById('podium-3-dept').textContent = p3.emp.department;
-    document.getElementById('podium-3-stat').textContent = `ลดอายุร่างกายได้ -${p3.reduction} ปี`;
+    
+    // Set podium stats dynamically
+    const setPodiumStat = (id, p) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (currentWinningCriteria === 'bodyage') {
+        el.textContent = `ลดอายุร่างกายได้ -${Math.abs(p.bodyageDiff)} ปี`;
+      } else if (currentWinningCriteria === 'weight') {
+        el.textContent = `ลดน้ำหนักได้ -${Math.abs(p.weightLoss).toFixed(1)} kg`;
+      } else if (currentWinningCriteria === 'bmi_closest') {
+        el.textContent = `BMI: ${p.latestBmi.toFixed(2)} (ห่างเป้า ${p.distance.toFixed(2)})`;
+      }
+    };
+    
+    setPodiumStat('podium-1-stat', p1);
+    setPodiumStat('podium-2-stat', p2);
+    setPodiumStat('podium-3-stat', p3);
     
     // Trigger continuous confetti falling loop
     Confetti.continuousLoop = true;
