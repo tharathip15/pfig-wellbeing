@@ -849,7 +849,7 @@ function calculateWidgets() {
     employees.forEach(emp => {
       const comp = getComparison(emp);
       if (comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null) {
-        const distance = Math.abs(comp.latestBmi - 20.7);
+        const distance = Math.abs(comp.latestBmi - 21);
         if (distance < minBmiDistance) {
           minBmiDistance = distance;
           bestBmiWinner = emp;
@@ -1093,7 +1093,7 @@ function renderLeaderboard() {
     if (currentWinningCriteria === 'weight') {
       titleText = '5 อันดับแรก ผู้ที่ลดน้ำหนักตัวได้มากที่สุด';
     } else if (currentWinningCriteria === 'bmi_closest') {
-      titleText = '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 20.7)';
+      titleText = '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 21)';
     }
     titleEl.innerHTML = `<span>🏆</span> ${titleText}`;
   }
@@ -1143,7 +1143,7 @@ function renderLeaderboard() {
       })
       .map(emp => {
         const comp = getComparison(emp);
-        const distance = Math.abs(comp.latestBmi - 20.7);
+        const distance = Math.abs(comp.latestBmi - 21);
         return {
           emp: emp,
           valText: `${comp.latestBmi.toFixed(2)}`,
@@ -2039,7 +2039,7 @@ function startPresentation() {
       })
       .map(emp => {
         const comp = getComparison(emp);
-        const distance = Math.abs(comp.latestBmi - 20.7);
+        const distance = Math.abs(comp.latestBmi - 21);
         return {
           emp: emp,
           sortKey: distance
@@ -2079,7 +2079,7 @@ function startPresentation() {
       m1Bmi: comp.m1Bmi,
       m1Weight: comp.m1Weight,
       m1Bodyage: comp.m1Bodyage,
-      distance: comp.latestBmi ? Math.abs(comp.latestBmi - 20.7) : 999
+      distance: comp.latestBmi ? Math.abs(comp.latestBmi - 21) : 999
     };
   });
   
@@ -2213,7 +2213,7 @@ function goPresentationStage(stageIndex) {
           <div class="revealed-box-val">${winnerData.latestBmi.toFixed(2)}</div>
         </div>
         <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
-          <div class="revealed-box-label" style="color: var(--primary-light);">ห่างจากเป้า (20.7)</div>
+          <div class="revealed-box-label" style="color: var(--primary-light);">ห่างจากเป้า (21)</div>
           <div class="revealed-box-val" style="color: var(--success); font-weight: 700;">${winnerData.distance.toFixed(2)}</div>
         </div>
       `;
