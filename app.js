@@ -804,14 +804,73 @@ function calculateWidgets() {
     elements.bmiTrend.innerHTML = 'ยังไม่มีข้อมูลการบันทึก';
   }
   
-  // Top Body Age Reducer
-  if (maxAgeLoss > 0 && maxAgeWinner) {
-    elements.maxBodyageLoss.textContent = `${maxAgeLoss} ปี`;
-    elements.maxBodyageWinner.textContent = `${maxAgeWinner.name} (${maxAgeWinner.department})`;
-  } else {
-    elements.maxBodyageLoss.textContent = '0 ปี';
-    elements.maxBodyageWinner.textContent = 'ไม่มีข้อมูลการบันทึก';
+  // Top Winner Card Widget dynamically based on criteria
+  let topValue = '0';
+  let topWinnerName = 'ไม่มีข้อมูลการบันทึก';
+  let widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
+  let widgetIcon = '🔥';
+  
+  if (currentWinningCriteria === 'bodyage') {
+    widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
+    widgetIcon = '🔥';
+    if (maxAgeLoss > 0 && maxAgeWinner) {
+      topValue = `${maxAgeLoss} ปี`;
+      topWinnerName = `${maxAgeWinner.name} (${maxAgeWinner.department})`;
+    } else {
+      topValue = '0 ปี';
+    }
+  } else if (currentWinningCriteria === 'weight') {
+    widgetTitle = 'ลดน้ำหนักตัวได้สูงสุด';
+    widgetIcon = '⚖️';
+    let maxWeightLoss = 0;
+    let maxWeightWinner = null;
+    employees.forEach(emp => {
+      const comp = getComparison(emp);
+      if (comp.hasProgress && emp.department !== 'Executive') {
+        const loss = -comp.weightDiff;
+        if (loss > maxWeightLoss) {
+          maxWeightLoss = loss;
+          maxWeightWinner = emp;
+        }
+      }
+    });
+    if (maxWeightLoss > 0 && maxWeightWinner) {
+      topValue = `-${maxWeightLoss.toFixed(1)} kg`;
+      topWinnerName = `${maxWeightWinner.name} (${maxWeightWinner.department})`;
+    } else {
+      topValue = '0.0 kg';
+    }
+  } else if (currentWinningCriteria === 'bmi_closest') {
+    widgetTitle = 'BMI มาตรฐานดีที่สุด';
+    widgetIcon = '🎯';
+    let minBmiDistance = 999;
+    let bestBmiWinner = null;
+    let bestBmiVal = 0;
+    employees.forEach(emp => {
+      const comp = getComparison(emp);
+      if (comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null) {
+        const distance = Math.abs(comp.latestBmi - 20.7);
+        if (distance < minBmiDistance) {
+          minBmiDistance = distance;
+          bestBmiWinner = emp;
+          bestBmiVal = comp.latestBmi;
+        }
+      }
+    });
+    if (bestBmiWinner) {
+      topValue = `${bestBmiVal.toFixed(2)}`;
+      topWinnerName = `${bestBmiWinner.name} (${bestBmiWinner.department}) • ห่างเป้า ${minBmiDistance.toFixed(2)}`;
+    } else {
+      topValue = '-';
+    }
   }
+  
+  const titleEl = document.getElementById('stat-max-title');
+  const iconEl = document.getElementById('stat-max-icon');
+  if (titleEl) titleEl.textContent = widgetTitle;
+  if (iconEl) iconEl.textContent = widgetIcon;
+  elements.maxBodyageLoss.textContent = topValue;
+  elements.maxBodyageWinner.textContent = topWinnerName;
 }
 
 // Render Table Rows with Pagination
@@ -1026,6 +1085,18 @@ function renderPaginationControls(totalPages) {
 // Render Top 5 Leaderboard (Based on selected winning criteria)
 function renderLeaderboard() {
   elements.leaderboardContainer.innerHTML = '';
+  
+  // Update Leaderboard Card Title dynamically
+  const titleEl = document.getElementById('leaderboard-title');
+  if (titleEl) {
+    let titleText = '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด';
+    if (currentWinningCriteria === 'weight') {
+      titleText = '5 อันดับแรก ผู้ที่ลดน้ำหนักตัวได้มากที่สุด';
+    } else if (currentWinningCriteria === 'bmi_closest') {
+      titleText = '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 20.7)';
+    }
+    titleEl.innerHTML = `<span>🏆</span> ${titleText}`;
+  }
   
   let achievers = [];
   let emptyMsg = '';
