@@ -349,19 +349,26 @@ function getComparison(emp) {
     ? parseFloat((latest.fat - m1.fat).toFixed(1))
     : 0;
   
+  const latestBmiVal = (latest.bmi !== undefined && latest.bmi !== null) ? parseFloat(latest.bmi) : (calcBMI(latest.weight, emp.height) || null);
+  const m1BmiVal = (m1.bmi !== undefined && m1.bmi !== null) ? parseFloat(m1.bmi) : (calcBMI(m1.weight, emp.height) || null);
+  
+  const bmiDiffVal = (latestBmiVal !== null && m1BmiVal !== null)
+    ? parseFloat((latestBmiVal - m1BmiVal).toFixed(2))
+    : 0;
+
   return {
     weightDiff: parseFloat((latest.weight - m1.weight).toFixed(1)),
-    bmiDiff: parseFloat((latest.bmi - m1.bmi).toFixed(2)),
+    bmiDiff: bmiDiffVal,
     bodyageDiff: parseInt(latest.bodyage - m1.bodyage),
     muscleDiff,
     fatDiff,
     hasProgress: true,
     latestLabel: label,
     latestWeight: latest.weight,
-    latestBmi: latest.bmi,
+    latestBmi: latestBmiVal,
     latestBodyage: latest.bodyage,
     m1Weight: m1.weight,
-    m1Bmi: m1.bmi,
+    m1Bmi: m1BmiVal,
     m1Bodyage: m1.bodyage
   };
 }
