@@ -381,7 +381,7 @@ function calculateHealthScore(emp) {
   // 1. Weight Score (%)
   // Underweight (BMI < 18.5): weight gain is positive.
   // Overweight/Obese (BMI >= 22.9): weight loss is positive.
-  // Normal Weight (18.5 <= BMI < 22.9): weight stability is positive (up to 10 points).
+  // Normal Weight (18.5 <= BMI < 22.9): weight changes do not score points (weightScore = 0).
   let weightScore = 0;
   const startWeight = comp.m1Weight;
   const startBmi = comp.m1Bmi;
@@ -394,9 +394,8 @@ function calculateHealthScore(emp) {
       // Overweight/Obese: want to lose weight
       weightScore = ((startWeight - comp.latestWeight) / startWeight) * 100;
     } else {
-      // Normal weight: want to keep weight stable (Body Recomposition)
-      const diffPercent = Math.abs(((comp.latestWeight - startWeight) / startWeight) * 100);
-      weightScore = 10 - diffPercent * 2;
+      // Normal weight: focus is on muscle/fat recomposition, weight score is 0
+      weightScore = 0;
     }
   }
   
