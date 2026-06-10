@@ -401,8 +401,8 @@ function calculateHealthScore(emp) {
   const fatScore = -comp.fatDiff || 0; // Losing fat is positive (so we subtract fatDiff)
   
   // Combined Score formula:
-  // Weight Score * 0.4 + Muscle Score * 0.4 + Fat Score * 0.2
-  const totalScore = (weightScore * 0.4) + (muscleScore * 0.4) + (fatScore * 0.2);
+  // Weight Score * 0.4 + Muscle Score * 0.3 + Fat Score * 0.3
+  const totalScore = (weightScore * 0.4) + (muscleScore * 0.3) + (fatScore * 0.3);
   
   return {
     weightScore,
