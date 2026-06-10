@@ -20,7 +20,7 @@ let cardRevealed = false; // Whether the current slide card is revealed
 // Personal Lookup and PIN Verification State
 let currentView = 'personal'; // 'admin' or 'personal'
 const ADMIN_PIN = '1504';
-let currentWinningCriteria = 'bodyage'; // Default winning criteria
+let currentWinningCriteria = 'health_score'; // Default winning criteria
 
 // DOM Elements
 const elements = {
@@ -363,6 +363,52 @@ function getComparison(emp) {
     m1Weight: m1.weight,
     m1Bmi: m1.bmi,
     m1Bodyage: m1.bodyage
+  };
+}
+
+// Helper: Calculate 3D Health Score (Combined Weight, Muscle, Fat Progress)
+function calculateHealthScore(emp) {
+  const comp = getComparison(emp);
+  if (!comp.hasProgress) {
+    return {
+      weightScore: 0,
+      muscleScore: 0,
+      fatScore: 0,
+      totalScore: 0
+    };
+  }
+  
+  // 1. Weight Score (%)
+  // Normal/Overweight (BMI >= 18.5): weight loss is positive. Underweight (BMI < 18.5): weight gain is positive.
+  let weightScore = 0;
+  const startWeight = comp.m1Weight;
+  const startBmi = comp.m1Bmi;
+  
+  if (startWeight && startWeight > 0) {
+    if (startBmi && startBmi < 18.5) {
+      // Underweight: want to gain weight
+      weightScore = ((comp.latestWeight - startWeight) / startWeight) * 100;
+    } else {
+      // Normal/Overweight: want to lose weight
+      weightScore = ((startWeight - comp.latestWeight) / startWeight) * 100;
+    }
+  }
+  
+  // 2. Muscle Score (percentage points change)
+  const muscleScore = comp.muscleDiff || 0; // Gaining muscle is positive
+  
+  // 3. Fat Score (percentage points change)
+  const fatScore = -comp.fatDiff || 0; // Losing fat is positive (so we subtract fatDiff)
+  
+  // Combined Score formula:
+  // Weight Score * 0.4 + Muscle Score * 0.4 + Fat Score * 0.2
+  const totalScore = (weightScore * 0.4) + (muscleScore * 0.4) + (fatScore * 0.2);
+  
+  return {
+    weightScore,
+    muscleScore,
+    fatScore,
+    totalScore
   };
 }
 
@@ -810,7 +856,28 @@ function calculateWidgets() {
   let widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
   let widgetIcon = '🔥';
   
-  if (currentWinningCriteria === 'bodyage') {
+  if (currentWinningCriteria === 'health_score') {
+    widgetTitle = 'คะแนนสุขภาพสูงสุด';
+    widgetIcon = '🏆';
+    let maxScore = -999;
+    let bestScoreWinner = null;
+    employees.forEach(emp => {
+      const comp = getComparison(emp);
+      if (comp.hasProgress && emp.department !== 'Executive') {
+        const scoreData = calculateHealthScore(emp);
+        if (scoreData.totalScore > maxScore) {
+          maxScore = scoreData.totalScore;
+          bestScoreWinner = emp;
+        }
+      }
+    });
+    if (bestScoreWinner) {
+      topValue = `${maxScore.toFixed(1)} คะแนน`;
+      topWinnerName = `${bestScoreWinner.name} (${bestScoreWinner.department})`;
+    } else {
+      topValue = '-';
+    }
+  } else if (currentWinningCriteria === 'bodyage') {
     widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
     widgetIcon = '🔥';
     if (maxAgeLoss > 0 && maxAgeWinner) {
@@ -1089,8 +1156,10 @@ function renderLeaderboard() {
   // Update Leaderboard Card Title dynamically
   const titleEl = document.getElementById('leaderboard-title');
   if (titleEl) {
-    let titleText = '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด';
-    if (currentWinningCriteria === 'weight') {
+    let titleText = '5 อันดับแรก ผู้ที่ได้คะแนนสุขภาพรวม 3 มิติสูงสุด';
+    if (currentWinningCriteria === 'bodyage') {
+      titleText = '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด';
+    } else if (currentWinningCriteria === 'weight') {
       titleText = '5 อันดับแรก ผู้ที่ลดน้ำหนักตัวได้มากที่สุด';
     } else if (currentWinningCriteria === 'bmi_closest') {
       titleText = '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 21)';
@@ -1101,7 +1170,24 @@ function renderLeaderboard() {
   let achievers = [];
   let emptyMsg = '';
   
-  if (currentWinningCriteria === 'bodyage') {
+  if (currentWinningCriteria === 'health_score') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const scoreData = calculateHealthScore(emp);
+        return {
+          emp: emp,
+          valText: `${scoreData.totalScore.toFixed(1)} คะแนน`,
+          descText: 'คะแนนสุขภาพรวม 3 มิติ',
+          sortKey: scoreData.totalScore
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+    emptyMsg = 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้';
+  } else if (currentWinningCriteria === 'bodyage') {
     achievers = employees
       .filter(emp => {
         const comp = getComparison(emp);
@@ -2003,7 +2089,21 @@ const Confetti = {
 function startPresentation() {
   let achievers = [];
   
-  if (currentWinningCriteria === 'bodyage') {
+  if (currentWinningCriteria === 'health_score') {
+    achievers = employees
+      .filter(emp => {
+        const comp = getComparison(emp);
+        return comp.hasProgress && emp.department !== 'Executive';
+      })
+      .map(emp => {
+        const scoreData = calculateHealthScore(emp);
+        return {
+          emp: emp,
+          sortKey: scoreData.totalScore
+        };
+      })
+      .sort((a, b) => b.sortKey - a.sortKey);
+  } else if (currentWinningCriteria === 'bodyage') {
     achievers = employees
       .filter(emp => {
         const comp = getComparison(emp);
@@ -2050,7 +2150,9 @@ function startPresentation() {
   
   if (achievers.length < 3) {
     let errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    if (currentWinningCriteria === 'bodyage') {
+    if (currentWinningCriteria === 'health_score') {
+      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
+    } else if (currentWinningCriteria === 'bodyage') {
       errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดอายุร่างกายสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
     } else if (currentWinningCriteria === 'weight') {
       errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดน้ำหนักสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
@@ -2066,6 +2168,7 @@ function startPresentation() {
   // Rank 3: index 2 (Bronze)
   presentationWinners = achievers.slice(0, 3).map(item => {
     const comp = getComparison(item.emp);
+    const scoreData = calculateHealthScore(item.emp);
     return {
       emp: item.emp,
       bodyageDiff: comp.bodyageDiff,
@@ -2079,7 +2182,11 @@ function startPresentation() {
       m1Bmi: comp.m1Bmi,
       m1Weight: comp.m1Weight,
       m1Bodyage: comp.m1Bodyage,
-      distance: comp.latestBmi ? Math.abs(comp.latestBmi - 21) : 999
+      distance: comp.latestBmi ? Math.abs(comp.latestBmi - 21) : 999,
+      healthScore: scoreData.totalScore,
+      weightScore: scoreData.weightScore,
+      muscleScore: scoreData.muscleScore,
+      fatScore: scoreData.fatScore
     };
   });
   
@@ -2172,7 +2279,29 @@ function goPresentationStage(stageIndex) {
     
     // Dynamically render metrics box container based on active criteria
     const metricsContainer = document.getElementById('pres-revealed-metrics');
-    if (currentWinningCriteria === 'bodyage') {
+    if (currentWinningCriteria === 'health_score') {
+      const wDiff = -winnerData.weightLoss; // weightDiff
+      const wText = wDiff > 0 ? `เพิ่มขึ้น +${wDiff.toFixed(1)} kg` : wDiff < 0 ? `ลดลง ${Math.abs(wDiff).toFixed(1)} kg` : 'คงที่';
+      const mText = winnerData.muscleDiff > 0 ? `+${winnerData.muscleDiff}%` : `${winnerData.muscleDiff}%`;
+      const fText = winnerData.fatDiff > 0 ? `+${winnerData.fatDiff}%` : `${winnerData.fatDiff}%`;
+      
+      metricsContainer.innerHTML = `
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">การพัฒนาน้ำหนัก</div>
+          <div class="revealed-box-val" style="font-size: 0.95rem;">${wText}</div>
+        </div>
+        <div class="revealed-metric-box">
+          <div class="revealed-box-label">มวลกาย (กล้ามเนื้อ/ไขมัน)</div>
+          <div class="revealed-box-val" style="font-size: 0.85rem; line-height: 1.2; padding-top: 0.2rem;">
+            กล้ามเนื้อ: ${mText}<br>ไขมัน: ${fText}
+          </div>
+        </div>
+        <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+          <div class="revealed-box-label" style="color: var(--primary-light);">คะแนนสุขภาพรวม</div>
+          <div class="revealed-box-val" style="color: var(--success); font-weight: 700;">${winnerData.healthScore.toFixed(1)} คะแนน</div>
+        </div>
+      `;
+    } else if (currentWinningCriteria === 'bodyage') {
       metricsContainer.innerHTML = `
         <div class="revealed-metric-box">
           <div class="revealed-box-label">อายุร่างกายเดิม</div>
@@ -2226,7 +2355,11 @@ function goPresentationStage(stageIndex) {
     const fatText = winnerData.fatDiff !== 0 ? `📉 ไขมัน: <strong>${fatSign}${winnerData.fatDiff}%</strong>` : '';
     
     let subStatsHtml = '';
-    if (currentWinningCriteria === 'bodyage') {
+    if (currentWinningCriteria === 'health_score') {
+      const ageDiffVal = winnerData.bodyageDiff;
+      const ageText = ageDiffVal < 0 ? `ลดลง ${Math.abs(ageDiffVal)} ปี` : ageDiffVal > 0 ? `เพิ่มขึ้น +${ageDiffVal} ปี` : 'คงที่';
+      subStatsHtml = `🌿 อายุร่างกาย: <strong>${ageText}</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ล่าสุด: <strong>${winnerData.latestBmi ? winnerData.latestBmi.toFixed(2) : '-'}</strong>`;
+    } else if (currentWinningCriteria === 'bodyage') {
       subStatsHtml = `⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
     } else if (currentWinningCriteria === 'weight') {
       const ageDiffVal = winnerData.bodyageDiff;
@@ -2271,7 +2404,9 @@ function goPresentationStage(stageIndex) {
     const setPodiumStat = (id, p) => {
       const el = document.getElementById(id);
       if (!el) return;
-      if (currentWinningCriteria === 'bodyage') {
+      if (currentWinningCriteria === 'health_score') {
+        el.textContent = `คะแนนสุขภาพ: ${p.healthScore.toFixed(1)} คะแนน`;
+      } else if (currentWinningCriteria === 'bodyage') {
         el.textContent = `ลดอายุร่างกายได้ -${Math.abs(p.bodyageDiff)} ปี`;
       } else if (currentWinningCriteria === 'weight') {
         el.textContent = `ลดน้ำหนักได้ -${Math.abs(p.weightLoss).toFixed(1)} kg`;
