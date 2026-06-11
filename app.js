@@ -202,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize Theme
   const savedTheme = localStorage.getItem('pfig-theme') || 'light';
+  console.log("Initializing theme from localStorage. Saved value:", savedTheme);
   if (savedTheme === 'dark') {
     document.body.classList.add('dark-theme');
   } else {
@@ -673,6 +674,7 @@ function setupEventListeners() {
     btnToggleTheme.addEventListener('click', () => {
       document.body.classList.toggle('dark-theme');
       const isDark = document.body.classList.contains('dark-theme');
+      console.log("Theme toggled by user. Active theme:", isDark ? "dark" : "light");
       localStorage.setItem('pfig-theme', isDark ? 'dark' : 'light');
       updateThemeButtonIcon();
     });
