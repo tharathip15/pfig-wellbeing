@@ -2982,7 +2982,7 @@ function showPersonalProfile(empId, selectedGender = null) {
         <!-- Card 1: 3D Health Score Breakdown -->
         <div class="personal-insight-card">
           <div class="personal-insight-title">
-            <span>🎯</span> คะแนนสุขภาพรวม 3 มิติของคุณ
+            <span>🎯</span> คะแนนสุขภาพรวมของคุณ
           </div>
           <div class="personal-score-layout">
             <div class="personal-score-radial-group">
