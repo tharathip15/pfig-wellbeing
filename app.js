@@ -199,6 +199,16 @@ function showLoader(show) {
 // Initialize Application
 document.addEventListener('DOMContentLoaded', async () => {
   showLoader(true);
+  
+  // Initialize Theme
+  const savedTheme = localStorage.getItem('pfig-theme') || 'light';
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+  } else {
+    document.body.classList.remove('dark-theme');
+  }
+  updateThemeButtonIcon();
+
   setupEventListeners();
   await loadData();
   updateUI();
@@ -656,6 +666,25 @@ function setupEventListeners() {
 
   elements.btnClosePinModal.addEventListener('click', closePinModal);
   elements.btnSubmitPin.addEventListener('click', handlePinVerification);
+
+  // Theme Toggle Button
+  const btnToggleTheme = document.getElementById('btn-toggle-theme');
+  if (btnToggleTheme) {
+    btnToggleTheme.addEventListener('click', () => {
+      document.body.classList.toggle('dark-theme');
+      const isDark = document.body.classList.contains('dark-theme');
+      localStorage.setItem('pfig-theme', isDark ? 'dark' : 'light');
+      updateThemeButtonIcon();
+    });
+  }
+}
+
+// Update Theme Button Text/Icon
+function updateThemeButtonIcon() {
+  const btn = document.getElementById('btn-toggle-theme');
+  if (!btn) return;
+  const isDark = document.body.classList.contains('dark-theme');
+  btn.innerHTML = isDark ? '☀️ ธีมสว่าง' : '🌙 ธีมมืด';
 }
 
 
@@ -2692,17 +2721,17 @@ function showPersonalProfile(empId, selectedGender = null) {
       modalOverlay.style.justifyContent = 'center';
       
       modalOverlay.innerHTML = `
-        <div class="modal-content animate-scale" style="max-width: 380px; text-align: center; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); padding: 2rem; border-radius: 16px;">
+        <div class="modal-content animate-scale" style="max-width: 380px; text-align: center; background: var(--bg-modal); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border-color); box-shadow: var(--shadow-md); padding: 2rem; border-radius: 16px;">
           <div style="font-size: 3rem; margin-bottom: 0.75rem;">⚧️</div>
           <h3 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">ระบุเพศของคุณ</h3>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5; font-family: 'Outfit', sans-serif;">เพื่อใช้เปรียบเทียบและประเมินผลลัพธ์มวลกล้ามเนื้อและปริมาณไขมันในร่างกายตามเกณฑ์มาตรฐานสุขภาพ</p>
           
           <div style="display: flex; gap: 0.85rem; justify-content: center;">
-            <button onclick="saveSelectedGender('male')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--primary); color: var(--primary-light); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
+            <button onclick="saveSelectedGender('male')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: var(--primary-glow); border: 1px solid var(--primary); color: var(--primary-light); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
               <span style="font-size: 1.5rem;">👨</span>
               <span style="font-weight: 600;">ชาย (Men)</span>
             </button>
-            <button onclick="saveSelectedGender('female')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: rgba(236, 72, 153, 0.1); border: 1px solid #ec4899; color: #ff85c0; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
+            <button onclick="saveSelectedGender('female')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: var(--bg-pink-female-glow); border: 1px solid var(--pink-female); color: var(--pink-female); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
               <span style="font-size: 1.5rem;">👩</span>
               <span style="font-weight: 600;">หญิง (Women)</span>
             </button>
@@ -2819,14 +2848,14 @@ function showPersonalProfile(empId, selectedGender = null) {
     let bmiHtml = '-';
     if (bmiVal) {
       const status = getBmiStatus(bmiVal);
-      bmiHtml = `<span style="color: ${status.color}; font-weight: 700;">${bmiVal} <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+      bmiHtml = `<span style="color: ${status.color}; font-weight: 700;">${bmiVal} <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
     }
     
     let muscleHtml = '-';
     if (m.muscle !== undefined && m.muscle !== null) {
       if (gender) {
         const status = getMuscleStatus(m.muscle, gender);
-        muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+        muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
       } else {
         muscleHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.muscle}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
       }
@@ -2836,7 +2865,7 @@ function showPersonalProfile(empId, selectedGender = null) {
     if (m.fat !== undefined && m.fat !== null) {
       if (gender) {
         const status = getFatStatus(m.fat, gender);
-        fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-left: 2px;">${status.text}</span></span>`;
+        fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
       } else {
         fatHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.fat}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
       }
@@ -2964,10 +2993,10 @@ function showPersonalProfile(empId, selectedGender = null) {
               <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
               
               <!-- Inline Gender Selector -->
-              <span class="personal-meta-badge" style="background: rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
+              <span class="personal-meta-badge" style="background: var(--bg-item); border: 1px solid var(--border-item); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
                 ⚧️ ระบุเพศ:
-                <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'rgba(255,255,255,0.1)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
-                <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? '#ec4899' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${gender === 'female' ? '#ff85c0' : 'rgba(255,255,255,0.1)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
+                <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'var(--border-color)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
+                <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? 'var(--pink-female)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'female' ? 'var(--pink-female)' : 'var(--border-color)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
               </span>
             </div>
           </div>
@@ -3051,7 +3080,7 @@ function showPersonalProfile(empId, selectedGender = null) {
             </div>
 
             <!-- Personalized Health Advice -->
-            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted);">
+            <div style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted);">
               <strong>💡 คำแนะนำ:</strong> ${weightAdvice}
             </div>
           </div>
@@ -3101,7 +3130,7 @@ function showPersonalProfile(empId, selectedGender = null) {
 
         <!-- Stat 5: Fat change -->
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #f87171;">📉</div>
+          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">📉</div>
           <div class="personal-stat-details">
             <span class="personal-stat-label">อัตราไขมัน</span>
             <span class="personal-stat-value">${fatChangeHtml}</span>
@@ -3120,38 +3149,38 @@ function showPersonalProfile(empId, selectedGender = null) {
       </div>
 
       <!-- Health Reference Standards Guide -->
-      <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 2rem;">
+      <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
         <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
           <span>📋</span> ตารางเกณฑ์ค่ามาตรฐานสุขภาพสำหรับเปรียบเทียบแนวทาง
         </h4>
         <div class="reference-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem;">
           <!-- BMI Card -->
-          <div class="reference-card" style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 1.25rem;">
+          <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-light); display: flex; align-items: center; gap: 0.4rem;">
               <span>📊</span> ดัชนีมวลกาย (BMI) - เกณฑ์เอเชีย
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem;">
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.4rem; color: var(--text-muted); font-weight: 600; gap: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem; color: var(--text-muted); font-weight: 600; gap: 0.5rem;">
                 <span style="flex: 1.2; min-width: 80px;">ช่วงค่า BMI</span>
                 <span style="flex: 2;">ความหมาย</span>
                 <span style="flex: 1.5; text-align: right;">สถานะ</span>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">น้อยกว่า 18.5</span>
                 <span style="flex: 2; color: var(--text-muted);">น้ำหนักน้อยกว่าเกณฑ์ / ผอม</span>
                 <span style="flex: 1.5; text-align: right; color: var(--warning);">บางเกินไป</span>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0.4rem; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center; background: rgba(16, 185, 129, 0.05); margin: 0 -0.4rem; border-radius: 6px;">
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0.4rem; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center; background: rgba(16, 185, 129, 0.05); margin: 0 -0.4rem; border-radius: 6px;">
                 <span style="flex: 1.2; min-width: 80px; font-weight: 600; color: var(--primary-light);">18.5 - 22.9</span>
                 <span style="flex: 2; font-weight: 600; color: var(--primary-light);">สมส่วน / น้ำหนักปกติ</span>
                 <span style="flex: 1.5; text-align: right; color: var(--success); font-weight: 600;">สุขภาพดี 🌱</span>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">23.0 - 24.9</span>
                 <span style="flex: 2; color: var(--text-muted);">น้ำหนักเกินเกณฑ์มาตรฐาน</span>
                 <span style="flex: 1.5; text-align: right; color: var(--warning);">น้ำหนักเกิน / เริ่มท้วม</span>
               </div>
-              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.03); gap: 0.5rem; align-items: center;">
+              <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">25.0 - 29.9</span>
                 <span style="flex: 2; color: var(--text-muted);">โรคอ้วน ระดับ 1</span>
                 <span style="flex: 1.5; text-align: right; color: var(--danger);">อ้วนระดับ 1</span>
@@ -3163,15 +3192,15 @@ function showPersonalProfile(empId, selectedGender = null) {
               </div>
             </div>
           </div>
-
+ 
           <!-- Body Fat Card -->
-          <div class="reference-card" style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 1.25rem;">
-            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: #f87171; display: flex; align-items: center; gap: 0.4rem;">
+          <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
+            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: #ef4444; display: flex; align-items: center; gap: 0.4rem;">
               <span>📉</span> ไขมันในร่างกาย (Body Fat %)
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
               <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--text-main);">6 - 13%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">14 - 17%:</span> หุ่นฟิต สมส่วน</li>
@@ -3180,7 +3209,7 @@ function showPersonalProfile(empId, selectedGender = null) {
                 </ul>
               </div>
               <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: #ec4899; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--pink-female); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--text-main);">14 - 20%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">21 - 24%:</span> หุ่นฟิต สมส่วน</li>
@@ -3190,15 +3219,15 @@ function showPersonalProfile(empId, selectedGender = null) {
               </div>
             </div>
           </div>
-
+ 
           <!-- Muscle Card -->
-          <div class="reference-card" style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 1.25rem;">
+          <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary-light); display: flex; align-items: center; gap: 0.4rem;">
               <span>💪</span> มวลกล้ามเนื้อในร่างกาย (Muscle %)
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
               <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 33%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">33 - 40%:</span> มาตรฐานปกติ</li>
@@ -3206,7 +3235,7 @@ function showPersonalProfile(empId, selectedGender = null) {
                 </ul>
               </div>
               <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: #ec4899; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--pink-female); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 27%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">27 - 35%:</span> มาตรฐานปกติ</li>
