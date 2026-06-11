@@ -2885,6 +2885,70 @@ function showPersonalProfile(empId, selectedGender = null) {
   const colM2 = renderMonthColumn(m2, 'เดือน 2 (ความคืบหน้า)', 'personal-month-badge-2');
   const colM3 = renderMonthColumn(m3, 'เดือน 3 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-3');
 
+  // 1. Calculate Ideal Weight Range and Target based on height
+  const heightM = parseFloat(emp.height) / 100;
+  const minWeight = parseFloat((18.5 * heightM * heightM).toFixed(1));
+  const maxWeight = parseFloat((22.9 * heightM * heightM).toFixed(1));
+  const targetWeight = parseFloat((21.0 * heightM * heightM).toFixed(1));
+
+  // Determine current weight
+  const latestWeight = comp.latestWeight || (m1 ? m1.weight : 0) || 0;
+
+  // Visualizer scale boundaries: from minWeight - 5 to maxWeight + 5
+  const leftLimit = parseFloat((minWeight - 5).toFixed(1));
+  const rightLimit = parseFloat((maxWeight + 5).toFixed(1));
+  const rangeWidth = rightLimit - leftLimit;
+
+  // Calculate percentages for CSS placement
+  const healthyStartPct = ((minWeight - leftLimit) / rangeWidth) * 100;
+  const healthyEndPct = ((maxWeight - leftLimit) / rangeWidth) * 100;
+  const healthyWidthPct = healthyEndPct - healthyStartPct;
+  const targetPct = ((targetWeight - leftLimit) / rangeWidth) * 100;
+  const currentPct = Math.min(100, Math.max(0, ((latestWeight - leftLimit) / rangeWidth) * 100));
+
+  // 2. Calculate Personal 3D Health Score Breakdown
+  const scoreData = calculateHealthScore(emp);
+  const totalScoreVal = scoreData.totalScore;
+  const wContribution = scoreData.weightScore * 0.4;
+  const mContribution = scoreData.muscleScore * 0.3;
+  const fContribution = scoreData.fatScore * 0.3;
+
+  // Calculate progress bar percentages (capped at 100% and min 0%)
+  const wBarPct = Math.min(100, Math.max(0, (wContribution / 4.0) * 100));
+  const mBarPct = Math.min(100, Math.max(0, (mContribution / 3.0) * 100));
+  const fBarPct = Math.min(100, Math.max(0, (fContribution / 3.0) * 100));
+
+  // Determine starting BMI category and construct advice message
+  let startBmiText = '-';
+  let weightAdvice = '';
+  if (m1 && m1.bmi) {
+    if (m1.bmi < 18.5) {
+      startBmiText = 'ต่ำกว่าเกณฑ์ (ผอม)';
+      const neededGain = parseFloat((targetWeight - latestWeight).toFixed(1));
+      if (neededGain > 0) {
+        weightAdvice = `คุณเริ่มต้นท้าชิงด้วยสภาวะน้ำหนักต่ำกว่าเกณฑ์ เป้าหมายหลักคือการเพิ่มน้ำหนักตัวเพื่อสุขภาพ (Weight Gain) โดยควรเพิ่มน้ำหนักขึ้นอีกประมาณ <strong style="color: var(--primary-light);">${neededGain} kg</strong> เพื่อเข้าสู่จุดสมส่วนอุดมคติที่ <strong>${targetWeight} kg</strong>`;
+      } else {
+        weightAdvice = `ยินดีด้วย! ปัจจุบันคุณสามารถเพิ่มน้ำหนักขึ้นมาอยู่ในช่วงน้ำหนักสุขภาพดีที่สมส่วนเรียบร้อยแล้ว`;
+      }
+    } else if (m1.bmi >= 22.9) {
+      startBmiText = 'เกินเกณฑ์ (น้ำหนักเกิน/อ้วน)';
+      const neededLoss = parseFloat((latestWeight - targetWeight).toFixed(1));
+      if (neededLoss > 0) {
+        weightAdvice = `คุณเริ่มต้นท้าชิงด้วยสภาวะน้ำหนักเกิน/อ้วน เป้าหมายหลักคือการลดน้ำหนักตัวเพื่อสุขภาพ (Weight Loss) โดยควรลดน้ำหนักลงอีกประมาณ <strong style="color: #f87171;">${neededLoss} kg</strong> เพื่อเข้าสู่จุดสมส่วนอุดมคติที่ <strong>${targetWeight} kg</strong>`;
+      } else {
+        weightAdvice = `ยินดีด้วย! ปัจจุบันคุณสามารถลดน้ำหนักลงมาอยู่ในช่วงน้ำหนักสุขภาพดีที่สมส่วนเรียบร้อยแล้ว`;
+      }
+    } else {
+      startBmiText = 'สมส่วน (น้ำหนักปกติ)';
+      const diffFromTarget = parseFloat(Math.abs(latestWeight - targetWeight).toFixed(1));
+      if (diffFromTarget <= 1.0) {
+        weightAdvice = `น้ำหนักตัวของคุณอยู่ในเกณฑ์ดีเยี่ยมและใกล้เคียงจุดสมดุลอุดมคติแล้ว รักษาระดับน้ำหนักตัวนี้ไว้และมุ่งเน้นที่การเพิ่มมวลกล้ามเนื้อและลดไขมัน (Body Recomposition) เพื่อความฟิตระดับสูงสุด`;
+      } else {
+        weightAdvice = `น้ำหนักตัวของคุณอยู่ในเกณฑ์สมส่วนสุขภาพดี (ห่างจากเป้าหมายเบี่ยงเบนเล็กน้อย ±${diffFromTarget} kg) แนะนำให้มุ่งเน้นรักษาระดับน้ำหนักตัวนี้ ควบคู่กับการสร้างมวลกล้ามเนื้อและควบคุมปริมาณไขมัน`;
+      }
+    }
+  }
+
   // Generate Profile HTML
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
@@ -2910,6 +2974,87 @@ function showPersonalProfile(empId, selectedGender = null) {
         </div>
         <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
           ID: ${emp.id.substring(0, 8)}...
+        </div>
+      </div>
+
+      <!-- NEW: Premium Health Insights Dashboard Section -->
+      <div class="personal-insights-container">
+        <!-- Card 1: 3D Health Score Breakdown -->
+        <div class="personal-insight-card">
+          <div class="personal-insight-title">
+            <span>🎯</span> คะแนนสุขภาพรวม 3 มิติของคุณ
+          </div>
+          <div class="personal-score-layout">
+            <div class="personal-score-radial-group">
+              <div class="personal-score-circle">
+                <span class="personal-score-circle-value">${totalScoreVal.toFixed(1)}</span>
+                <span class="personal-score-circle-label">คะแนนรวม</span>
+              </div>
+            </div>
+            <div class="personal-score-bars-list">
+              <!-- Weight component -->
+              <div class="personal-score-bar-row">
+                <div class="personal-score-bar-header">
+                  <span style="color: var(--text-main); font-weight: 500;">⚖️ การพัฒนาน้ำหนัก (40%)</span>
+                  <span style="font-weight: 600; color: var(--accent-light);">${wContribution.toFixed(2)} / 4.00</span>
+                </div>
+                <div class="personal-score-bar-bg">
+                  <div class="personal-score-bar-fill" style="width: ${wBarPct}%; background: var(--accent);"></div>
+                </div>
+              </div>
+              <!-- Muscle component -->
+              <div class="personal-score-bar-row">
+                <div class="personal-score-bar-header">
+                  <span style="color: var(--text-main); font-weight: 500;">💪 มวลกล้ามเนื้อลาย (30%)</span>
+                  <span style="font-weight: 600; color: var(--primary-light);">${mContribution.toFixed(2)} / 3.00</span>
+                </div>
+                <div class="personal-score-bar-bg">
+                  <div class="personal-score-bar-fill" style="width: ${mBarPct}%; background: var(--primary);"></div>
+                </div>
+              </div>
+              <!-- Fat component -->
+              <div class="personal-score-bar-row">
+                <div class="personal-score-bar-header">
+                  <span style="color: var(--text-main); font-weight: 500;">📉 การลดไขมันในร่างกาย (30%)</span>
+                  <span style="font-weight: 600; color: #f87171;">${fContribution.toFixed(2)} / 3.00</span>
+                </div>
+                <div class="personal-score-bar-bg">
+                  <div class="personal-score-bar-fill" style="width: ${fBarPct}%; background: #f87171;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Healthy Weight Target visualizer -->
+        <div class="personal-insight-card">
+          <div class="personal-insight-title">
+            <span>⚖️</span> ขอบเขตน้ำหนักที่เหมาะสมสำหรับคุณ
+          </div>
+          <div class="weight-range-visualizer">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+              <span>น้ำหนักเหมาะสม (BMI 18.5 - 22.9): <strong>${minWeight} - ${maxWeight} kg</strong></span>
+            </div>
+            
+            <!-- Range visualization slider bar -->
+            <div class="weight-range-bar-wrapper">
+              <div class="weight-range-bar"></div>
+              <div class="weight-range-fill" style="left: ${healthyStartPct}%; width: ${healthyWidthPct}%;"></div>
+              <div class="weight-range-target-marker" style="left: ${targetPct}%;"></div>
+              <div class="weight-range-pin" style="left: ${currentPct}%;"></div>
+              
+              <!-- Scale Labels -->
+              <div class="weight-range-scale-label" style="left: 0%;">${leftLimit}</div>
+              <div class="weight-range-scale-label" style="left: ${healthyStartPct}%; color: var(--success); font-weight: 600;">${minWeight}</div>
+              <div class="weight-range-scale-label" style="left: ${healthyEndPct}%; color: var(--success); font-weight: 600;">${maxWeight}</div>
+              <div class="weight-range-scale-label" style="left: 100%; text-align: right; transform: translateX(-100%);">${rightLimit}</div>
+            </div>
+
+            <!-- Personalized Health Advice -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted);">
+              <strong>💡 คำแนะนำ:</strong> ${weightAdvice}
+            </div>
+          </div>
         </div>
       </div>
 
