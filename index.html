@@ -25,6 +25,9 @@
         <button class="btn btn-secondary" id="btn-toggle-theme" title="เปลี่ยนธีม มืด/สว่าง">
           ☀️ ธีมสว่าง
         </button>
+        <button class="btn btn-secondary" id="btn-open-calculator" title="ทดสอบสูตรคำนวณคะแนนสุขภาพ">
+          🧮 ทดลองคำนวณ
+        </button>
         <button class="btn btn-secondary" id="btn-toggle-view">
           📊 แผงควบคุมระบบ (Admin)
         </button>
@@ -190,7 +193,7 @@
           </select>
 
           <select class="select-filter" id="filter-criteria" style="border-color: var(--accent);">
-            <option value="health_score" selected>🏆 ชนะ: คะแนนสุขภาพรวม 3 มิติ</option>
+            <option value="health_score" selected>🏆 ชนะ: คะแนนสุขภาพรวม</option>
             <option value="bodyage">🏆 ชนะ: ลดอายุร่างกายมากที่สุด</option>
             <option value="weight">🏆 ชนะ: ลดน้ำหนักมากที่สุด</option>
             <option value="bmi_closest">🏆 ชนะ: BMI มาตรฐานดีที่สุด (ใกล้ 21)</option>
@@ -681,6 +684,129 @@
         <div id="pin-error-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 1rem; display: none;">รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง</div>
         
         <button type="button" class="btn btn-primary" id="btn-submit-pin" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;">ยืนยันรหัสผ่าน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score Calculator Modal -->
+  <div class="modal-overlay" id="calculator-modal">
+    <div class="modal-content animate-scale" style="max-width: 850px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🧮 เครื่องคำนวณคะแนนสุขภาพ 3 มิติ (3D Health Score Calculator)</h3>
+        <button class="modal-close" id="btn-close-calc-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="calc-layout">
+          <!-- Inputs Column -->
+          <div class="calc-inputs-section">
+            <h4 class="calc-section-title">🏃 ข้อมูลส่วนสูง</h4>
+            <div class="calc-grid-row">
+              <div class="form-group">
+                <label for="calc-height">ส่วนสูง (ซม.)</label>
+                <input type="number" id="calc-height" value="170" min="100" max="250" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+            </div>
+            
+            <h4 class="calc-section-title">📅 เดือนที่ 1 (เริ่มต้น)</h4>
+            <div class="calc-grid-row-3">
+              <div class="form-group">
+                <label for="calc-m1-weight">น้ำหนัก (กก.)</label>
+                <input type="number" id="calc-m1-weight" value="80" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+              <div class="form-group">
+                <label for="calc-m1-muscle">กล้ามเนื้อ (%)</label>
+                <input type="number" id="calc-m1-muscle" value="32" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+              <div class="form-group">
+                <label for="calc-m1-fat">ไขมัน (%)</label>
+                <input type="number" id="calc-m1-fat" value="28" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+            </div>
+            
+            <h4 class="calc-section-title">📅 เดือนล่าสุด (เปรียบเทียบ)</h4>
+            <div class="calc-grid-row-3">
+              <div class="form-group">
+                <label for="calc-latest-weight">น้ำหนัก (กก.)</label>
+                <input type="number" id="calc-latest-weight" value="72" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+              <div class="form-group">
+                <label for="calc-latest-muscle">กล้ามเนื้อ (%)</label>
+                <input type="number" id="calc-latest-muscle" value="35" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+              <div class="form-group">
+                <label for="calc-latest-fat">ไขมัน (%)</label>
+                <input type="number" id="calc-latest-fat" value="22" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
+              </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+              <button type="button" class="btn btn-secondary" id="btn-reset-calc" style="width: 100%;">🧹 รีเซ็ตตัวเลขการทดลอง</button>
+            </div>
+          </div>
+          
+          <!-- Results Column -->
+          <div class="calc-results-section">
+            <div class="calc-score-summary">
+              <div class="calc-score-circle" style="background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.03) 100%);">
+                <span class="calc-score-value" id="calc-total-score">0.00</span>
+                <span class="calc-score-label">คะแนนรวม</span>
+              </div>
+              <div class="calc-meta-details">
+                <div class="calc-meta-item">
+                  <span class="calc-meta-label">BMI เริ่มต้น:</span>
+                  <span class="calc-meta-val" id="calc-start-bmi">0.00</span>
+                </div>
+                <div class="calc-meta-item">
+                  <span class="calc-meta-label">เกณฑ์สุขภาพเริ่มต้น:</span>
+                  <span class="calc-meta-val" id="calc-start-category">-</span>
+                </div>
+                <div class="calc-meta-item">
+                  <span class="calc-meta-label">BMI ล่าสุด:</span>
+                  <span class="calc-meta-val" id="calc-latest-bmi">0.00</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="calc-bars-list">
+              <!-- Weight Contribution -->
+              <div class="calc-bar-row">
+                <div class="calc-bar-header">
+                  <span>⚖️ คะแนนมิติน้ำหนัก (สัดส่วน 40%)</span>
+                  <span id="calc-weight-score-text">0.00 / 4.00 คะแนน</span>
+                </div>
+                <div class="personal-score-bar-bg" style="background: var(--bg-progress-track); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.25rem;">
+                  <div class="personal-score-bar-fill" id="calc-weight-bar" style="width: 0%; background: var(--secondary); height: 100%;"></div>
+                </div>
+              </div>
+              
+              <!-- Muscle Contribution -->
+              <div class="calc-bar-row">
+                <div class="calc-bar-header">
+                  <span>💪 คะแนนมิติมวลกล้ามเนื้อ (สัดส่วน 30%)</span>
+                  <span id="calc-muscle-score-text">0.00 / 3.00 คะแนน</span>
+                </div>
+                <div class="personal-score-bar-bg" style="background: var(--bg-progress-track); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.25rem;">
+                  <div class="personal-score-bar-fill" id="calc-muscle-bar" style="width: 0%; background: var(--primary); height: 100%;"></div>
+                </div>
+              </div>
+              
+              <!-- Fat Contribution -->
+              <div class="calc-bar-row">
+                <div class="calc-bar-header">
+                  <span>📉 คะแนนมิติอัตราไขมัน (สัดส่วน 30%)</span>
+                  <span id="calc-fat-score-text">0.00 / 3.00 คะแนน</span>
+                </div>
+                <div class="personal-score-bar-bg" style="background: var(--bg-progress-track); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 0.25rem;">
+                  <div class="personal-score-bar-fill" id="calc-fat-bar" style="width: 0%; background: var(--danger); height: 100%;"></div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="calc-explanation" id="calc-explanation-text">
+              กรุณากรอกข้อมูลเพื่อดูผลการคำนวณและวิธีคิดอย่างละเอียด...
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

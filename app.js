@@ -121,7 +121,31 @@ const elements = {
   btnSubmitPin: document.getElementById('btn-submit-pin'),
   pinDigits: document.querySelectorAll('.pin-digit'),
   pinErrorMsg: document.getElementById('pin-error-msg'),
-  pin1: document.getElementById('pin-1')
+  pin1: document.getElementById('pin-1'),
+
+  // Calculator Modal
+  btnOpenCalculator: document.getElementById('btn-open-calculator'),
+  calculatorModal: document.getElementById('calculator-modal'),
+  btnCloseCalcModal: document.getElementById('btn-close-calc-modal'),
+  btnResetCalc: document.getElementById('btn-reset-calc'),
+  calcHeight: document.getElementById('calc-height'),
+  calcM1Weight: document.getElementById('calc-m1-weight'),
+  calcM1Muscle: document.getElementById('calc-m1-muscle'),
+  calcM1Fat: document.getElementById('calc-m1-fat'),
+  calcLatestWeight: document.getElementById('calc-latest-weight'),
+  calcLatestMuscle: document.getElementById('calc-latest-muscle'),
+  calcLatestFat: document.getElementById('calc-latest-fat'),
+  calcTotalScore: document.getElementById('calc-total-score'),
+  calcStartBmi: document.getElementById('calc-start-bmi'),
+  calcStartCategory: document.getElementById('calc-start-category'),
+  calcLatestBmi: document.getElementById('calc-latest-bmi'),
+  calcWeightScoreText: document.getElementById('calc-weight-score-text'),
+  calcWeightBar: document.getElementById('calc-weight-bar'),
+  calcMuscleScoreText: document.getElementById('calc-muscle-score-text'),
+  calcMuscleBar: document.getElementById('calc-muscle-bar'),
+  calcFatScoreText: document.getElementById('calc-fat-score-text'),
+  calcFatBar: document.getElementById('calc-fat-bar'),
+  calcExplanationText: document.getElementById('calc-explanation-text')
 };
 
 
@@ -679,6 +703,59 @@ function setupEventListeners() {
       updateThemeButtonIcon();
     });
   }
+
+  // Open Calculator modal
+  if (elements.btnOpenCalculator) {
+    elements.btnOpenCalculator.addEventListener('click', () => {
+      elements.calculatorModal.classList.add('active');
+      runCalculatorCalculation();
+    });
+  }
+
+  // Close Calculator modal
+  if (elements.btnCloseCalcModal) {
+    elements.btnCloseCalcModal.addEventListener('click', () => {
+      elements.calculatorModal.classList.remove('active');
+    });
+  }
+
+  if (elements.calculatorModal) {
+    elements.calculatorModal.addEventListener('click', (e) => {
+      if (e.target === elements.calculatorModal) {
+        elements.calculatorModal.classList.remove('active');
+      }
+    });
+  }
+
+  // Reset Calculator values
+  if (elements.btnResetCalc) {
+    elements.btnResetCalc.addEventListener('click', () => {
+      elements.calcHeight.value = 170;
+      elements.calcM1Weight.value = 80;
+      elements.calcM1Muscle.value = 32;
+      elements.calcM1Fat.value = 28;
+      elements.calcLatestWeight.value = 72;
+      elements.calcLatestMuscle.value = 35;
+      elements.calcLatestFat.value = 22;
+      runCalculatorCalculation();
+    });
+  }
+
+  // Real-time calculation on typing/changing
+  const calcInputs = [
+    elements.calcHeight,
+    elements.calcM1Weight,
+    elements.calcM1Muscle,
+    elements.calcM1Fat,
+    elements.calcLatestWeight,
+    elements.calcLatestMuscle,
+    elements.calcLatestFat
+  ];
+  calcInputs.forEach(input => {
+    if (input) {
+      input.addEventListener('input', runCalculatorCalculation);
+    }
+  });
 }
 
 // Update Theme Button Text/Icon
@@ -1197,7 +1274,7 @@ function renderLeaderboard() {
   // Update Leaderboard Card Title dynamically
   const titleEl = document.getElementById('leaderboard-title');
   if (titleEl) {
-    let titleText = '5 อันดับแรก ผู้ที่ได้คะแนนสุขภาพรวม 3 มิติสูงสุด';
+    let titleText = '5 อันดับแรก ผู้ที่ได้คะแนนสุขภาพรวมสูงสุด';
     if (currentWinningCriteria === 'bodyage') {
       titleText = '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด';
     } else if (currentWinningCriteria === 'weight') {
@@ -1222,7 +1299,7 @@ function renderLeaderboard() {
         return {
           emp: emp,
           valText: `${scoreData.totalScore.toFixed(1)} คะแนน`,
-          descText: 'คะแนนสุขภาพรวม 3 มิติ',
+          descText: 'คะแนนสุขภาพรวม',
           sortKey: scoreData.totalScore
         };
       })
@@ -3253,4 +3330,198 @@ function showPersonalProfile(empId, selectedGender = null) {
   
   elements.personalProfileDisplay.style.display = 'block';
 }
+
+// 3D Health Score Calculator calculation engine
+function runCalculatorCalculation() {
+  if (!elements.calcHeight || !elements.calcM1Weight || !elements.calcLatestWeight) return;
+
+  const height = parseFloat(elements.calcHeight.value) || 0;
+  const m1Weight = parseFloat(elements.calcM1Weight.value) || 0;
+  const m1Muscle = parseFloat(elements.calcM1Muscle.value) || 0;
+  const m1Fat = parseFloat(elements.calcM1Fat.value) || 0;
+  const latestWeight = parseFloat(elements.calcLatestWeight.value) || 0;
+  const latestMuscle = parseFloat(elements.calcLatestMuscle.value) || 0;
+  const latestFat = parseFloat(elements.calcLatestFat.value) || 0;
+
+  if (height <= 0 || m1Weight <= 0 || latestWeight <= 0) {
+    if (elements.calcTotalScore) elements.calcTotalScore.textContent = '0.00';
+    if (elements.calcStartBmi) elements.calcStartBmi.textContent = '0.00';
+    if (elements.calcStartCategory) elements.calcStartCategory.textContent = '-';
+    if (elements.calcLatestBmi) elements.calcLatestBmi.textContent = '0.00';
+    
+    if (elements.calcWeightScoreText) elements.calcWeightScoreText.textContent = '0.00 / 4.00 คะแนน';
+    if (elements.calcWeightBar) elements.calcWeightBar.style.width = '0%';
+    if (elements.calcMuscleScoreText) elements.calcMuscleScoreText.textContent = '0.00 / 3.00 คะแนน';
+    if (elements.calcMuscleBar) elements.calcMuscleBar.style.width = '0%';
+    if (elements.calcFatScoreText) elements.calcFatScoreText.textContent = '0.00 / 3.00 คะแนน';
+    if (elements.calcFatBar) elements.calcFatBar.style.width = '0%';
+    
+    if (elements.calcExplanationText) {
+      elements.calcExplanationText.innerHTML = 'กรุณากรอกข้อมูลส่วนสูงและน้ำหนักให้ครบถ้วนเพื่อคำนวณ...';
+    }
+    return;
+  }
+
+  // 1. BMI Calculations
+  const heightM = height / 100;
+  const m1Bmi = parseFloat((m1Weight / (heightM * heightM)).toFixed(2));
+  const latestBmi = parseFloat((latestWeight / (heightM * heightM)).toFixed(2));
+
+  if (elements.calcStartBmi) elements.calcStartBmi.textContent = m1Bmi.toFixed(2);
+  if (elements.calcLatestBmi) elements.calcLatestBmi.textContent = latestBmi.toFixed(2);
+
+  // Determine Category
+  let category = '';
+  if (m1Bmi < 18.5) {
+    category = 'ต่ำกว่าเกณฑ์ (ผอม)';
+  } else if (m1Bmi >= 22.9) {
+    category = 'เกินเกณฑ์ (น้ำหนักเกิน/อ้วน)';
+  } else {
+    category = 'สมส่วน (น้ำหนักปกติ)';
+  }
+  if (elements.calcStartCategory) elements.calcStartCategory.textContent = category;
+
+  // 2. Weight Score
+  let weightScore = 0;
+  let weightExplanation = '';
+
+  if (m1Bmi < 18.5) {
+    // Underweight: weight gain is positive
+    const pctChange = ((latestWeight - m1Weight) / m1Weight) * 100;
+    weightScore = pctChange;
+    weightExplanation = `
+      <div class="calc-math-step">
+        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักต่ำกว่ามาตรฐาน):</strong><br>
+        เป้าหมายคือการเพิ่มน้ำหนักตัว (Weight Gain)<br>
+        สูตรการคำนวณ: <span class="calc-formula-inline">((น้ำหนักล่าสุด - น้ำหนักเริ่มต้น) / น้ำหนักเริ่มต้น) &times; 100</span><br>
+        แทนค่า: <span class="calc-formula-inline">((${latestWeight} - ${m1Weight}) / ${m1Weight}) &times; 100 = (${(latestWeight - m1Weight).toFixed(1)} / ${m1Weight}) &times; 100 = ${pctChange.toFixed(2)}%</span><br>
+        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
+      </div>
+    `;
+  } else if (m1Bmi >= 22.9) {
+    // Overweight/Obese: weight loss is positive
+    const pctChange = ((m1Weight - latestWeight) / m1Weight) * 100;
+    weightScore = pctChange;
+    weightExplanation = `
+      <div class="calc-math-step">
+        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักเกินมาตรฐาน):</strong><br>
+        เป้าหมายคือการลดน้ำหนักตัว (Weight Loss)<br>
+        สูตรการคำนวณ: <span class="calc-formula-inline">((น้ำหนักเริ่มต้น - น้ำหนักล่าสุด) / น้ำหนักเริ่มต้น) &times; 100</span><br>
+        แทนค่า: <span class="calc-formula-inline">((${m1Weight} - ${latestWeight}) / ${m1Weight}) &times; 100 = (${(m1Weight - latestWeight).toFixed(1)} / ${m1Weight}) &times; 100 = ${pctChange.toFixed(2)}%</span><br>
+        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
+      </div>
+    `;
+  } else {
+    // Normal: proximity to 21.0
+    const rawScore = 10 - (Math.abs(latestBmi - 21.0) * 5);
+    weightScore = Math.max(0, rawScore);
+    weightExplanation = `
+      <div class="calc-math-step">
+        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักสมส่วน):</strong><br>
+        เป้าหมายคือการรักษาน้ำหนักให้อยู่ในเกณฑ์และเข้าใกล้ค่าดัชนีมวลกายอุดมคติที่ 21.0<br>
+        สูตรการคำนวณ: <span class="calc-formula-inline">max(0, 10 - (|BMI ล่าสุด - 21.0| &times; 5))</span><br>
+        แทนค่า: <span class="calc-formula-inline">10 - (|${latestBmi} - 21.0| &times; 5) = 10 - (${Math.abs(latestBmi - 21.0).toFixed(2)} &times; 5) = 10 - ${(Math.abs(latestBmi - 21.0) * 5).toFixed(2)} = ${rawScore.toFixed(2)}</span><br>
+        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
+      </div>
+    `;
+  }
+
+  // 3. Muscle Score
+  const muscleDiff = parseFloat((latestMuscle - m1Muscle).toFixed(1));
+  const muscleScore = muscleDiff;
+  const muscleExplanation = `
+    <div class="calc-math-step">
+      <strong>2) คะแนนมิติมวลกล้ามเนื้อ:</strong><br>
+      เป้าหมายคือการเพิ่มมวลกล้ามเนื้อเพื่อเพิ่มอัตราการเผาผลาญ<br>
+      สูตรการคำนวณ: <span class="calc-formula-inline">เปอร์เซ็นต์กล้ามเนื้อล่าสุด - เปอร์เซ็นต์กล้ามเนื้อเริ่มต้น</span><br>
+      แทนค่า: <span class="calc-formula-inline">${latestMuscle}% - ${m1Muscle}% = ${muscleDiff.toFixed(1)}% (หรือ ${muscleDiff.toFixed(2)} คะแนน)</span><br>
+      คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} คะแนน</strong> (สัดส่วน 30% คิดเป็น ${(muscleScore * 0.3).toFixed(2)} / 3.00 คะแนน)
+    </div>
+  `;
+
+  // 4. Fat Score
+  const fatDiff = parseFloat((m1Fat - latestFat).toFixed(1));
+  const fatScore = fatDiff;
+  const fatExplanation = `
+    <div class="calc-math-step">
+      <strong>3) คะแนนมิติอัตราไขมันสะสม:</strong><br>
+      เป้าหมายคือการลดเปอร์เซ็นต์ไขมันในร่างกายลง<br>
+      สูตรการคำนวณ: <span class="calc-formula-inline">เปอร์เซ็นต์ไขมันเริ่มต้น - เปอร์เซ็นต์ไขมันล่าสุด</span><br>
+      แทนค่า: <span class="calc-formula-inline">${m1Fat}% - ${latestFat}% = ${fatDiff.toFixed(1)}% (หรือ ${fatDiff.toFixed(2)} คะแนน)</span><br>
+      คะแนนไขมันที่ได้: <strong>${fatScore.toFixed(2)} คะแนน</strong> (สัดส่วน 30% คิดเป็น ${(fatScore * 0.3).toFixed(2)} / 3.00 คะแนน)
+    </div>
+  `;
+
+  // 5. Total Score
+  const weightCont = weightScore * 0.4;
+  const muscleCont = muscleScore * 0.3;
+  const fatCont = fatScore * 0.3;
+  const totalScore = weightCont + muscleCont + fatCont;
+
+  // Render elements
+  if (elements.calcTotalScore) {
+    elements.calcTotalScore.textContent = totalScore.toFixed(2);
+    
+    // Change score circle colors based on score range
+    if (totalScore >= 7) {
+      elements.calcTotalScore.parentElement.style.borderColor = 'var(--success)';
+      elements.calcTotalScore.parentElement.style.background = 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.03) 100%)';
+    } else if (totalScore >= 4) {
+      elements.calcTotalScore.parentElement.style.borderColor = 'var(--warning)';
+      elements.calcTotalScore.parentElement.style.background = 'radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.03) 100%)';
+    } else {
+      elements.calcTotalScore.parentElement.style.borderColor = 'var(--danger)';
+      elements.calcTotalScore.parentElement.style.background = 'radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.03) 100%)';
+    }
+  }
+  
+  if (elements.calcWeightScoreText) {
+    elements.calcWeightScoreText.textContent = `${weightScore.toFixed(2)} / 10.00 คะแนน (ถ่วงน้ำหนัก: ${weightCont.toFixed(2)} / 4.00)`;
+  }
+  if (elements.calcWeightBar) {
+    const weightBarPct = Math.min(100, Math.max(0, (weightScore / 10.0) * 100));
+    elements.calcWeightBar.style.width = `${weightBarPct}%`;
+  }
+  
+  if (elements.calcMuscleScoreText) {
+    elements.calcMuscleScoreText.textContent = `${muscleScore.toFixed(2)} คะแนน (ถ่วงน้ำหนัก: ${muscleCont.toFixed(2)} / 3.00)`;
+  }
+  if (elements.calcMuscleBar) {
+    const muscleBarPct = Math.min(100, Math.max(0, (muscleScore / 10.0) * 100));
+    elements.calcMuscleBar.style.width = `${muscleBarPct}%`;
+  }
+  
+  if (elements.calcFatScoreText) {
+    elements.calcFatScoreText.textContent = `${fatScore.toFixed(2)} คะแนน (ถ่วงน้ำหนัก: ${fatCont.toFixed(2)} / 3.00)`;
+  }
+  if (elements.calcFatBar) {
+    const fatBarPct = Math.min(100, Math.max(0, (fatScore / 10.0) * 100));
+    elements.calcFatBar.style.width = `${fatBarPct}%`;
+  }
+
+  // Summary Math Explanation
+  if (elements.calcExplanationText) {
+    elements.calcExplanationText.innerHTML = `
+      <div class="calc-explanation-title">📝 แสดงวิธีการคำนวณทีละขั้นตอน (3D Health Score)</div>
+      <div class="calc-math-step">
+        <strong>การวิเคราะห์ดัชนีมวลกายเริ่มต้น (BMI Step):</strong><br>
+        สูตรคำนวณ: <span class="calc-formula-inline">น้ำหนักตัว (kg) / (ส่วนสูง (m))&sup2;</span><br>
+        แทนค่า BMI เริ่มต้น: <span class="calc-formula-inline">${m1Weight} kg / (${heightM.toFixed(2)} m)&sup2; = ${m1Bmi.toFixed(2)}</span><br>
+        ผลลัพธ์: ตกอยู่ในเกณฑ์ <strong>&ldquo;${category}&rdquo;</strong> (นำมาใช้เลือกสูตรคำนวณคะแนนน้ำหนักในส่วนถัดไป)
+      </div>
+      ${weightExplanation}
+      ${muscleExplanation}
+      ${fatExplanation}
+      <div class="calc-math-step" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+        <strong>4) คะแนนสุขภาพรวม (3D Health Score):</strong><br>
+        คำนวณตามสัดส่วนความสำคัญ (Weight = 40%, Muscle = 30%, Fat = 30%)<br>
+        สูตรการคำนวณ: <span class="calc-formula-inline">(คะแนนน้ำหนัก &times; 0.4) + (คะแนนกล้ามเนื้อ &times; 0.3) + (คะแนนไขมัน &times; 0.3)</span><br>
+        แทนค่า: <span class="calc-formula-inline">(${weightScore.toFixed(2)} &times; 0.4) + (${muscleScore.toFixed(2)} &times; 0.3) + (${fatScore.toFixed(2)} &times; 0.3)</span><br>
+        คำนวณออกมารายสัดส่วน: <span class="calc-formula-inline">${weightCont.toFixed(2)} + ${muscleCont.toFixed(2)} + ${fatCont.toFixed(2)} = ${totalScore.toFixed(2)} คะแนน</span><br>
+        คะแนนสรุปทั้งหมดของคุณคือ: <strong style="font-size: 1.1rem; color: var(--primary-light);">${totalScore.toFixed(2)} / 10.00 คะแนน</strong>
+      </div>
+    `;
+  }
+}
+
 
