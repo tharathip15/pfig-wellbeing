@@ -463,26 +463,21 @@ function calculateHealthScore(emp) {
   let muscleScore = 0;
   const m1Muscle = m1.muscle || 0;
   const latestMuscle = latest.muscle || 0;
-  const m1Weight = comp.m1Weight || 0;
-  const latestWeight = comp.latestWeight || 0;
-  
-  const startMuscleKg = m1Weight * (m1Muscle / 100);
-  const latestMuscleKg = latestWeight * (latestMuscle / 100);
-  const muscleIncreaseKg = parseFloat((latestMuscleKg - startMuscleKg).toFixed(2));
+  const muscleIncreasePct = parseFloat((latestMuscle - m1Muscle).toFixed(1));
   
   const isStartMuscleExcellent = (gender === 'female')
     ? (m1Muscle >= 27)
     : (m1Muscle >= 33);
     
   if (isStartMuscleExcellent) {
-    if (muscleIncreaseKg >= 0) {
+    if (muscleIncreasePct >= 0) {
       muscleScore = 40;
     } else {
       muscleScore = 0;
     }
   } else {
-    if (muscleIncreaseKg > 0) {
-      muscleScore = Math.min(40, Math.floor(muscleIncreaseKg / 0.2) * 5);
+    if (muscleIncreasePct > 0) {
+      muscleScore = Math.min(40, Math.floor(muscleIncreasePct / 0.2) * 5);
     } else {
       muscleScore = 0;
     }
@@ -3501,9 +3496,7 @@ function runCalculatorCalculation() {
 
   // 3. Muscle Score (40 points)
   let muscleScore = 0;
-  const startMuscleKg = m1Weight * (m1Muscle / 100);
-  const latestMuscleKg = latestWeight * (latestMuscle / 100);
-  const muscleIncreaseKg = parseFloat((latestMuscleKg - startMuscleKg).toFixed(2));
+  const muscleIncreasePct = parseFloat((latestMuscle - m1Muscle).toFixed(1));
   
   const isStartMuscleExcellent = (gender === 'female')
     ? (m1Muscle >= 27)
@@ -3511,7 +3504,7 @@ function runCalculatorCalculation() {
   
   let muscleExplanation = '';
   if (isStartMuscleExcellent) {
-    if (muscleIncreaseKg >= 0) {
+    if (muscleIncreasePct >= 0) {
       muscleScore = 40;
     } else {
       muscleScore = 0;
@@ -3520,15 +3513,14 @@ function runCalculatorCalculation() {
       <div class="calc-math-step">
         <strong>2) คะแนนมิติมวลกล้ามเนื้อ (เต็ม 40 คะแนน):</strong><br>
         เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, มวลกล้ามเนื้อเริ่มต้น: <strong>${m1Muscle}%</strong> (อยู่ในเกณฑ์ดี/ปกติ >= ${gender === 'female' ? '27%' : '33%'})<br>
-        มวลกล้ามเนื้อเริ่มต้นคิดเป็น: <span class="calc-formula-inline">${m1Weight} kg &times; ${m1Muscle}% = ${startMuscleKg.toFixed(2)} kg</span><br>
-        มวลกล้ามเนื้อล่าสุดคิดเป็น: <span class="calc-formula-inline">${latestWeight} kg &times; ${latestMuscle}% = ${latestMuscleKg.toFixed(2)} kg</span><br>
-        สภาวะกล้ามเนื้อเปลี่ยนไป: <strong>${muscleIncreaseKg >= 0 ? '+' : ''}${muscleIncreaseKg.toFixed(2)} kg</strong> (กติกา: รักษากล้ามเนื้อไม่ให้ลดลง รับ 40 คะแนนเต็ม)<br>
+        มวลกล้ามเนื้อล่าสุด: <strong>${latestMuscle}%</strong><br>
+        สภาวะกล้ามเนื้อเปลี่ยนไป: <strong>${muscleIncreasePct >= 0 ? '+' : ''}${muscleIncreasePct.toFixed(1)}%</strong> (กติกา: รักษาไม่ให้กล้ามเนื้อลดลง รับ 40 คะแนนเต็ม)<br>
         คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} / 40.00 คะแนน</strong>
       </div>
     `;
   } else {
-    if (muscleIncreaseKg > 0) {
-      muscleScore = Math.min(40, Math.floor(muscleIncreaseKg / 0.2) * 5);
+    if (muscleIncreasePct > 0) {
+      muscleScore = Math.min(40, Math.floor(muscleIncreasePct / 0.2) * 5);
     } else {
       muscleScore = 0;
     }
@@ -3536,9 +3528,8 @@ function runCalculatorCalculation() {
       <div class="calc-math-step">
         <strong>2) คะแนนมิติมวลกล้ามเนื้อ (เต็ม 40 คะแนน):</strong><br>
         เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, มวลกล้ามเนื้อเริ่มต้น: <strong>${m1Muscle}%</strong> (กล้ามเนื้อต่ำกว่าเกณฑ์ปกติ)<br>
-        มวลกล้ามเนื้อเริ่มต้นคิดเป็น: <span class="calc-formula-inline">${m1Weight} kg &times; ${m1Muscle}% = ${startMuscleKg.toFixed(2)} kg</span><br>
-        มวลกล้ามเนื้อล่าสุดคิดเป็น: <span class="calc-formula-inline">${latestWeight} kg &times; ${latestMuscle}% = ${latestMuscleKg.toFixed(2)} kg</span><br>
-        สภาวะกล้ามเนื้อเพิ่มขึ้น: <strong>${muscleIncreaseKg.toFixed(2)} kg</strong> (กติกา: เพิ่มขึ้นทุก 0.2 kg ได้ 5 คะแนน)<br>
+        มวลกล้ามเนื้อล่าสุด: <strong>${latestMuscle}%</strong><br>
+        สภาวะกล้ามเนื้อเพิ่มขึ้น: <strong>${muscleIncreasePct.toFixed(1)}%</strong> (กติกา: เพิ่มขึ้นทุกๆ 0.2% ได้ 5 คะแนน)<br>
         คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} / 40.00 คะแนน</strong>
       </div>
     `;
