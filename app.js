@@ -128,6 +128,7 @@ const elements = {
   calculatorModal: document.getElementById('calculator-modal'),
   btnCloseCalcModal: document.getElementById('btn-close-calc-modal'),
   btnResetCalc: document.getElementById('btn-reset-calc'),
+  calcGender: document.getElementById('calc-gender'),
   calcHeight: document.getElementById('calc-height'),
   calcM1Weight: document.getElementById('calc-m1-weight'),
   calcM1Muscle: document.getElementById('calc-m1-muscle'),
@@ -413,44 +414,111 @@ function calculateHealthScore(emp) {
     };
   }
   
-  // 1. Weight Score (%)
-  // Underweight (BMI < 18.5): weight gain is positive.
-  // Overweight/Obese (BMI >= 22.9): weight loss is positive.
-  // Normal Weight (18.5 <= BMI < 22.9): weight score is based on proximity of latest BMI to ideal standard of 21.0 (raw score up to 10 points)
-  let weightScore = 0;
-  const startWeight = comp.m1Weight;
-  const startBmi = comp.m1Bmi;
+  const m1 = emp.months.m1;
+  const m2 = emp.months.m2;
+  const m3 = emp.months.m3;
+  let latest = null;
+  if (m3 && m3.weight && m3.bodyage) {
+    latest = m3;
+  } else if (m2 && m2.weight && m2.bodyage) {
+    latest = m2;
+  }
   
-  if (startWeight && startWeight > 0) {
-    if (startBmi && startBmi < 18.5) {
-      // Underweight: want to gain weight
-      weightScore = ((comp.latestWeight - startWeight) / startWeight) * 100;
-    } else if (startBmi && startBmi >= 22.9) {
-      // Overweight/Obese: want to lose weight
-      weightScore = ((startWeight - comp.latestWeight) / startWeight) * 100;
+  if (!latest || !m1) {
+    return {
+      weightScore: 0,
+      muscleScore: 0,
+      fatScore: 0,
+      totalScore: 0
+    };
+  }
+  
+  const gender = (emp.months && emp.months.gender) ? emp.months.gender : 'male';
+  
+  // 1. Fat Score (40 Points)
+  let fatScore = 0;
+  const m1Fat = m1.fat || 0;
+  const latestFat = latest.fat || 0;
+  const fatDecrease = parseFloat((m1Fat - latestFat).toFixed(1));
+  
+  const isStartFatStandard = (gender === 'female') 
+    ? (m1Fat >= 14 && m1Fat <= 31)
+    : (m1Fat >= 6 && m1Fat <= 24);
+    
+  if (isStartFatStandard) {
+    if (fatDecrease >= -0.5) {
+      fatScore = 40;
     } else {
-      // Normal weight: reward being close or moving towards ideal BMI 21.0
-      if (comp.latestBmi !== null) {
-        const rawScore = 10 - (Math.abs(comp.latestBmi - 21.0) * 5);
-        weightScore = Math.max(0, rawScore);
-      } else {
-        weightScore = 0;
-      }
+      fatScore = 0;
+    }
+  } else {
+    if (fatDecrease > 0) {
+      fatScore = Math.min(40, Math.floor(fatDecrease / 0.5) * 5);
+    } else {
+      fatScore = 0;
     }
   }
   
-  // 2. Muscle Score (percentage points change)
-  const muscleScore = comp.muscleDiff || 0; // Gaining muscle is positive
+  // 2. Muscle Score (40 Points)
+  let muscleScore = 0;
+  const m1Muscle = m1.muscle || 0;
+  const latestMuscle = latest.muscle || 0;
+  const m1Weight = comp.m1Weight || 0;
+  const latestWeight = comp.latestWeight || 0;
   
-  // 3. Fat Score (percentage points change)
-  const fatScore = -comp.fatDiff || 0; // Losing fat is positive (so we subtract fatDiff)
+  const startMuscleKg = m1Weight * (m1Muscle / 100);
+  const latestMuscleKg = latestWeight * (latestMuscle / 100);
+  const muscleIncreaseKg = parseFloat((latestMuscleKg - startMuscleKg).toFixed(2));
   
-  // Combined Score formula:
-  // Weight Score * 0.4 + Muscle Score * 0.3 + Fat Score * 0.3
-  const totalScore = (weightScore * 0.4) + (muscleScore * 0.3) + (fatScore * 0.3);
+  const isStartMuscleExcellent = (gender === 'female')
+    ? (m1Muscle >= 27)
+    : (m1Muscle >= 33);
+    
+  if (isStartMuscleExcellent) {
+    if (muscleIncreaseKg >= 0) {
+      muscleScore = 40;
+    } else {
+      muscleScore = 0;
+    }
+  } else {
+    if (muscleIncreaseKg > 0) {
+      muscleScore = Math.min(40, Math.floor(muscleIncreaseKg / 0.2) * 5);
+    } else {
+      muscleScore = 0;
+    }
+  }
+  
+  // 3. BMI Score (20 Points)
+  let bmiScore = 0;
+  const m1Bmi = comp.m1Bmi || 0;
+  const latestBmi = comp.latestBmi || 0;
+  
+  const isStartBmiStandard = (m1Bmi >= 18.5 && m1Bmi <= 22.9);
+  
+  if (isStartBmiStandard) {
+    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
+      bmiScore = 20;
+    } else {
+      bmiScore = 0;
+    }
+  } else {
+    const startDistance = Math.abs(m1Bmi - 21.0);
+    const latestDistance = Math.abs(latestBmi - 21.0);
+    
+    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
+      bmiScore = 20;
+    } else if (latestDistance < startDistance) {
+      const progressRatio = (startDistance - latestDistance) / startDistance;
+      bmiScore = parseFloat((10 + (10 * progressRatio)).toFixed(2));
+    } else {
+      bmiScore = 0;
+    }
+  }
+  
+  const totalScore = parseFloat((fatScore + muscleScore + bmiScore).toFixed(2));
   
   return {
-    weightScore,
+    weightScore: bmiScore, // Map bmiScore to weightScore for backward-compatibility
     muscleScore,
     fatScore,
     totalScore
@@ -743,6 +811,7 @@ function setupEventListeners() {
 
   // Real-time calculation on typing/changing
   const calcInputs = [
+    elements.calcGender,
     elements.calcHeight,
     elements.calcM1Weight,
     elements.calcM1Muscle,
@@ -3017,14 +3086,14 @@ function showPersonalProfile(empId, selectedGender = null) {
   // 2. Calculate Personal 3D Health Score Breakdown
   const scoreData = calculateHealthScore(emp);
   const totalScoreVal = scoreData.totalScore;
-  const wContribution = scoreData.weightScore * 0.4;
-  const mContribution = scoreData.muscleScore * 0.3;
-  const fContribution = scoreData.fatScore * 0.3;
+  const wContribution = scoreData.weightScore; // BMI score out of 20
+  const mContribution = scoreData.muscleScore; // Muscle score out of 40
+  const fContribution = scoreData.fatScore; // Fat score out of 40
 
   // Calculate progress bar percentages (capped at 100% and min 0%)
-  const wBarPct = Math.min(100, Math.max(0, (wContribution / 4.0) * 100));
-  const mBarPct = Math.min(100, Math.max(0, (mContribution / 3.0) * 100));
-  const fBarPct = Math.min(100, Math.max(0, (fContribution / 3.0) * 100));
+  const wBarPct = Math.min(100, Math.max(0, (wContribution / 20.0) * 100));
+  const mBarPct = Math.min(100, Math.max(0, (mContribution / 40.0) * 100));
+  const fBarPct = Math.min(100, Math.max(0, (fContribution / 40.0) * 100));
 
   // Determine starting BMI category and construct advice message
   let startBmiText = '-';
@@ -3103,8 +3172,8 @@ function showPersonalProfile(empId, selectedGender = null) {
               <!-- Weight component -->
               <div class="personal-score-bar-row">
                 <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">⚖️ การพัฒนาน้ำหนัก (40%)</span>
-                  <span style="font-weight: 600; color: var(--accent-light);">${wContribution.toFixed(2)} / 4.00</span>
+                  <span style="color: var(--text-main); font-weight: 500;">⚖️ คะแนนดัชนีมวลกาย BMI (20%)</span>
+                  <span style="font-weight: 600; color: var(--accent-light);">${wContribution.toFixed(1)} / 20.00</span>
                 </div>
                 <div class="personal-score-bar-bg">
                   <div class="personal-score-bar-fill" style="width: ${wBarPct}%; background: var(--accent);"></div>
@@ -3113,8 +3182,8 @@ function showPersonalProfile(empId, selectedGender = null) {
               <!-- Muscle component -->
               <div class="personal-score-bar-row">
                 <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">💪 มวลกล้ามเนื้อลาย (30%)</span>
-                  <span style="font-weight: 600; color: var(--primary-light);">${mContribution.toFixed(2)} / 3.00</span>
+                  <span style="color: var(--text-main); font-weight: 500;">💪 คะแนนมิติมวลกล้ามเนื้อ (40%)</span>
+                  <span style="font-weight: 600; color: var(--primary-light);">${mContribution.toFixed(1)} / 40.00</span>
                 </div>
                 <div class="personal-score-bar-bg">
                   <div class="personal-score-bar-fill" style="width: ${mBarPct}%; background: var(--primary);"></div>
@@ -3123,8 +3192,8 @@ function showPersonalProfile(empId, selectedGender = null) {
               <!-- Fat component -->
               <div class="personal-score-bar-row">
                 <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">📉 การลดไขมันในร่างกาย (30%)</span>
-                  <span style="font-weight: 600; color: #f87171;">${fContribution.toFixed(2)} / 3.00</span>
+                  <span style="color: var(--text-main); font-weight: 500;">📉 คะแนนมิติอัตราไขมันสะสม (40%)</span>
+                  <span style="font-weight: 600; color: #f87171;">${fContribution.toFixed(1)} / 40.00</span>
                 </div>
                 <div class="personal-score-bar-bg">
                   <div class="personal-score-bar-fill" style="width: ${fBarPct}%; background: #f87171;"></div>
@@ -3335,6 +3404,7 @@ function showPersonalProfile(empId, selectedGender = null) {
 function runCalculatorCalculation() {
   if (!elements.calcHeight || !elements.calcM1Weight || !elements.calcLatestWeight) return;
 
+  const gender = elements.calcGender ? elements.calcGender.value : 'male';
   const height = parseFloat(elements.calcHeight.value) || 0;
   const m1Weight = parseFloat(elements.calcM1Weight.value) || 0;
   const m1Muscle = parseFloat(elements.calcM1Muscle.value) || 0;
@@ -3349,11 +3419,11 @@ function runCalculatorCalculation() {
     if (elements.calcStartCategory) elements.calcStartCategory.textContent = '-';
     if (elements.calcLatestBmi) elements.calcLatestBmi.textContent = '0.00';
     
-    if (elements.calcWeightScoreText) elements.calcWeightScoreText.textContent = '0.00 / 4.00 คะแนน';
+    if (elements.calcWeightScoreText) elements.calcWeightScoreText.textContent = '0.00 / 20.00 คะแนน';
     if (elements.calcWeightBar) elements.calcWeightBar.style.width = '0%';
-    if (elements.calcMuscleScoreText) elements.calcMuscleScoreText.textContent = '0.00 / 3.00 คะแนน';
+    if (elements.calcMuscleScoreText) elements.calcMuscleScoreText.textContent = '0.00 / 40.00 คะแนน';
     if (elements.calcMuscleBar) elements.calcMuscleBar.style.width = '0%';
-    if (elements.calcFatScoreText) elements.calcFatScoreText.textContent = '0.00 / 3.00 คะแนน';
+    if (elements.calcFatScoreText) elements.calcFatScoreText.textContent = '0.00 / 40.00 คะแนน';
     if (elements.calcFatBar) elements.calcFatBar.style.width = '0%';
     
     if (elements.calcExplanationText) {
@@ -3381,92 +3451,150 @@ function runCalculatorCalculation() {
   }
   if (elements.calcStartCategory) elements.calcStartCategory.textContent = category;
 
-  // 2. Weight Score
-  let weightScore = 0;
-  let weightExplanation = '';
-
-  if (m1Bmi < 18.5) {
-    // Underweight: weight gain is positive
-    const pctChange = ((latestWeight - m1Weight) / m1Weight) * 100;
-    weightScore = pctChange;
-    weightExplanation = `
+  // 2. BMI Score (20 points)
+  let bmiScore = 0;
+  let bmiExplanation = '';
+  const isStartBmiStandard = (m1Bmi >= 18.5 && m1Bmi <= 22.9);
+  
+  if (isStartBmiStandard) {
+    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
+      bmiScore = 20;
+    } else {
+      bmiScore = 0;
+    }
+    bmiExplanation = `
       <div class="calc-math-step">
-        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักต่ำกว่ามาตรฐาน):</strong><br>
-        เป้าหมายคือการเพิ่มน้ำหนักตัว (Weight Gain)<br>
-        สูตรการคำนวณ: <span class="calc-formula-inline">((น้ำหนักล่าสุด - น้ำหนักเริ่มต้น) / น้ำหนักเริ่มต้น) &times; 100</span><br>
-        แทนค่า: <span class="calc-formula-inline">((${latestWeight} - ${m1Weight}) / ${m1Weight}) &times; 100 = (${(latestWeight - m1Weight).toFixed(1)} / ${m1Weight}) &times; 100 = ${pctChange.toFixed(2)}%</span><br>
-        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
-      </div>
-    `;
-  } else if (m1Bmi >= 22.9) {
-    // Overweight/Obese: weight loss is positive
-    const pctChange = ((m1Weight - latestWeight) / m1Weight) * 100;
-    weightScore = pctChange;
-    weightExplanation = `
-      <div class="calc-math-step">
-        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักเกินมาตรฐาน):</strong><br>
-        เป้าหมายคือการลดน้ำหนักตัว (Weight Loss)<br>
-        สูตรการคำนวณ: <span class="calc-formula-inline">((น้ำหนักเริ่มต้น - น้ำหนักล่าสุด) / น้ำหนักเริ่มต้น) &times; 100</span><br>
-        แทนค่า: <span class="calc-formula-inline">((${m1Weight} - ${latestWeight}) / ${m1Weight}) &times; 100 = (${(m1Weight - latestWeight).toFixed(1)} / ${m1Weight}) &times; 100 = ${pctChange.toFixed(2)}%</span><br>
-        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
+        <strong>1) คะแนนมิติ BMI (เต็ม 20 คะแนน):</strong><br>
+        สภาวะเริ่มต้นคือ <strong>"สมส่วน (น้ำหนักปกติ)"</strong> (BMI 18.5 - 22.9)<br>
+        กติกา: รักษาระดับให้อยู่ในเกณฑ์มาตรฐานได้ล่าสุด รับ 20 คะแนนเต็ม<br>
+        BMI ล่าสุดของคุณคือ: <span class="calc-formula-inline">${latestBmi.toFixed(2)}</span> (ตกเกณฑ์มาตรฐานหรือไม่: ${latestBmi >= 18.5 && latestBmi <= 22.9 ? 'อยู่ในเกณฑ์ปกติ' : 'หลุดเกณฑ์ปกติ'})<br>
+        คะแนน BMI ที่ได้: <strong>${bmiScore.toFixed(2)} / 20.00 คะแนน</strong>
       </div>
     `;
   } else {
-    // Normal: proximity to 21.0
-    const rawScore = 10 - (Math.abs(latestBmi - 21.0) * 5);
-    weightScore = Math.max(0, rawScore);
-    weightExplanation = `
+    const startDistance = Math.abs(m1Bmi - 21.0);
+    const latestDistance = Math.abs(latestBmi - 21.0);
+    let explanationText = '';
+    
+    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
+      bmiScore = 20;
+      explanationText = `ขยับเข้าสู่เกณฑ์มาตรฐานสำเร็จ (BMI 18.5 - 22.9) ได้รับ 20 คะแนนเต็ม`;
+    } else if (latestDistance < startDistance) {
+      const progressRatio = (startDistance - latestDistance) / startDistance;
+      bmiScore = parseFloat((10 + (10 * progressRatio)).toFixed(2));
+      explanationText = `ขยับเข้าใกล้ค่ามาตรฐาน 21.0 มากขึ้น (ระยะห่างเริ่มต้น ${startDistance.toFixed(2)} -> ล่าสุด ${latestDistance.toFixed(2)}) คิดเป็นพัฒนาการ ${(progressRatio * 100).toFixed(1)}% ได้คะแนนตามสัดส่วน 10 + (10 × ${progressRatio.toFixed(3)})`;
+    } else {
+      bmiScore = 0;
+      explanationText = `ไม่ขยับเข้าใกล้ค่ามาตรฐาน 21.0 (หรือออกห่างไปมากกว่าเดิม)`;
+    }
+    
+    bmiExplanation = `
       <div class="calc-math-step">
-        <strong>1) คะแนนมิติน้ำหนัก (เกณฑ์น้ำหนักสมส่วน):</strong><br>
-        เป้าหมายคือการรักษาน้ำหนักให้อยู่ในเกณฑ์และเข้าใกล้ค่าดัชนีมวลกายอุดมคติที่ 21.0<br>
-        สูตรการคำนวณ: <span class="calc-formula-inline">max(0, 10 - (|BMI ล่าสุด - 21.0| &times; 5))</span><br>
-        แทนค่า: <span class="calc-formula-inline">10 - (|${latestBmi} - 21.0| &times; 5) = 10 - (${Math.abs(latestBmi - 21.0).toFixed(2)} &times; 5) = 10 - ${(Math.abs(latestBmi - 21.0) * 5).toFixed(2)} = ${rawScore.toFixed(2)}</span><br>
-        คะแนนน้ำหนักที่ได้: <strong>${weightScore.toFixed(2)} คะแนน</strong> (สัดส่วน 40% คิดเป็น ${(weightScore * 0.4).toFixed(2)} / 4.00 คะแนน)
+        <strong>1) คะแนนมิติ BMI (เต็ม 20 คะแนน):</strong><br>
+        สภาวะเริ่มต้นคือ <strong>"${category}"</strong> (BMI ${m1Bmi.toFixed(2)})<br>
+        กติกา: เป้าหมายคือการปรับค่าเข้าใกล้ค่าอุดมคติ 21.0<br>
+        ผลลัพธ์: ${explanationText}<br>
+        คะแนน BMI ที่ได้: <strong>${bmiScore.toFixed(2)} / 20.00 คะแนน</strong>
       </div>
     `;
   }
 
-  // 3. Muscle Score
-  const muscleDiff = parseFloat((latestMuscle - m1Muscle).toFixed(1));
-  const muscleScore = muscleDiff;
-  const muscleExplanation = `
-    <div class="calc-math-step">
-      <strong>2) คะแนนมิติมวลกล้ามเนื้อ:</strong><br>
-      เป้าหมายคือการเพิ่มมวลกล้ามเนื้อเพื่อเพิ่มอัตราการเผาผลาญ<br>
-      สูตรการคำนวณ: <span class="calc-formula-inline">เปอร์เซ็นต์กล้ามเนื้อล่าสุด - เปอร์เซ็นต์กล้ามเนื้อเริ่มต้น</span><br>
-      แทนค่า: <span class="calc-formula-inline">${latestMuscle}% - ${m1Muscle}% = ${muscleDiff.toFixed(1)}% (หรือ ${muscleDiff.toFixed(2)} คะแนน)</span><br>
-      คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} คะแนน</strong> (สัดส่วน 30% คิดเป็น ${(muscleScore * 0.3).toFixed(2)} / 3.00 คะแนน)
-    </div>
-  `;
+  // 3. Muscle Score (40 points)
+  let muscleScore = 0;
+  const startMuscleKg = m1Weight * (m1Muscle / 100);
+  const latestMuscleKg = latestWeight * (latestMuscle / 100);
+  const muscleIncreaseKg = parseFloat((latestMuscleKg - startMuscleKg).toFixed(2));
+  
+  const isStartMuscleExcellent = (gender === 'female')
+    ? (m1Muscle >= 27)
+    : (m1Muscle >= 33);
+  
+  let muscleExplanation = '';
+  if (isStartMuscleExcellent) {
+    if (muscleIncreaseKg >= 0) {
+      muscleScore = 40;
+    } else {
+      muscleScore = 0;
+    }
+    muscleExplanation = `
+      <div class="calc-math-step">
+        <strong>2) คะแนนมิติมวลกล้ามเนื้อ (เต็ม 40 คะแนน):</strong><br>
+        เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, มวลกล้ามเนื้อเริ่มต้น: <strong>${m1Muscle}%</strong> (อยู่ในเกณฑ์ดี/ปกติ >= ${gender === 'female' ? '27%' : '33%'})<br>
+        มวลกล้ามเนื้อเริ่มต้นคิดเป็น: <span class="calc-formula-inline">${m1Weight} kg &times; ${m1Muscle}% = ${startMuscleKg.toFixed(2)} kg</span><br>
+        มวลกล้ามเนื้อล่าสุดคิดเป็น: <span class="calc-formula-inline">${latestWeight} kg &times; ${latestMuscle}% = ${latestMuscleKg.toFixed(2)} kg</span><br>
+        สภาวะกล้ามเนื้อเปลี่ยนไป: <strong>${muscleIncreaseKg >= 0 ? '+' : ''}${muscleIncreaseKg.toFixed(2)} kg</strong> (กติกา: รักษากล้ามเนื้อไม่ให้ลดลง รับ 40 คะแนนเต็ม)<br>
+        คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} / 40.00 คะแนน</strong>
+      </div>
+    `;
+  } else {
+    if (muscleIncreaseKg > 0) {
+      muscleScore = Math.min(40, Math.floor(muscleIncreaseKg / 0.2) * 5);
+    } else {
+      muscleScore = 0;
+    }
+    muscleExplanation = `
+      <div class="calc-math-step">
+        <strong>2) คะแนนมิติมวลกล้ามเนื้อ (เต็ม 40 คะแนน):</strong><br>
+        เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, มวลกล้ามเนื้อเริ่มต้น: <strong>${m1Muscle}%</strong> (กล้ามเนื้อต่ำกว่าเกณฑ์ปกติ)<br>
+        มวลกล้ามเนื้อเริ่มต้นคิดเป็น: <span class="calc-formula-inline">${m1Weight} kg &times; ${m1Muscle}% = ${startMuscleKg.toFixed(2)} kg</span><br>
+        มวลกล้ามเนื้อล่าสุดคิดเป็น: <span class="calc-formula-inline">${latestWeight} kg &times; ${latestMuscle}% = ${latestMuscleKg.toFixed(2)} kg</span><br>
+        สภาวะกล้ามเนื้อเพิ่มขึ้น: <strong>${muscleIncreaseKg.toFixed(2)} kg</strong> (กติกา: เพิ่มขึ้นทุก 0.2 kg ได้ 5 คะแนน)<br>
+        คะแนนกล้ามเนื้อที่ได้: <strong>${muscleScore.toFixed(2)} / 40.00 คะแนน</strong>
+      </div>
+    `;
+  }
 
-  // 4. Fat Score
-  const fatDiff = parseFloat((m1Fat - latestFat).toFixed(1));
-  const fatScore = fatDiff;
-  const fatExplanation = `
-    <div class="calc-math-step">
-      <strong>3) คะแนนมิติอัตราไขมันสะสม:</strong><br>
-      เป้าหมายคือการลดเปอร์เซ็นต์ไขมันในร่างกายลง<br>
-      สูตรการคำนวณ: <span class="calc-formula-inline">เปอร์เซ็นต์ไขมันเริ่มต้น - เปอร์เซ็นต์ไขมันล่าสุด</span><br>
-      แทนค่า: <span class="calc-formula-inline">${m1Fat}% - ${latestFat}% = ${fatDiff.toFixed(1)}% (หรือ ${fatDiff.toFixed(2)} คะแนน)</span><br>
-      คะแนนไขมันที่ได้: <strong>${fatScore.toFixed(2)} คะแนน</strong> (สัดส่วน 30% คิดเป็น ${(fatScore * 0.3).toFixed(2)} / 3.00 คะแนน)
-    </div>
-  `;
+  // 4. Fat Score (40 points)
+  let fatScore = 0;
+  const fatDecrease = parseFloat((m1Fat - latestFat).toFixed(1));
+  const isStartFatStandard = (gender === 'female')
+    ? (m1Fat >= 14 && m1Fat <= 31)
+    : (m1Fat >= 6 && m1Fat <= 24);
+    
+  let fatExplanation = '';
+  if (isStartFatStandard) {
+    if (fatDecrease >= -0.5) {
+      fatScore = 40;
+    } else {
+      fatScore = 0;
+    }
+    fatExplanation = `
+      <div class="calc-math-step">
+        <strong>3) คะแนนมิติอัตราไขมันสะสม (เต็ม 40 คะแนน):</strong><br>
+        เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, ไขมันเริ่มต้น: <strong>${m1Fat}%</strong> (อยู่ในเกณฑ์มาตรฐาน: หญิง 14-31% / ชาย 6-24%)<br>
+        ไขมันเปลี่ยนไปล่าสุด: <strong>${latestFat}%</strong> (ลดลง ${fatDecrease.toFixed(1)}%)<br>
+        กติกา: รักษาให้คงที่ (บวก/ลบไม่เกิน 0.5% หรือไขมันลดลง/ไม่เพิ่มขึ้นเกิน 0.5%) รับ 40 คะแนนเต็ม<br>
+        คะแนนไขมันที่ได้: <strong>${fatScore.toFixed(2)} / 40.00 คะแนน</strong>
+      </div>
+    `;
+  } else {
+    if (fatDecrease > 0) {
+      fatScore = Math.min(40, Math.floor(fatDecrease / 0.5) * 5);
+    } else {
+      fatScore = 0;
+    }
+    fatExplanation = `
+      <div class="calc-math-step">
+        <strong>3) คะแนนมิติอัตราไขมันสะสม (เต็ม 40 คะแนน):</strong><br>
+        เพศ: <strong>${gender === 'female' ? 'หญิง' : 'ชาย'}</strong>, ไขมันเริ่มต้น: <strong>${m1Fat}%</strong> (ไขมันสูงกว่าเกณฑ์ปกติ)<br>
+        ไขมันสะสมลดลงได้: <strong>${fatDecrease.toFixed(1)}%</strong> (กติกา: ลดลงทุกๆ 0.5% ได้ 5 คะแนน)<br>
+        คะแนนไขมันที่ได้: <strong>${fatScore.toFixed(2)} / 40.00 คะแนน</strong>
+      </div>
+    `;
+  }
 
   // 5. Total Score
-  const weightCont = weightScore * 0.4;
-  const muscleCont = muscleScore * 0.3;
-  const fatCont = fatScore * 0.3;
-  const totalScore = weightCont + muscleCont + fatCont;
+  const totalScore = bmiScore + muscleScore + fatScore;
 
   // Render elements
   if (elements.calcTotalScore) {
     elements.calcTotalScore.textContent = totalScore.toFixed(2);
     
     // Change score circle colors based on score range
-    if (totalScore >= 7) {
+    if (totalScore >= 70) {
       elements.calcTotalScore.parentElement.style.borderColor = 'var(--success)';
       elements.calcTotalScore.parentElement.style.background = 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.03) 100%)';
-    } else if (totalScore >= 4) {
+    } else if (totalScore >= 40) {
       elements.calcTotalScore.parentElement.style.borderColor = 'var(--warning)';
       elements.calcTotalScore.parentElement.style.background = 'radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.03) 100%)';
     } else {
@@ -3476,49 +3604,48 @@ function runCalculatorCalculation() {
   }
   
   if (elements.calcWeightScoreText) {
-    elements.calcWeightScoreText.textContent = `${weightScore.toFixed(2)} / 10.00 คะแนน (ถ่วงน้ำหนัก: ${weightCont.toFixed(2)} / 4.00)`;
+    elements.calcWeightScoreText.textContent = `${bmiScore.toFixed(2)} / 20.00 คะแนน`;
   }
   if (elements.calcWeightBar) {
-    const weightBarPct = Math.min(100, Math.max(0, (weightScore / 10.0) * 100));
+    const weightBarPct = Math.min(100, Math.max(0, (bmiScore / 20.0) * 100));
     elements.calcWeightBar.style.width = `${weightBarPct}%`;
   }
   
   if (elements.calcMuscleScoreText) {
-    elements.calcMuscleScoreText.textContent = `${muscleScore.toFixed(2)} คะแนน (ถ่วงน้ำหนัก: ${muscleCont.toFixed(2)} / 3.00)`;
+    elements.calcMuscleScoreText.textContent = `${muscleScore.toFixed(2)} / 40.00 คะแนน`;
   }
   if (elements.calcMuscleBar) {
-    const muscleBarPct = Math.min(100, Math.max(0, (muscleScore / 10.0) * 100));
+    const muscleBarPct = Math.min(100, Math.max(0, (muscleScore / 40.0) * 100));
     elements.calcMuscleBar.style.width = `${muscleBarPct}%`;
   }
   
   if (elements.calcFatScoreText) {
-    elements.calcFatScoreText.textContent = `${fatScore.toFixed(2)} คะแนน (ถ่วงน้ำหนัก: ${fatCont.toFixed(2)} / 3.00)`;
+    elements.calcFatScoreText.textContent = `${fatScore.toFixed(2)} / 40.00 คะแนน`;
   }
   if (elements.calcFatBar) {
-    const fatBarPct = Math.min(100, Math.max(0, (fatScore / 10.0) * 100));
+    const fatBarPct = Math.min(100, Math.max(0, (fatScore / 40.0) * 100));
     elements.calcFatBar.style.width = `${fatBarPct}%`;
   }
 
   // Summary Math Explanation
   if (elements.calcExplanationText) {
     elements.calcExplanationText.innerHTML = `
-      <div class="calc-explanation-title">📝 แสดงวิธีการคำนวณทีละขั้นตอน (3D Health Score)</div>
+      <div class="calc-explanation-title">📝 แสดงวิธีการคำนวณทีละขั้นตอน (100 คะแนนเต็ม)</div>
       <div class="calc-math-step">
         <strong>การวิเคราะห์ดัชนีมวลกายเริ่มต้น (BMI Step):</strong><br>
         สูตรคำนวณ: <span class="calc-formula-inline">น้ำหนักตัว (kg) / (ส่วนสูง (m))&sup2;</span><br>
         แทนค่า BMI เริ่มต้น: <span class="calc-formula-inline">${m1Weight} kg / (${heightM.toFixed(2)} m)&sup2; = ${m1Bmi.toFixed(2)}</span><br>
-        ผลลัพธ์: ตกอยู่ในเกณฑ์ <strong>&ldquo;${category}&rdquo;</strong> (นำมาใช้เลือกสูตรคำนวณคะแนนน้ำหนักในส่วนถัดไป)
+        ผลลัพธ์: ตกอยู่ในเกณฑ์ <strong>&ldquo;${category}&rdquo;</strong> (นำมาใช้เลือกสูตรคำนวณคะแนนในส่วนถัดไป)
       </div>
-      ${weightExplanation}
+      ${bmiExplanation}
       ${muscleExplanation}
       ${fatExplanation}
       <div class="calc-math-step" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-        <strong>4) คะแนนสุขภาพรวม (3D Health Score):</strong><br>
-        คำนวณตามสัดส่วนความสำคัญ (Weight = 40%, Muscle = 30%, Fat = 30%)<br>
-        สูตรการคำนวณ: <span class="calc-formula-inline">(คะแนนน้ำหนัก &times; 0.4) + (คะแนนกล้ามเนื้อ &times; 0.3) + (คะแนนไขมัน &times; 0.3)</span><br>
-        แทนค่า: <span class="calc-formula-inline">(${weightScore.toFixed(2)} &times; 0.4) + (${muscleScore.toFixed(2)} &times; 0.3) + (${fatScore.toFixed(2)} &times; 0.3)</span><br>
-        คำนวณออกมารายสัดส่วน: <span class="calc-formula-inline">${weightCont.toFixed(2)} + ${muscleCont.toFixed(2)} + ${fatCont.toFixed(2)} = ${totalScore.toFixed(2)} คะแนน</span><br>
-        คะแนนสรุปทั้งหมดของคุณคือ: <strong style="font-size: 1.1rem; color: var(--primary-light);">${totalScore.toFixed(2)} / 10.00 คะแนน</strong>
+        <strong>4) คะแนนสุขภาพรวม (Total Body Score):</strong><br>
+        คำนวณจากผลรวมของทั้ง 3 มิติ (BMI 20 + กล้ามเนื้อ 40 + ไขมัน 40)<br>
+        สูตรการคำนวณ: <span class="calc-formula-inline">คะแนน BMI + คะแนนกล้ามเนื้อ + คะแนนไขมัน</span><br>
+        แทนค่า: <span class="calc-formula-inline">${bmiScore.toFixed(2)} + ${muscleScore.toFixed(2)} + ${fatScore.toFixed(2)} = ${totalScore.toFixed(2)} คะแนน</span><br>
+        คะแนนสรุปทั้งหมดของคุณคือ: <strong style="font-size: 1.1rem; color: var(--primary-light);">${totalScore.toFixed(2)} / 100.00 คะแนน</strong>
       </div>
     `;
   }
