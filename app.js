@@ -1331,29 +1331,57 @@ function renderPaginationControls(totalPages) {
   elements.paginationButtons.appendChild(nextBtn);
 }
 
-// Render Top 5 Leaderboard (Based on selected winning criteria)
-function renderLeaderboard() {
-  elements.leaderboardContainer.innerHTML = '';
-  
-  // Update Leaderboard Card Title dynamically
-  const titleEl = document.getElementById('leaderboard-title');
-  if (titleEl) {
-    let titleText = '5 อันดับแรก ผู้ที่ได้คะแนนสุขภาพรวมสูงสุด';
-    if (currentWinningCriteria === 'bodyage') {
-      titleText = '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด';
-    } else if (currentWinningCriteria === 'weight') {
-      titleText = '5 อันดับแรก ผู้ที่ลดน้ำหนักตัวได้มากที่สุด';
-    } else if (currentWinningCriteria === 'bmi_closest') {
-      titleText = '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 21)';
+function getWinningCriteriaMeta(criteria = currentWinningCriteria) {
+  const meta = {
+    health_score: {
+      titleText: '5 อันดับแรก ผู้ที่ได้คะแนนสุขภาพรวมสูงสุด',
+      criteriaLabel: 'คะแนนสุขภาพรวม',
+      emptyMsg: 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้',
+      presentationErrorMsg: 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล'
+    },
+    bodyage: {
+      titleText: '5 อันดับแรก ผู้ที่ลดอายุร่างกายได้มากที่สุด',
+      criteriaLabel: 'ลดอายุร่างกาย',
+      emptyMsg: 'ยังไม่มีข้อมูลพนักงานที่ลดอายุร่างกายได้ในระบบขณะนี้',
+      presentationErrorMsg: 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดอายุร่างกายสำเร็จอย่างน้อย 3 คนก่อนประกาศผล'
+    },
+    weight: {
+      titleText: '5 อันดับแรก ผู้ที่ลดน้ำหนักตัวได้มากที่สุด',
+      criteriaLabel: 'ลดน้ำหนักตัว',
+      emptyMsg: 'ยังไม่มีข้อมูลพนักงานที่ลดน้ำหนักตัวได้ในระบบขณะนี้',
+      presentationErrorMsg: 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดน้ำหนักสำเร็จอย่างน้อย 3 คนก่อนประกาศผล'
+    },
+    bmi_closest: {
+      titleText: '5 อันดับแรก ผู้ที่ค่า BMI มาตรฐานดีที่สุด (ใกล้เป้า 21)',
+      criteriaLabel: 'BMI ใกล้เป้า 21',
+      emptyMsg: 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้',
+      presentationErrorMsg: 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล'
     }
-    titleEl.innerHTML = `<span>🏆</span> ${titleText}`;
-  }
-  
-  let achievers = [];
-  let emptyMsg = '';
-  
-  if (currentWinningCriteria === 'health_score') {
-    achievers = employees
+  };
+
+  return meta[criteria] || meta.health_score;
+}
+
+function getRankBadgeClass(rank) {
+  if (rank === 1) return 'rank-1';
+  if (rank === 2) return 'rank-2';
+  if (rank === 3) return 'rank-3';
+  return 'rank-other';
+}
+
+function getRankBadgeIcon(rank) {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return String(rank);
+}
+
+function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
+  const meta = getWinningCriteriaMeta(criteria);
+  let items = [];
+
+  if (criteria === 'health_score') {
+    items = employeeList
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && emp.department !== 'Executive';
@@ -1368,9 +1396,8 @@ function renderLeaderboard() {
         };
       })
       .sort((a, b) => b.sortKey - a.sortKey);
-    emptyMsg = 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้';
-  } else if (currentWinningCriteria === 'bodyage') {
-    achievers = employees
+  } else if (criteria === 'bodyage') {
+    items = employeeList
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
@@ -1385,9 +1412,8 @@ function renderLeaderboard() {
         };
       })
       .sort((a, b) => b.sortKey - a.sortKey);
-    emptyMsg = 'ยังไม่มีข้อมูลพนักงานที่ลดอายุร่างกายได้ในระบบขณะนี้';
-  } else if (currentWinningCriteria === 'weight') {
-    achievers = employees
+  } else if (criteria === 'weight') {
+    items = employeeList
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
@@ -1402,9 +1428,8 @@ function renderLeaderboard() {
         };
       })
       .sort((a, b) => b.sortKey - a.sortKey);
-    emptyMsg = 'ยังไม่มีข้อมูลพนักงานที่ลดน้ำหนักตัวได้ในระบบขณะนี้';
-  } else if (currentWinningCriteria === 'bmi_closest') {
-    achievers = employees
+  } else if (criteria === 'bmi_closest') {
+    items = employeeList
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
@@ -1419,17 +1444,87 @@ function renderLeaderboard() {
           sortKey: distance
         };
       })
-      .sort((a, b) => a.sortKey - b.sortKey); // closest (lowest distance) first
-    emptyMsg = 'ยังไม่มีข้อมูลบันทึกความคืบหน้าของพนักงานในระบบขณะนี้';
+      .sort((a, b) => a.sortKey - b.sortKey);
+  }
+
+  return {
+    items,
+    titleText: meta.titleText,
+    criteriaLabel: meta.criteriaLabel,
+    emptyMsg: meta.emptyMsg,
+    presentationErrorMsg: meta.presentationErrorMsg
+  };
+}
+
+function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, employeeList = employees) {
+  const ranking = getRankedAchievers(criteria, employeeList);
+  const rankIndex = ranking.items.findIndex(item => item.emp.id === empId);
+
+  if (rankIndex === -1) {
+    const emp = employeeList.find(item => item.id === empId);
+    const isExecutive = emp && emp.department === 'Executive';
+
+    return {
+      hasRank: false,
+      rank: null,
+      icon: isExecutive ? '🔒' : '⏳',
+      rankClass: 'rank-other',
+      titleText: isExecutive ? 'ไม่รวมจัดอันดับ' : 'รออันดับ',
+      metricText: isExecutive ? 'Executive' : 'ยังไม่เข้าเงื่อนไข',
+      descText: ranking.criteriaLabel,
+      contextText: isExecutive ? 'ตำแหน่ง Executive ไม่รวมในกติกาการแข่งขัน' : ranking.emptyMsg
+    };
+  }
+
+  const rank = rankIndex + 1;
+  const item = ranking.items[rankIndex];
+
+  return {
+    hasRank: true,
+    rank,
+    icon: getRankBadgeIcon(rank),
+    rankClass: getRankBadgeClass(rank),
+    titleText: `อันดับ ${rank}`,
+    metricText: item.valText,
+    descText: item.descText,
+    contextText: `อันดับ ${rank} จาก ${ranking.items.length} คน`,
+    criteriaLabel: ranking.criteriaLabel
+  };
+}
+
+function renderPersonalRankInlineBadge(rankData) {
+  const mutedClass = rankData.hasRank ? '' : ' personal-rank-inline-muted';
+  const labelText = rankData.hasRank ? `#${rankData.rank}` : rankData.titleText;
+  const iconHtml = (!rankData.hasRank || rankData.rank <= 3)
+    ? `<span class="personal-rank-inline-icon">${rankData.icon}</span>`
+    : '';
+
+  return `
+    <span class="personal-rank-inline ${rankData.rankClass}${mutedClass}" title="${rankData.contextText}">
+      ${iconHtml}
+      <span>${labelText}</span>
+    </span>
+  `;
+}
+
+// Render Top 5 Leaderboard (Based on selected winning criteria)
+function renderLeaderboard() {
+  elements.leaderboardContainer.innerHTML = '';
+  const ranking = getRankedAchievers(currentWinningCriteria, employees);
+
+  // Update Leaderboard Card Title dynamically
+  const titleEl = document.getElementById('leaderboard-title');
+  if (titleEl) {
+    titleEl.innerHTML = `<span>🏆</span> ${ranking.titleText}`;
   }
   
-  const topAchievers = achievers.slice(0, 5);
+  const topAchievers = ranking.items.slice(0, 5);
   
   if (topAchievers.length === 0) {
     elements.leaderboardContainer.innerHTML = `
       <div class="empty-state" style="padding: 2rem;">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌿</div>
-        <p>${emptyMsg}</p>
+        <p>${ranking.emptyMsg}</p>
       </div>
     `;
     return;
@@ -1437,15 +1532,12 @@ function renderLeaderboard() {
   
   topAchievers.forEach((item, index) => {
     const rank = index + 1;
-    let badgeClass = 'rank-other';
-    if (rank === 1) badgeClass = 'rank-1';
-    else if (rank === 2) badgeClass = 'rank-2';
-    else if (rank === 3) badgeClass = 'rank-3';
+    const badgeClass = getRankBadgeClass(rank);
     
     const div = document.createElement('div');
     div.className = 'leaderboard-item';
     div.innerHTML = `
-      <div class="leaderboard-rank-badge ${badgeClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}</div>
+      <div class="leaderboard-rank-badge ${badgeClass}">${getRankBadgeIcon(rank)}</div>
       <div class="leaderboard-info">
         <div class="leaderboard-name">${item.emp.name}</div>
         <div class="leaderboard-dept">${item.emp.department} • อายุจริง ${item.emp.age} ปี</div>
@@ -2269,79 +2361,11 @@ const Confetti = {
 
 // --- Presentation Mode Controller ---
 function startPresentation() {
-  let achievers = [];
-  
-  if (currentWinningCriteria === 'health_score') {
-    achievers = employees
-      .filter(emp => {
-        const comp = getComparison(emp);
-        return comp.hasProgress && emp.department !== 'Executive';
-      })
-      .map(emp => {
-        const scoreData = calculateHealthScore(emp);
-        return {
-          emp: emp,
-          sortKey: scoreData.totalScore
-        };
-      })
-      .sort((a, b) => b.sortKey - a.sortKey);
-  } else if (currentWinningCriteria === 'bodyage') {
-    achievers = employees
-      .filter(emp => {
-        const comp = getComparison(emp);
-        return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
-      })
-      .map(emp => {
-        const comp = getComparison(emp);
-        return {
-          emp: emp,
-          sortKey: -comp.bodyageDiff
-        };
-      })
-      .sort((a, b) => b.sortKey - a.sortKey);
-  } else if (currentWinningCriteria === 'weight') {
-    achievers = employees
-      .filter(emp => {
-        const comp = getComparison(emp);
-        return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
-      })
-      .map(emp => {
-        const comp = getComparison(emp);
-        return {
-          emp: emp,
-          sortKey: -comp.weightDiff
-        };
-      })
-      .sort((a, b) => b.sortKey - a.sortKey);
-  } else if (currentWinningCriteria === 'bmi_closest') {
-    achievers = employees
-      .filter(emp => {
-        const comp = getComparison(emp);
-        return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
-      })
-      .map(emp => {
-        const comp = getComparison(emp);
-        const distance = Math.abs(comp.latestBmi - 21);
-        return {
-          emp: emp,
-          sortKey: distance
-        };
-      })
-      .sort((a, b) => a.sortKey - b.sortKey);
-  }
+  const ranking = getRankedAchievers(currentWinningCriteria, employees);
+  const achievers = ranking.items;
   
   if (achievers.length < 3) {
-    let errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    if (currentWinningCriteria === 'health_score') {
-      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    } else if (currentWinningCriteria === 'bodyage') {
-      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดอายุร่างกายสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    } else if (currentWinningCriteria === 'weight') {
-      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าให้มีผู้ลดน้ำหนักสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    } else if (currentWinningCriteria === 'bmi_closest') {
-      errMsg = 'กรุณาสุ่มข้อมูลพนักงาน หรือบันทึกความคืบหน้าของพนักงานสำเร็จอย่างน้อย 3 คนก่อนประกาศผล';
-    }
-    showToast(errMsg, 'error', 5000);
+    showToast(ranking.presentationErrorMsg, 'error', 5000);
     return;
   }
   
@@ -3077,6 +3101,7 @@ function showPersonalProfile(empId, selectedGender = null) {
   const healthyWidthPct = healthyEndPct - healthyStartPct;
   const targetPct = ((targetWeight - leftLimit) / rangeWidth) * 100;
   const currentPct = Math.min(100, Math.max(0, ((latestWeight - leftLimit) / rangeWidth) * 100));
+  const currentPinEdgeClass = currentPct <= 15 ? 'is-edge-left' : currentPct >= 85 ? 'is-edge-right' : '';
 
   // 2. Calculate Personal 3D Health Score Breakdown
   const scoreData = calculateHealthScore(emp);
@@ -3121,6 +3146,9 @@ function showPersonalProfile(empId, selectedGender = null) {
     }
   }
 
+  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees);
+  const personalRankHtml = renderPersonalRankInlineBadge(personalRankData);
+
   // Generate Profile HTML
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
@@ -3144,7 +3172,7 @@ function showPersonalProfile(empId, selectedGender = null) {
             </div>
           </div>
         </div>
-        <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+        <div class="personal-profile-id">
           ID: ${emp.id.substring(0, 8)}...
         </div>
       </div>
@@ -3154,7 +3182,10 @@ function showPersonalProfile(empId, selectedGender = null) {
         <!-- Card 1: 3D Health Score Breakdown -->
         <div class="personal-insight-card">
           <div class="personal-insight-title">
-            <span>🎯</span> คะแนนสุขภาพรวมของคุณ
+            <div class="personal-insight-title-main">
+              <span>🎯</span> คะแนนสุขภาพรวมของคุณ
+            </div>
+            ${personalRankHtml}
           </div>
           <div class="personal-score-layout">
             <div class="personal-score-radial-group">
@@ -3213,7 +3244,7 @@ function showPersonalProfile(empId, selectedGender = null) {
               <div class="weight-range-bar"></div>
               <div class="weight-range-fill" style="left: ${healthyStartPct}%; width: ${healthyWidthPct}%;"></div>
               <div class="weight-range-target-marker" style="left: ${targetPct}%;"></div>
-              <div class="weight-range-pin" style="left: ${currentPct}%;"></div>
+              <div class="weight-range-pin ${currentPinEdgeClass}" style="left: ${currentPct}%;"></div>
               
               <!-- Scale Labels -->
               <div class="weight-range-scale-label" style="left: 0%;">${leftLimit}</div>
