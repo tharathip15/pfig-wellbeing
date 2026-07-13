@@ -1376,6 +1376,53 @@ function getRankBadgeIcon(rank) {
   return String(rank);
 }
 
+function formatChangeText(label, diff, unit = '', decimals = 1) {
+  const value = Number(diff);
+  if (!Number.isFinite(value)) return `${label} -`;
+  if (value === 0) return `${label} คงที่`;
+
+  const direction = value > 0 ? 'เพิ่ม' : 'ลด';
+  return `${label} ${direction} ${Math.abs(value).toFixed(decimals)}${unit}`;
+}
+
+function formatFromToText(startVal, endVal, unit = '', decimals = 1) {
+  const start = Number(startVal);
+  const end = Number(endVal);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+
+  const unitText = unit ? ` ${unit}` : '';
+  return ` (${start.toFixed(decimals)}→${end.toFixed(decimals)}${unitText})`;
+}
+
+function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
+  const comp = getComparison(emp);
+
+  if (criteria === 'health_score') {
+    const score = scoreData || calculateHealthScore(emp);
+    return [
+      `BMI ${score.weightScore.toFixed(1)}/20 (${formatChangeText('BMI', comp.bmiDiff, '', 2)})`,
+      `กล้ามเนื้อ ${score.muscleScore.toFixed(1)}/40 (${formatChangeText('กล้ามเนื้อ', comp.muscleDiff, '%', 1)})`,
+      `ไขมัน ${score.fatScore.toFixed(1)}/40 (${formatChangeText('ไขมัน', comp.fatDiff, '%', 1)})`
+    ].join(' • ');
+  }
+
+  if (criteria === 'bodyage') {
+    return `${formatChangeText('อายุร่างกาย', comp.bodyageDiff, ' ปี', 0)}${formatFromToText(comp.m1Bodyage, comp.latestBodyage, 'ปี', 0)}`;
+  }
+
+  if (criteria === 'weight') {
+    return `${formatChangeText('น้ำหนัก', comp.weightDiff, ' kg', 1)}${formatFromToText(comp.m1Weight, comp.latestWeight, 'kg', 1)}`;
+  }
+
+  if (criteria === 'bmi_closest') {
+    const distance = Number.isFinite(comp.latestBmi) ? Math.abs(comp.latestBmi - 21) : null;
+    const distanceText = distance === null ? 'ห่างเป้า -' : `ห่างเป้า ${distance.toFixed(2)}`;
+    return `BMI ล่าสุด ${comp.latestBmi.toFixed(2)} (${distanceText}) • ${formatChangeText('BMI', comp.bmiDiff, '', 2)}${formatFromToText(comp.m1Bmi, comp.latestBmi, '', 2)}`;
+  }
+
+  return '';
+}
+
 function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
   const meta = getWinningCriteriaMeta(criteria);
   let items = [];
@@ -1392,6 +1439,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           emp: emp,
           valText: `${scoreData.totalScore.toFixed(1)} คะแนน`,
           descText: 'คะแนนสุขภาพรวม',
+          reasonText: getDashboardLeaderboardReason(criteria, emp, scoreData),
           sortKey: scoreData.totalScore
         };
       })
@@ -1408,6 +1456,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           emp: emp,
           valText: `-${Math.abs(comp.bodyageDiff)} ปี`,
           descText: 'อายุร่างกายลดลง',
+          reasonText: getDashboardLeaderboardReason(criteria, emp),
           sortKey: -comp.bodyageDiff
         };
       })
@@ -1424,6 +1473,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           emp: emp,
           valText: `-${Math.abs(comp.weightDiff).toFixed(1)} kg`,
           descText: 'น้ำหนักตัวลดลง',
+          reasonText: getDashboardLeaderboardReason(criteria, emp),
           sortKey: -comp.weightDiff
         };
       })
@@ -1441,6 +1491,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           emp: emp,
           valText: `${comp.latestBmi.toFixed(2)}`,
           descText: `ห่างเป้า ${distance.toFixed(2)}`,
+          reasonText: getDashboardLeaderboardReason(criteria, emp),
           sortKey: distance
         };
       })
@@ -1540,7 +1591,7 @@ function renderLeaderboard() {
       <div class="leaderboard-rank-badge ${badgeClass}">${getRankBadgeIcon(rank)}</div>
       <div class="leaderboard-info">
         <div class="leaderboard-name">${item.emp.name}</div>
-        <div class="leaderboard-dept">${item.emp.department} • อายุจริง ${item.emp.age} ปี</div>
+        <div class="leaderboard-reason">${item.emp.department} • ${item.reasonText}</div>
       </div>
       <div class="leaderboard-metric">
         <div class="leaderboard-val">${item.valText}</div>

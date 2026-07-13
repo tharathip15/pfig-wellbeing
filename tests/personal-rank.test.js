@@ -149,6 +149,8 @@ test('builds body-age ranking for personal rank badges with competition exclusio
   assert.deepEqual(ranking.items.map(item => item.emp.id), ['winner', 'runner']);
   assert.equal(ranking.items[0].valText, '-7 ปี');
   assert.equal(ranking.items[0].descText, 'อายุร่างกายลดลง');
+  assert.match(ranking.items[0].reasonText, /อายุร่างกาย ลด 7 ปี/);
+  assert.match(ranking.items[0].reasonText, /45→38 ปี/);
 
   const runnerBadge = app.getPersonalRankBadgeData('runner', 'bodyage', fixtures);
   assert.equal(runnerBadge.hasRank, true);
@@ -200,4 +202,31 @@ test('omits the duplicate numeric icon for inline ranks below the podium', () =>
 
   assert.match(html, /#15/);
   assert.doesNotMatch(html, /personal-rank-inline-icon">15/);
+});
+
+test('adds dashboard leaderboard reason text for health score rankings', () => {
+  const app = loadApp();
+
+  const fixtures = [
+    {
+      id: 'fit',
+      name: 'Fit Person',
+      department: 'Sales',
+      age: 31,
+      height: 170,
+      months: {
+        gender: 'male',
+        m1: { weight: 90, bmi: 31.14, bodyage: 45, muscle: 32, fat: 30 },
+        m3: { weight: 80, bmi: 27.68, bodyage: 42, muscle: 33, fat: 28 }
+      }
+    }
+  ];
+
+  const ranking = app.getRankedAchievers('health_score', fixtures);
+  const reasonText = ranking.items[0].reasonText;
+
+  assert.match(reasonText, /BMI .*\/20/);
+  assert.match(reasonText, /กล้ามเนื้อ เพิ่ม 1\.0%/);
+  assert.match(reasonText, /ไขมัน ลด 2\.0%/);
+  assert.doesNotMatch(reasonText, /อายุจริง/);
 });
