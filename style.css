@@ -2757,3 +2757,51 @@ body.dark-theme .calc-formula-inline {
   }
 }
 
+body.auth-pending .app-container {
+  visibility: hidden;
+}
+
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, rgba(77, 182, 154, 0.2), transparent 42%), var(--bg-main);
+}
+
+.auth-gate-card {
+  width: min(100%, 430px);
+  padding: 38px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-gate-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  border-radius: 18px;
+  color: white;
+  font-size: 28px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+}
+
+.auth-gate-kicker {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.auth-gate-card h2 { margin: 10px 0 12px; }
+.auth-gate-card p { color: var(--text-muted); line-height: 1.7; }
+.auth-gate-error { display: none; margin: 16px 0; color: var(--danger); font-size: 13px; }
+.auth-microsoft-button { width: 100%; margin-top: 20px; padding: 13px 18px; }

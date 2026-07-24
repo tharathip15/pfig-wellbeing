@@ -230,3 +230,54 @@ test('adds dashboard leaderboard reason text for health score rankings', () => {
   assert.match(reasonText, /ไขมัน ลด 2\.0%/);
   assert.doesNotMatch(reasonText, /อายุจริง/);
 });
+
+test('resolves ties in health score ranking fairly', () => {
+  const app = loadApp();
+
+  const fixtures = [
+    {
+      id: 'empA',
+      name: 'Charlie',
+      department: 'Sales',
+      age: 30,
+      height: 170,
+      months: {
+        gender: 'female',
+        m1: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 },
+        m3: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 }
+      }
+    },
+    {
+      id: 'empB',
+      name: 'Bob',
+      department: 'Sales',
+      age: 30,
+      height: 170,
+      months: {
+        gender: 'female',
+        m1: { weight: 70, bmi: 24.22, bodyage: 30, muscle: 20, fat: 35 },
+        m3: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 21.6, fat: 31 }
+      }
+    },
+    {
+      id: 'empC',
+      name: 'Alice',
+      department: 'Sales',
+      age: 30,
+      height: 170,
+      months: {
+        gender: 'female',
+        m1: { weight: 70, bmi: 24.22, bodyage: 30, muscle: 20, fat: 35 },
+        m3: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 22.0, fat: 31 }
+      }
+    }
+  ];
+
+  const ranking = app.getRankedAchievers('health_score', fixtures);
+
+  // Assert sorting: Alice (1st), Bob (2nd), Charlie (3rd)
+  assert.equal(ranking.items[0].emp.id, 'empC'); // Alice
+  assert.equal(ranking.items[1].emp.id, 'empB'); // Bob
+  assert.equal(ranking.items[2].emp.id, 'empA'); // Charlie
+});
+

@@ -6,7 +6,18 @@
   <title>PFIG Well Being - บันทึกสุขภาพท้าทาย 3 เดือน</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="auth-pending">
+
+  <div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+    <div class="auth-gate-card">
+      <div class="auth-gate-icon">✦</div>
+      <span class="auth-gate-kicker">PFIG WELL BEING</span>
+      <h2 id="auth-gate-title">ข้อมูลสุขภาพของคุณ</h2>
+      <p>เข้าสู่ระบบด้วยบัญชี Microsoft 365 ของบริษัท ระบบจะแสดงเฉพาะข้อมูลและแนวโน้มร่างกายของคุณ</p>
+      <div class="auth-gate-error" id="auth-gate-error" role="alert"></div>
+      <button type="button" class="btn btn-primary auth-microsoft-button" id="btn-auth-login">เข้าสู่ระบบด้วย Microsoft</button>
+    </div>
+  </div>
 
   <div class="app-container">
     
@@ -319,6 +330,12 @@
             <div class="form-group">
               <label class="form-label" for="form-age">อายุจริง (ปี) *</label>
               <input type="number" class="form-control" id="form-age" min="15" max="100" placeholder="เช่น 28" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="form-entra-oid">Microsoft Entra Object ID</label>
+              <input type="text" class="form-control" id="form-entra-oid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+              <small class="form-help-text">ใช้ผูกบัญชี Microsoft กับข้อมูลส่วนตัวของพนักงาน</small>
             </div>
 
             <div class="form-group">
@@ -664,7 +681,7 @@
     </div>
   </div>
 
-  <!-- PIN Verification Modal -->
+  <!-- Admin Microsoft Sign-in Modal -->
   <div class="modal-overlay" id="pin-modal">
     <div class="modal-content" style="max-width: 380px;">
       <div class="modal-header">
@@ -672,18 +689,9 @@
         <button class="modal-close" id="btn-close-pin-modal">&times;</button>
       </div>
       <div class="modal-body" style="text-align: center;">
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">กรุณากรอกรหัส PIN 4 หลัก เพื่อเข้าสู่แผงควบคุมแอดมิน</p>
-        
-        <div class="pin-input-group">
-          <input type="password" maxlength="1" class="pin-digit" id="pin-1" autocomplete="off" inputmode="numeric">
-          <input type="password" maxlength="1" class="pin-digit" id="pin-2" autocomplete="off" inputmode="numeric">
-          <input type="password" maxlength="1" class="pin-digit" id="pin-3" autocomplete="off" inputmode="numeric">
-          <input type="password" maxlength="1" class="pin-digit" id="pin-4" autocomplete="off" inputmode="numeric">
-        </div>
-        
-        <div id="pin-error-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 1rem; display: none;">รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง</div>
-        
-        <button type="button" class="btn btn-primary" id="btn-submit-pin" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;">ยืนยันรหัสผ่าน</button>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">ระบบจะตรวจสิทธิ์ PFIG.Wellbeing.Admin จากบัญชี Microsoft ของคุณ</p>
+        <div id="pin-error-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 1rem; display: none;"></div>
+        <button type="button" class="btn btn-primary" id="btn-submit-pin" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;">ตรวจสิทธิ์ด้วย Microsoft</button>
       </div>
     </div>
   </div>
@@ -821,7 +829,7 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-wrapper"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

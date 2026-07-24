@@ -7,6 +7,8 @@ let currentSortField = 'name';
 let currentSortOrder = 'asc'; // 'asc' or 'desc'
 let currentPage = 1;
 let pageSize = 10; // 'all' means show all
+let wellbeingSession = null;
+let wellbeingDataMode = 'personal';
 
 // Form state variables
 let modalMode = 'add'; // 'add' or 'edit'
@@ -17,9 +19,8 @@ let currentPresentationStage = 0; // 0 = Intro, 1 = 3rd, 2 = 2nd, 3 = 1st, 4 = P
 let presentationWinners = []; // Will hold top 3 winners
 let cardRevealed = false; // Whether the current slide card is revealed
 
-// Personal Lookup and PIN Verification State
+// Personal Lookup and Microsoft authorization state
 let currentView = 'personal'; // 'admin' or 'personal'
-const ADMIN_PIN = '1504';
 let currentWinningCriteria = 'health_score'; // Default winning criteria
 
 // DOM Elements
@@ -69,6 +70,7 @@ const elements = {
   formId: document.getElementById('form-emp-id'),
   formName: document.getElementById('form-name'),
   formDept: document.getElementById('form-department'),
+  formEntraOid: document.getElementById('form-entra-oid'),
   formAge: document.getElementById('form-age'),
   formHeight: document.getElementById('form-height'),
   
@@ -151,11 +153,18 @@ const elements = {
 
 
 
-// Supabase Configuration
-const SUPABASE_URL = 'https://qbexpencecrkpsqxiwbd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXhwZW5jZWNya3BzcXhpd2JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NjczMDMsImV4cCI6MjA5NjQ0MzMwM30.AZidMwQN-szC2BgrciaSwOhEp-sz9M18kiAbxBDmAbo';
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+async function wellbeingApiRequest(path, options = {}) {
+  const response = await window.PfigWellbeingAuth.apiFetch(path, {
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) throw new Error(result.error || 'Unable to connect to PFIG Wellbeing');
+  return result;
+}
 
 // DB Sync Loader helper
 function showLoader(show) {
@@ -236,12 +245,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateThemeButtonIcon();
 
   setupEventListeners();
+  try {
+    wellbeingSession = await window.PfigWellbeingAuth.initialize();
+  } catch (error) {
+    console.error('Wellbeing authentication failed:', error);
+    showLoader(false);
+    window.PfigWellbeingAuth.showGate(error.message || 'Unable to sign in');
+    return;
+  }
+  if (!wellbeingSession?.identity) {
+    showLoader(false);
+    return;
+  }
   await loadData();
   updateUI();
   showLoader(false);
   
   if (currentView === 'personal') {
     switchToPersonalView();
+    if (!wellbeingSession.identity.canEdit && employees.length === 1) {
+      elements.personalSearchInput.value = employees[0].name;
+      showPersonalProfile(employees[0].id);
+    } else if (!wellbeingSession.identity.canEdit && employees.length === 0) {
+      elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
+      elements.personalProfileDisplay.style.display = 'block';
+    }
   } else {
     switchToAdminView();
   }
@@ -250,13 +278,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupRealtimeListener();
   
   // Check if DB is empty and show welcome toast
-  if (employees.length === 0) {
+  if (employees.length === 0 && wellbeingSession?.identity?.canEdit) {
     showToast('ยินดีต้อนรับสู่ระบบ PFIG Well Being! เริ่มบันทึกข้อมูลพนักงานใหม่ได้ทันที', 'info', 5000);
   }
 });
 
-// Load data from Supabase
+// Load only the rows authorized for the signed-in Entra identity.
 async function loadData() {
+  try {
+    const result = await wellbeingApiRequest('/api/employees');
+    const data = Array.isArray(result.employees) ? result.employees : [];
+    wellbeingDataMode = result.mode || 'personal';
+    employees = data.map(item => ({
+      id: item.id,
+      name: item.name,
+      department: item.department,
+      age: item.age,
+      height: item.height,
+      months: item.months,
+      entra_oid: item.entra_oid || null
+    }));
+    if (result.requiresIdentityLink) {
+      elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
+      elements.personalProfileDisplay.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Wellbeing API error:', err);
+    showToast(err.message || 'Unable to load wellbeing data', 'error');
+    employees = [];
+  }
+}
+
+function setupRealtimeListener() {
+  console.info('Wellbeing data access is protected by the server API.');
+}
+
+// Legacy implementation retained temporarily for migration reference; it is never called.
+async function loadDataFromLegacySupabase() {
   try {
     const { data, error } = await supabaseClient
       .from('pfig_employees')
@@ -286,7 +344,7 @@ async function loadData() {
 }
 
 // Setup Realtime Sync
-function setupRealtimeListener() {
+function setupLegacyRealtimeListener() {
   console.log("Setting up Supabase Realtime channel...");
   
   supabaseClient
@@ -680,6 +738,8 @@ function setupEventListeners() {
   elements.btnToggleView.addEventListener('click', () => {
     if (currentView === 'admin') {
       switchToPersonalView();
+    } else if (wellbeingSession?.identity?.canEdit) {
+      switchToAdminView();
     } else {
       openPinModal();
     }
@@ -1435,15 +1495,29 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
       })
       .map(emp => {
         const scoreData = calculateHealthScore(emp);
+        const comp = getComparison(emp);
         return {
           emp: emp,
           valText: `${scoreData.totalScore.toFixed(1)} คะแนน`,
           descText: 'คะแนนสุขภาพรวม',
           reasonText: getDashboardLeaderboardReason(criteria, emp, scoreData),
-          sortKey: scoreData.totalScore
+          sortKey: scoreData.totalScore,
+          fatDiff: comp.fatDiff,
+          muscleDiff: comp.muscleDiff
         };
       })
-      .sort((a, b) => b.sortKey - a.sortKey);
+      .sort((a, b) => {
+        if (b.sortKey !== a.sortKey) {
+          return b.sortKey - a.sortKey;
+        }
+        if (a.fatDiff !== b.fatDiff) {
+          return a.fatDiff - b.fatDiff; // smaller (more negative, meaning larger decrease) is better
+        }
+        if (b.muscleDiff !== a.muscleDiff) {
+          return b.muscleDiff - a.muscleDiff; // larger (more positive, meaning larger increase) is better
+        }
+        return a.emp.name.localeCompare(b.emp.name);
+      });
   } else if (criteria === 'bodyage') {
     items = employeeList
       .filter(emp => {
@@ -1460,7 +1534,12 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           sortKey: -comp.bodyageDiff
         };
       })
-      .sort((a, b) => b.sortKey - a.sortKey);
+      .sort((a, b) => {
+        if (b.sortKey !== a.sortKey) {
+          return b.sortKey - a.sortKey;
+        }
+        return a.emp.name.localeCompare(b.emp.name);
+      });
   } else if (criteria === 'weight') {
     items = employeeList
       .filter(emp => {
@@ -1477,7 +1556,12 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           sortKey: -comp.weightDiff
         };
       })
-      .sort((a, b) => b.sortKey - a.sortKey);
+      .sort((a, b) => {
+        if (b.sortKey !== a.sortKey) {
+          return b.sortKey - a.sortKey;
+        }
+        return a.emp.name.localeCompare(b.emp.name);
+      });
   } else if (criteria === 'bmi_closest') {
     items = employeeList
       .filter(emp => {
@@ -1495,7 +1579,12 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
           sortKey: distance
         };
       })
-      .sort((a, b) => a.sortKey - b.sortKey);
+      .sort((a, b) => {
+        if (a.sortKey !== b.sortKey) {
+          return a.sortKey - b.sortKey;
+        }
+        return a.emp.name.localeCompare(b.emp.name);
+      });
   }
 
   return {
@@ -1671,6 +1760,7 @@ function openModal(mode, id = null) {
     elements.formId.value = emp.id;
     elements.formName.value = emp.name;
     elements.formDept.value = emp.department;
+    elements.formEntraOid.value = emp.entra_oid || '';
     elements.formAge.value = emp.age;
     elements.formHeight.value = emp.height;
     
@@ -1751,6 +1841,7 @@ function closeModal() {
 async function saveForm() {
   const name = elements.formName.value.trim();
   const department = elements.formDept.value.trim();
+  const entra_oid = elements.formEntraOid.value.trim() || null;
   const age = parseInt(elements.formAge.value);
   const height = parseInt(elements.formHeight.value);
   
@@ -1841,9 +1932,11 @@ async function saveForm() {
   showLoader(true);
   try {
     if (modalMode === 'add') {
-      const { error } = await supabaseClient
-        .from('pfig_employees')
-        .insert([{ name, department, age, height, months }]);
+      await wellbeingApiRequest('/api/employees', {
+        method: 'POST',
+        body: JSON.stringify({ name, department, age, height, months, entra_oid })
+      });
+      const error = null;
         
       if (error) {
         showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message, 'error');
@@ -1853,10 +1946,11 @@ async function saveForm() {
       }
     } else {
       const id = elements.formId.value;
-      const { error } = await supabaseClient
-        .from('pfig_employees')
-        .update({ name, department, age, height, months })
-        .eq('id', id);
+      await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name, department, age, height, months, entra_oid })
+      });
+      const error = null;
         
       if (error) {
         showToast('เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + error.message, 'error');
@@ -1870,6 +1964,8 @@ async function saveForm() {
     showToast('เกิดข้อผิดพลาดในการสื่อสารกับเซิร์ฟเวอร์', 'error');
   }
   
+  await loadData();
+  updateUI();
   closeModal();
   showLoader(false);
 }
@@ -1882,10 +1978,8 @@ async function deleteEmployee(id) {
   if (confirm(`คุณต้องการลบข้อมูลของ ${emp.name} ใช่หรือไม่?`)) {
     showLoader(true);
     try {
-      const { error } = await supabaseClient
-        .from('pfig_employees')
-        .delete()
-        .eq('id', id);
+      await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const error = null;
         
       if (error) {
         showToast('เกิดข้อผิดพลาดในการลบข้อมูล: ' + error.message, 'error');
@@ -1897,6 +1991,8 @@ async function deleteEmployee(id) {
       console.error(err);
       showToast('เกิดข้อผิดพลาดในการสื่อสารกับเซิร์ฟเวอร์', 'error');
     }
+    await loadData();
+    updateUI();
     showLoader(false);
   }
 }
@@ -2125,9 +2221,13 @@ async function parseCSV(text) {
   if (successCount > 0) {
     showLoader(true);
     try {
-      const { error } = await supabaseClient
-        .from('pfig_employees')
-        .insert(importedList);
+      for (const employee of importedList) {
+        await wellbeingApiRequest('/api/employees', {
+          method: 'POST',
+          body: JSON.stringify(employee)
+        });
+      }
+      const error = null;
         
       if (error) {
         showToast('เกิดข้อผิดพลาดในการนำเข้าข้อมูล: ' + error.message, 'error');
@@ -2139,6 +2239,8 @@ async function parseCSV(text) {
       console.error(err);
       showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     }
+    await loadData();
+    updateUI();
     showLoader(false);
   } else {
     showToast('ไม่มีข้อมูลพนักงานที่ถูกต้องได้รับการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์', 'error');
@@ -2830,6 +2932,10 @@ function switchToPersonalView() {
 }
 
 function openPinModal() {
+  if (wellbeingSession?.identity?.canEdit) {
+    switchToAdminView();
+    return;
+  }
   elements.pinDigits.forEach(input => input.value = '');
   elements.pinErrorMsg.style.display = 'none';
   elements.pinModal.classList.add('active');
@@ -2844,6 +2950,15 @@ function closePinModal() {
 }
 
 function handlePinVerification() {
+  elements.pinErrorMsg.style.display = 'none';
+  window.PfigWellbeingAuth.beginSignIn({ prompt: 'select_account' }).catch(error => {
+    elements.pinErrorMsg.textContent = error.message || 'Microsoft sign-in failed';
+    elements.pinErrorMsg.style.display = 'block';
+  });
+}
+
+// Legacy PIN implementation retained temporarily for migration reference; it is never called.
+function handleLegacyPinVerification() {
   let pin = '';
   elements.pinDigits.forEach(input => pin += input.value);
   
@@ -2860,6 +2975,10 @@ function handlePinVerification() {
 }
 
 function switchToAdminView() {
+  if (!wellbeingSession?.identity?.canEdit) {
+    openPinModal();
+    return;
+  }
   currentView = 'admin';
   elements.personalView.style.display = 'none';
   elements.adminView.style.display = 'block';
@@ -2882,6 +3001,10 @@ let currentProfileEmpId = null;
 
 window.setProfileGender = async function(gender) {
   if (!currentProfileEmpId) return;
+  if (!wellbeingSession?.identity?.canEdit) {
+    showToast('Only a Wellbeing administrator can update employee data.', 'error');
+    return;
+  }
   
   const emp = employees.find(e => e.id === currentProfileEmpId);
   if (!emp) return;
@@ -2897,10 +3020,11 @@ window.setProfileGender = async function(gender) {
     // Save selection to Supabase database
     try {
       showLoader(true);
-      const { error } = await supabaseClient
-        .from('pfig_employees')
-        .update({ months: emp.months })
-        .eq('id', emp.id);
+      await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(emp.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ months: emp.months })
+      });
+      const error = null;
         
       if (error) {
         console.error('Failed to save gender:', error);
@@ -2927,7 +3051,7 @@ function showPersonalProfile(empId, selectedGender = null) {
   const gender = selectedGender || (emp.months ? emp.months.gender : null);
 
   // Show gender selection popup modal if not yet set in database
-  if (!gender && !selectedGender) {
+  if (!gender && !selectedGender && wellbeingSession?.identity?.canEdit) {
     let existingModal = document.getElementById('gender-selection-modal');
     if (!existingModal) {
       const modalOverlay = document.createElement('div');
