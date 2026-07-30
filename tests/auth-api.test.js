@@ -55,3 +55,9 @@ test("browser code no longer embeds a Supabase key or a PIN constant", () => {
   assert.match(authSource, /prompt: "none", silent: true/);
   assert.match(authSource, /\/api\/login-sso/);
 });
+
+test("browser auth explains when GitHub Pages cannot provide the SSO API", () => {
+  const authSource = readFileSync(path.join(__dirname, "..", "auth.js"), "utf8");
+  assert.match(authSource, /response\.status === 404/);
+  assert.match(authSource, /GitHub Pages cannot provide the Wellbeing SSO API/);
+});

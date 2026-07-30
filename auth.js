@@ -27,7 +27,12 @@
 
   async function loadConfig() {
     const response = await fetch("/api/config", { credentials: "same-origin" });
-    if (!response.ok) throw new Error("Wellbeing SSO configuration is unavailable");
+    if (!response.ok) {
+      if (response.status === 404 && global.location.hostname.endsWith("github.io")) {
+        throw new Error("GitHub Pages cannot provide the Wellbeing SSO API. Deploy this app to Vercel before signing in.");
+      }
+      throw new Error("Wellbeing SSO configuration is unavailable");
+    }
     runtimeConfig = await response.json();
     return runtimeConfig;
   }

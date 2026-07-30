@@ -1,5 +1,7 @@
 # Wellbeing SSO cutover
 
+GitHub Pages is not supported for this build because it only serves static files and cannot run the `/api` endpoints required by Microsoft SSO. Deploy the repository to Vercel and use the Vercel production URL for the application and Microsoft redirect URI.
+
 1. Create a single-tenant Microsoft Entra SPA registration for PFIG Wellbeing.
 2. Register the exact Vercel production URL as a SPA redirect URI.
 3. Add the `PFIG.Wellbeing.Admin` app role and assign the Wellbeing administrators.
