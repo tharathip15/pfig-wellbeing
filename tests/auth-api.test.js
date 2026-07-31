@@ -56,8 +56,12 @@ test("browser code no longer embeds a Supabase key or a PIN constant", () => {
   assert.match(authSource, /\/api\/login-sso/);
 });
 
-test("browser auth explains when GitHub Pages cannot provide the SSO API", () => {
-  const authSource = readFileSync(path.join(__dirname, "..", "auth.js"), "utf8");
-  assert.match(authSource, /response\.status === 404/);
-  assert.match(authSource, /GitHub Pages cannot provide the Wellbeing SSO API/);
+test("GitHub Pages redirects to the Vercel app before SSO initialization", () => {
+  const indexSource = readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  const redirectPosition = indexSource.indexOf('location.hostname === "tharathip15.github.io"');
+  const authPosition = indexSource.indexOf('<script src="auth.js"></script>');
+
+  assert.notEqual(redirectPosition, -1);
+  assert.match(indexSource, /location\.replace\("https:\/\/pfig-wellbeing\.vercel\.app\/"\)/);
+  assert.ok(redirectPosition < authPosition);
 });
