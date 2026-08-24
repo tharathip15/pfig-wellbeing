@@ -166,6 +166,18 @@ async function wellbeingApiRequest(path, options = {}) {
   return result;
 }
 
+function resolveSignedInEmployee(employeeList, identity) {
+  if (!Array.isArray(employeeList) || !identity) return null;
+  const signedInOid = String(identity.oid || '').trim().toLowerCase();
+  if (signedInOid) {
+    const linkedEmployee = employeeList.find(employee => (
+      String(employee.entra_oid || '').trim().toLowerCase() === signedInOid
+    ));
+    if (linkedEmployee) return linkedEmployee;
+  }
+  return !identity.canEdit && employeeList.length === 1 ? employeeList[0] : null;
+}
+
 // DB Sync Loader helper
 function showLoader(show) {
   let loader = document.getElementById('db-sync-loader');
@@ -263,13 +275,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (currentView === 'personal') {
     switchToPersonalView();
-    if (!wellbeingSession.identity.canEdit && employees.length === 1) {
-      elements.personalSearchInput.value = employees[0].name;
-      showPersonalProfile(employees[0].id);
-    } else if (!wellbeingSession.identity.canEdit && employees.length === 0) {
-      elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
-      elements.personalProfileDisplay.style.display = 'block';
-    }
   } else {
     switchToAdminView();
   }
@@ -2929,6 +2934,15 @@ function switchToPersonalView() {
   elements.personalSuggestions.style.display = 'none';
   elements.personalProfileDisplay.innerHTML = '';
   elements.personalProfileDisplay.style.display = 'none';
+
+  const signedInEmployee = resolveSignedInEmployee(employees, wellbeingSession?.identity);
+  if (signedInEmployee) {
+    elements.personalSearchInput.value = signedInEmployee.name;
+    showPersonalProfile(signedInEmployee.id);
+  } else if (wellbeingSession?.identity && !wellbeingSession.identity.canEdit) {
+    elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
+    elements.personalProfileDisplay.style.display = 'block';
+  }
 }
 
 function openPinModal() {

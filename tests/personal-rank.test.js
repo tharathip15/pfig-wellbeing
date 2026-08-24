@@ -103,6 +103,33 @@ function loadApp() {
   return sandbox;
 }
 
+test('resolves the signed-in employee by Entra OID even for an administrator', () => {
+  const app = loadApp();
+  const fixtures = [
+    { id: 'other', name: 'Other Person', entra_oid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+    { id: 'self', name: 'Signed In Person', entra_oid: 'D5A551CB-F1C4-4696-B391-630C838D2471' }
+  ];
+
+  const employee = app.resolveSignedInEmployee(fixtures, {
+    oid: 'd5a551cb-f1c4-4696-b391-630c838d2471',
+    canEdit: true
+  });
+
+  assert.equal(employee.id, 'self');
+});
+
+test('uses the only authorized employee row when a personal account is signed in', () => {
+  const app = loadApp();
+  const fixtures = [{ id: 'self', name: 'Signed In Person', entra_oid: null }];
+
+  const employee = app.resolveSignedInEmployee(fixtures, {
+    oid: 'd5a551cb-f1c4-4696-b391-630c838d2471',
+    canEdit: false
+  });
+
+  assert.equal(employee.id, 'self');
+});
+
 test('builds body-age ranking for personal rank badges with competition exclusions', () => {
   const app = loadApp();
 
@@ -280,4 +307,3 @@ test('resolves ties in health score ranking fairly', () => {
   assert.equal(ranking.items[1].emp.id, 'empB'); // Bob
   assert.equal(ranking.items[2].emp.id, 'empA'); // Charlie
 });
-
