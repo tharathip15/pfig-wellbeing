@@ -7,20 +7,43 @@ function getConfig() {
 
 async function request(path, options = {}) {
   const { url, serviceKey } = getConfig();
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      "Content-Type": "application/json",
-      Prefer: options.prefer || "return=representation",
-      ...(options.headers || {}),
-    },
-  });
-  const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
-  if (!response.ok) throw new Error(payload?.message || payload?.error || "Supabase request failed");
-  return payload;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(`${url}/rest/v1/${path}`, {
+        ...options,
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: options.prefer || "return=representation",
+          ...(options.headers || {}),
+        },
+      });
+    } catch (error) {
+      if (attempt === 3) throw error;
+      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      continue;
+    }
+    const text = await response.text();
+    let payload = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+    }
+    if (response.ok) return payload;
+
+    const schemaCacheUnavailable = payload?.code === "PGRST205" || /schema cache/i.test(payload?.message || "");
+    const temporaryUpstreamFailure = response.status >= 500;
+    if ((schemaCacheUnavailable || temporaryUpstreamFailure) && attempt < 3) {
+      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      continue;
+    }
+    throw new Error(payload?.message || payload?.error || `Supabase request failed (${response.status})`);
+  }
 }
 
 const selectFields = "id,name,department,age,height,months,entra_oid,created_at";
