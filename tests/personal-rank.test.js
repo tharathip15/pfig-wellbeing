@@ -191,6 +191,41 @@ test('builds body-age ranking for personal rank badges with competition exclusio
   assert.equal(waitingBadge.icon, '⏳');
 });
 
+test('excludes employees with only month 2 data from every leaderboard', () => {
+  const app = loadApp();
+  const fixtures = [
+    {
+      id: 'month-3-complete',
+      name: 'Month Three Complete',
+      department: 'Sales',
+      age: 30,
+      height: 170,
+      months: {
+        gender: 'male',
+        m1: { weight: 80, bmi: 27.68, bodyage: 40, muscle: 30, fat: 30 },
+        m3: { weight: 75, bmi: 25.95, bodyage: 35, muscle: 31, fat: 28 }
+      }
+    },
+    {
+      id: 'month-2-only',
+      name: 'Month Two Only',
+      department: 'Logistics',
+      age: 30,
+      height: 170,
+      months: {
+        gender: 'male',
+        m1: { weight: 100, bmi: 34.60, bodyage: 60, muscle: 20, fat: 40 },
+        m2: { weight: 60, bmi: 20.76, bodyage: 20, muscle: 40, fat: 10 }
+      }
+    }
+  ];
+
+  for (const criteria of ['health_score', 'bodyage', 'weight', 'bmi_closest']) {
+    const ranking = app.getRankedAchievers(criteria, fixtures);
+    assert.deepEqual(ranking.items.map(item => item.emp.id), ['month-3-complete']);
+  }
+});
+
 test('renders personal rank as a compact inline badge for the score card title', () => {
   const app = loadApp();
 

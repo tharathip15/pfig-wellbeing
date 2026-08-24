@@ -1488,12 +1488,18 @@ function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
   return '';
 }
 
+function hasCompleteMonth3(emp) {
+  const month3 = emp?.months?.m3;
+  return Number(month3?.weight) > 0 && Number(month3?.bodyage) > 0;
+}
+
 function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
   const meta = getWinningCriteriaMeta(criteria);
+  const eligibleEmployees = employeeList.filter(hasCompleteMonth3);
   let items = [];
 
   if (criteria === 'health_score') {
-    items = employeeList
+    items = eligibleEmployees
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && emp.department !== 'Executive';
@@ -1524,7 +1530,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
         return a.emp.name.localeCompare(b.emp.name);
       });
   } else if (criteria === 'bodyage') {
-    items = employeeList
+    items = eligibleEmployees
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
@@ -1546,7 +1552,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
         return a.emp.name.localeCompare(b.emp.name);
       });
   } else if (criteria === 'weight') {
-    items = employeeList
+    items = eligibleEmployees
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
@@ -1568,7 +1574,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
         return a.emp.name.localeCompare(b.emp.name);
       });
   } else if (criteria === 'bmi_closest') {
-    items = employeeList
+    items = eligibleEmployees
       .filter(emp => {
         const comp = getComparison(emp);
         return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
