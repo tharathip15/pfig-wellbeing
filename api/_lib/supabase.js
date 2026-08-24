@@ -56,6 +56,38 @@ export function listEmployeesForIdentity(oid) {
   return request(`pfig_employees?select=${selectFields}&entra_oid=eq.${encodeURIComponent(oid)}&limit=1`);
 }
 
+function normalizeIdentityName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+export async function claimEmployeeByIdentity({ oid, name }) {
+  const normalizedOid = optionalUuid(oid);
+  const normalizedName = normalizeIdentityName(name);
+  if (!normalizedName) return [];
+
+  const unlinkedEmployees = await request("pfig_employees?select=id,name&entra_oid=is.null");
+  const matches = unlinkedEmployees.filter(employee => normalizeIdentityName(employee.name) === normalizedName);
+  if (matches.length !== 1) return [];
+
+  return request(
+    `pfig_employees?id=eq.${encodeURIComponent(matches[0].id)}&entra_oid=is.null&select=${selectFields}`,
+    { method: "PATCH", body: JSON.stringify({ entra_oid: normalizedOid }) },
+  );
+}
+
+export async function listOrClaimEmployeeForIdentity(identity) {
+  let employees = await listEmployeesForIdentity(identity.oid);
+  if (employees.length > 0) return employees;
+
+  await claimEmployeeByIdentity(identity);
+  employees = await listEmployeesForIdentity(identity.oid);
+  return employees;
+}
+
 function optionalUuid(value) {
   if (value === null || value === undefined || value === "") return null;
   const normalized = String(value).trim().toLowerCase();

@@ -4,7 +4,7 @@ import {
   deleteEmployee,
   insertEmployee,
   listEmployeesForAdmin,
-  listEmployeesForIdentity,
+  listOrClaimEmployeeForIdentity,
   updateEmployee,
 } from "./_lib/supabase.js";
 
@@ -16,14 +16,13 @@ export default async function handler(request, response) {
 
   try {
     if (method === "GET") {
-      const employees = session.canEdit
-        ? await listEmployeesForAdmin()
-        : await listEmployeesForIdentity(session.oid);
+      const personalEmployees = await listOrClaimEmployeeForIdentity({ oid: session.oid, name: session.name });
+      const employees = session.canEdit ? await listEmployeesForAdmin() : personalEmployees;
       return sendJson(response, 200, {
         ok: true,
         mode: session.canEdit ? "admin" : "personal",
         employees,
-        requiresIdentityLink: !session.canEdit && employees.length === 0,
+        requiresIdentityLink: personalEmployees.length === 0,
       });
     }
 

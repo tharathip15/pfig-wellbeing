@@ -31,12 +31,12 @@ test("tampered wellbeing sessions are rejected", async () => {
   assert.equal(sessionModule.parseSessionToken(`${token}x`), null);
 });
 
-test("employee API requires a session and admin plus CSRF for writes", () => {
+test("employee API requires a session, auto-links personal reads, and protects writes", () => {
   const source = readFileSync(path.join(__dirname, "..", "api", "employees.js"), "utf8");
   assert.match(source, /method === "GET" \? requireSession/);
   assert.match(source, /requireAdmin\(request, response\)/);
   assert.match(source, /requireCsrf\(request, response, session\)/);
-  assert.match(source, /listEmployeesForIdentity\(session\.oid\)/);
+  assert.match(source, /listOrClaimEmployeeForIdentity\(\{ oid: session\.oid, name: session\.name \}\)/);
 });
 
 test("database cutover removes direct anonymous table access", () => {
