@@ -9,6 +9,7 @@ let currentPage = 1;
 let pageSize = 10; // 'all' means show all
 let wellbeingSession = null;
 let wellbeingDataMode = 'personal';
+let wellbeingPersonalHealthRanking = null;
 
 // Form state variables
 let modalMode = 'add'; // 'add' or 'edit'
@@ -294,6 +295,7 @@ async function loadData() {
     const result = await wellbeingApiRequest('/api/employees');
     const data = Array.isArray(result.employees) ? result.employees : [];
     wellbeingDataMode = result.mode || 'personal';
+    wellbeingPersonalHealthRanking = result.personalHealthRanking || null;
     employees = data.map(item => ({
       id: item.id,
       name: item.name,
@@ -467,120 +469,7 @@ function getComparison(emp) {
 
 // Helper: Calculate 3D Health Score (Combined Weight, Muscle, Fat Progress)
 function calculateHealthScore(emp) {
-  const comp = getComparison(emp);
-  if (!comp.hasProgress) {
-    return {
-      weightScore: 0,
-      muscleScore: 0,
-      fatScore: 0,
-      totalScore: 0
-    };
-  }
-  
-  const m1 = emp.months.m1;
-  const m2 = emp.months.m2;
-  const m3 = emp.months.m3;
-  let latest = null;
-  if (m3 && m3.weight && m3.bodyage) {
-    latest = m3;
-  } else if (m2 && m2.weight && m2.bodyage) {
-    latest = m2;
-  }
-  
-  if (!latest || !m1) {
-    return {
-      weightScore: 0,
-      muscleScore: 0,
-      fatScore: 0,
-      totalScore: 0
-    };
-  }
-  
-  const gender = (emp.months && emp.months.gender) ? emp.months.gender : 'male';
-  
-  // 1. Fat Score (40 Points)
-  let fatScore = 0;
-  const m1Fat = m1.fat || 0;
-  const latestFat = latest.fat || 0;
-  const fatDecrease = parseFloat((m1Fat - latestFat).toFixed(1));
-  
-  const isStartFatStandard = (gender === 'female') 
-    ? (m1Fat >= 14 && m1Fat <= 31)
-    : (m1Fat >= 6 && m1Fat <= 24);
-    
-  if (isStartFatStandard) {
-    if (fatDecrease >= -0.5) {
-      fatScore = 40;
-    } else {
-      fatScore = 0;
-    }
-  } else {
-    if (fatDecrease > 0) {
-      fatScore = Math.min(40, Math.floor(fatDecrease / 0.5) * 5);
-    } else {
-      fatScore = 0;
-    }
-  }
-  
-  // 2. Muscle Score (40 Points)
-  let muscleScore = 0;
-  const m1Muscle = m1.muscle || 0;
-  const latestMuscle = latest.muscle || 0;
-  const muscleIncreasePct = parseFloat((latestMuscle - m1Muscle).toFixed(1));
-  
-  const isStartMuscleExcellent = (gender === 'female')
-    ? (m1Muscle >= 27)
-    : (m1Muscle >= 33);
-    
-  if (isStartMuscleExcellent) {
-    if (muscleIncreasePct >= 0) {
-      muscleScore = 40;
-    } else {
-      muscleScore = 0;
-    }
-  } else {
-    if (muscleIncreasePct > 0) {
-      muscleScore = Math.min(40, Math.floor(muscleIncreasePct / 0.2) * 5);
-    } else {
-      muscleScore = 0;
-    }
-  }
-  
-  // 3. BMI Score (20 Points)
-  let bmiScore = 0;
-  const m1Bmi = comp.m1Bmi || 0;
-  const latestBmi = comp.latestBmi || 0;
-  
-  const isStartBmiStandard = (m1Bmi >= 18.5 && m1Bmi <= 22.9);
-  
-  if (isStartBmiStandard) {
-    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
-      bmiScore = 20;
-    } else {
-      bmiScore = 0;
-    }
-  } else {
-    const startDistance = Math.abs(m1Bmi - 21.0);
-    const latestDistance = Math.abs(latestBmi - 21.0);
-    
-    if (latestBmi >= 18.5 && latestBmi <= 22.9) {
-      bmiScore = 20;
-    } else if (latestDistance < startDistance) {
-      const progressRatio = (startDistance - latestDistance) / startDistance;
-      bmiScore = parseFloat((10 + (10 * progressRatio)).toFixed(2));
-    } else {
-      bmiScore = 0;
-    }
-  }
-  
-  const totalScore = parseFloat((fatScore + muscleScore + bmiScore).toFixed(2));
-  
-  return {
-    weightScore: bmiScore, // Map bmiScore to weightScore for backward-compatibility
-    muscleScore,
-    fatScore,
-    totalScore
-  };
+  return PfigHealthScore.calculateHealthScore(emp);
 }
 
 // Setup Event Listeners
@@ -1489,8 +1378,7 @@ function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
 }
 
 function hasCompleteMonth3(emp) {
-  const month3 = emp?.months?.m3;
-  return Number(month3?.weight) > 0 && Number(month3?.bodyage) > 0;
+  return PfigHealthScore.hasCompleteMonth3(emp);
 }
 
 function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
@@ -1607,7 +1495,34 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
   };
 }
 
-function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, employeeList = employees) {
+function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, employeeList = employees, serverHealthRanking = null) {
+  if (criteria === 'health_score' && serverHealthRanking) {
+    if (serverHealthRanking.hasRank) {
+      const rank = serverHealthRanking.rank;
+      return {
+        hasRank: true,
+        rank,
+        icon: getRankBadgeIcon(rank),
+        rankClass: getRankBadgeClass(rank),
+        titleText: `อันดับ ${rank}`,
+        metricText: `${Number(serverHealthRanking.totalScore).toFixed(1)} คะแนน`,
+        descText: 'คะแนนสุขภาพรวม',
+        contextText: `อันดับ ${rank} จาก ${serverHealthRanking.totalParticipants} คน`,
+        criteriaLabel: 'คะแนนสุขภาพรวม'
+      };
+    }
+    return {
+      hasRank: false,
+      rank: null,
+      icon: '⏳',
+      rankClass: 'rank-other',
+      titleText: 'รออันดับ',
+      metricText: 'ยังไม่เข้าเงื่อนไข',
+      descText: 'คะแนนสุขภาพรวม',
+      contextText: 'ต้องมีข้อมูลเดือน 3 ครบก่อนเข้าร่วมการจัดอันดับ'
+    };
+  }
+
   const ranking = getRankedAchievers(criteria, employeeList);
   const rankIndex = ranking.items.findIndex(item => item.emp.id === empId);
 
@@ -3341,7 +3256,12 @@ function showPersonalProfile(empId, selectedGender = null) {
     }
   }
 
-  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees);
+  const signedInOid = String(wellbeingSession?.identity?.oid || '').toLowerCase();
+  const employeeOid = String(emp.entra_oid || '').toLowerCase();
+  const serverRank = signedInOid && signedInOid === employeeOid && emp.department !== 'Executive'
+    ? wellbeingPersonalHealthRanking
+    : null;
+  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees, serverRank);
   const personalRankHtml = renderPersonalRankInlineBadge(personalRankData);
 
   // Generate Profile HTML

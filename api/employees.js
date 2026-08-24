@@ -1,4 +1,5 @@
 import { readJsonBody, sendJson } from "./_lib/http.js";
+import { getPersonalHealthRanking } from "./_lib/health-ranking.js";
 import { requireAdmin, requireCsrf, requireSession } from "./_lib/session.js";
 import {
   deleteEmployee,
@@ -17,11 +18,16 @@ export default async function handler(request, response) {
   try {
     if (method === "GET") {
       const personalEmployees = await listOrClaimEmployeeForIdentity({ oid: session.oid, name: session.name });
-      const employees = session.canEdit ? await listEmployeesForAdmin() : personalEmployees;
+      const allEmployees = await listEmployeesForAdmin();
+      const employees = session.canEdit ? allEmployees : personalEmployees;
+      const personalHealthRanking = personalEmployees.length > 0
+        ? getPersonalHealthRanking(allEmployees, personalEmployees[0].id)
+        : null;
       return sendJson(response, 200, {
         ok: true,
         mode: session.canEdit ? "admin" : "personal",
         employees,
+        personalHealthRanking,
         requiresIdentityLink: personalEmployees.length === 0,
       });
     }

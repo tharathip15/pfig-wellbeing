@@ -43,6 +43,7 @@ function makeElement() {
 function loadApp() {
   const appPath = path.join(__dirname, '..', 'app.js');
   const code = fs.readFileSync(appPath, 'utf8');
+  const healthScore = require('../health-score.js');
   const sandbox = {
     console,
     setTimeout() {},
@@ -95,8 +96,10 @@ function loadApp() {
         };
       }
     },
-    window: {}
+    window: {},
+    PfigHealthScore: healthScore
   };
+  sandbox.window.PfigHealthScore = healthScore;
 
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox, { filename: appPath });
@@ -246,6 +249,23 @@ test('renders personal rank as a compact inline badge for the score card title',
   assert.match(html, /#2/);
   assert.match(html, /อันดับ 2 จาก 2 คน/);
   assert.doesNotMatch(html, /personal-rank-card/);
+});
+
+test('uses a server-provided global health rank when only the signed-in employee is loaded', () => {
+  const app = loadApp();
+  const fixtures = [{ id: 'self', name: 'Signed In Person', department: 'Sales', months: {} }];
+
+  const rankData = app.getPersonalRankBadgeData('self', 'health_score', fixtures, {
+    hasRank: true,
+    rank: 7,
+    totalParticipants: 14,
+    totalScore: 65
+  });
+
+  assert.equal(rankData.hasRank, true);
+  assert.equal(rankData.rank, 7);
+  assert.equal(rankData.metricText, '65.0 คะแนน');
+  assert.equal(rankData.contextText, 'อันดับ 7 จาก 14 คน');
 });
 
 test('omits the duplicate numeric icon for inline ranks below the podium', () => {
