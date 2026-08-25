@@ -969,7 +969,7 @@ td {
 
 .month-record-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   background: var(--bg-item);
   padding: 1rem;
@@ -978,14 +978,15 @@ td {
   margin-bottom: 1rem;
 }
 
+@media (min-width: 1200px) {
+  .month-record-grid { grid-template-columns: repeat(4, 1fr); }
+}
 @media (max-width: 600px) {
-  .month-record-grid {
-    grid-template-columns: 1fr;
-  }
+  .month-record-grid { grid-template-columns: 1fr; }
 }
 
 .month-label {
-  grid-column: span 3;
+  grid-column: 1 / -1;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-main);
@@ -995,20 +996,11 @@ td {
   gap: 0.5rem;
 }
 
-@media (max-width: 600px) {
-  .month-label {
-    grid-column: span 1;
-  }
-}
-
-.month-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
+.month-dot { width: 8px; height: 8px; border-radius: 50%; }
 .month-dot-1 { background: var(--secondary); }
 .month-dot-2 { background: var(--warning); }
 .month-dot-3 { background: var(--primary); }
+.month-dot-4 { background: var(--accent); }
 
 /* Toast Notifications */
 .toast-container {
@@ -1626,16 +1618,12 @@ td {
 
 .photo-comparison-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin-top: 0.5rem;
 }
-
-@media (max-width: 600px) {
-  .photo-comparison-grid {
-    grid-template-columns: 1fr;
-  }
-}
+@media (min-width: 1100px) { .photo-comparison-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 600px) { .photo-comparison-grid { grid-template-columns: 1fr; } }
 
 .comparison-card {
   background: var(--bg-item);
@@ -2124,44 +2112,15 @@ td {
   margin-top: 0.1rem;
 }
 
-/* 3 columns monthly */
-.personal-months-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
-}
-
-@media (max-width: 992px) {
-  .personal-months-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.personal-month-card {
-  background: var(--bg-item);
-  border: 1px solid var(--border-item);
-  border-radius: var(--border-radius);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.personal-month-card-header {
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 1.25rem;
-}
-
+/* Four measurement rounds */
+.personal-months-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+@media (min-width: 1200px) { .personal-months-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 992px) { .personal-months-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .personal-months-grid { grid-template-columns: 1fr; } }
 .personal-month-badge-1 { color: var(--secondary-light); }
 .personal-month-badge-2 { color: var(--warning); }
 .personal-month-badge-3 { color: var(--primary-light); }
+.personal-month-badge-4 { color: var(--accent-light); }
 
 .personal-metrics-list {
   display: flex;

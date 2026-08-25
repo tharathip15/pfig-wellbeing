@@ -1,20 +1,20 @@
 import healthScore from "../../health-score.js";
 
-const { calculateHealthScore, hasCompleteMonth3 } = healthScore;
+const { calculateHealthScore, hasCompleteFinalMeasurement } = healthScore;
 
 export function rankHealthScores(employees) {
   return employees
-    .filter(employee => hasCompleteMonth3(employee) && employee.department !== "Executive")
+    .filter(employee => hasCompleteFinalMeasurement(employee) && employee.department !== "Executive")
     .map(employee => {
       const score = calculateHealthScore(employee);
       const m1 = employee.months.m1;
-      const m3 = employee.months.m3;
+      const m4 = employee.months.m4;
       return {
         employeeId: employee.id,
         employeeName: employee.name,
         totalScore: score.totalScore,
-        fatDiff: parseFloat(((m3.fat || 0) - (m1.fat || 0)).toFixed(1)),
-        muscleDiff: parseFloat(((m3.muscle || 0) - (m1.muscle || 0)).toFixed(1)),
+        fatDiff: parseFloat(((m4.fat || 0) - (m1.fat || 0)).toFixed(1)),
+        muscleDiff: parseFloat(((m4.muscle || 0) - (m1.muscle || 0)).toFixed(1)),
       };
     })
     .sort((left, right) => {

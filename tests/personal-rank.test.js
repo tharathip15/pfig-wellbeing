@@ -140,38 +140,10 @@ test('builds body-age ranking for personal rank badges with competition exclusio
   assert.equal(typeof app.getPersonalRankBadgeData, 'function');
 
   const fixtures = [
-    {
-      id: 'runner',
-      name: 'Runner',
-      department: 'Sales',
-      age: 31,
-      height: 170,
-      months: { m1: { weight: 75, bodyage: 42 }, m3: { weight: 73, bodyage: 38 } }
-    },
-    {
-      id: 'winner',
-      name: 'Winner',
-      department: 'Logistics',
-      age: 29,
-      height: 168,
-      months: { m1: { weight: 82, bodyage: 45 }, m3: { weight: 78, bodyage: 38 } }
-    },
-    {
-      id: 'exec',
-      name: 'Executive',
-      department: 'Executive',
-      age: 50,
-      height: 172,
-      months: { m1: { weight: 88, bodyage: 55 }, m3: { weight: 80, bodyage: 30 } }
-    },
-    {
-      id: 'waiting',
-      name: 'Waiting',
-      department: 'Finance & Acc',
-      age: 33,
-      height: 166,
-      months: { m1: { weight: 70, bodyage: 40 } }
-    }
+    { id: 'runner', name: 'Runner', department: 'Sales', age: 31, height: 170, months: { m1: { weight: 75, bodyage: 42 }, m2: { weight: 74, bodyage: 41 }, m3: { weight: 73, bodyage: 39 }, m4: { weight: 73, bodyage: 38 } } },
+    { id: 'winner', name: 'Winner', department: 'Logistics', age: 29, height: 168, months: { m1: { weight: 82, bodyage: 45 }, m2: { weight: 81, bodyage: 43 }, m3: { weight: 79, bodyage: 40 }, m4: { weight: 78, bodyage: 38 } } },
+    { id: 'exec', name: 'Executive', department: 'Executive', age: 50, height: 172, months: { m1: { weight: 88, bodyage: 55 }, m4: { weight: 80, bodyage: 30 } } },
+    { id: 'waiting', name: 'Waiting', department: 'Finance & Acc', age: 33, height: 166, months: { m1: { weight: 70, bodyage: 40 }, m2: { weight: 69, bodyage: 39 }, m3: { weight: 68, bodyage: 38 } } }
   ];
 
   const ranking = app.getRankedAchievers('bodyage', fixtures);
@@ -194,24 +166,24 @@ test('builds body-age ranking for personal rank badges with competition exclusio
   assert.equal(waitingBadge.icon, '⏳');
 });
 
-test('excludes employees with only month 2 data from every leaderboard', () => {
+test('excludes employees with only baseline and middle data from every leaderboard', () => {
   const app = loadApp();
   const fixtures = [
     {
-      id: 'month-3-complete',
-      name: 'Month Three Complete',
+      id: 'final-complete',
+      name: 'Final Measurement Complete',
       department: 'Sales',
       age: 30,
       height: 170,
       months: {
         gender: 'male',
         m1: { weight: 80, bmi: 27.68, bodyage: 40, muscle: 30, fat: 30 },
-        m3: { weight: 75, bmi: 25.95, bodyage: 35, muscle: 31, fat: 28 }
+        m4: { weight: 75, bmi: 25.95, bodyage: 35, muscle: 31, fat: 28 }
       }
     },
     {
-      id: 'month-2-only',
-      name: 'Month Two Only',
+      id: 'middle-only',
+      name: 'Middle Measurement Only',
       department: 'Logistics',
       age: 30,
       height: 170,
@@ -225,7 +197,7 @@ test('excludes employees with only month 2 data from every leaderboard', () => {
 
   for (const criteria of ['health_score', 'bodyage', 'weight', 'bmi_closest']) {
     const ranking = app.getRankedAchievers(criteria, fixtures);
-    assert.deepEqual(ranking.items.map(item => item.emp.id), ['month-3-complete']);
+    assert.deepEqual(ranking.items.map(item => item.emp.id), ['final-complete']);
   }
 });
 
@@ -299,7 +271,7 @@ test('adds dashboard leaderboard reason text for health score rankings', () => {
       months: {
         gender: 'male',
         m1: { weight: 90, bmi: 31.14, bodyage: 45, muscle: 32, fat: 30 },
-        m3: { weight: 80, bmi: 27.68, bodyage: 42, muscle: 33, fat: 28 }
+        m4: { weight: 80, bmi: 27.68, bodyage: 42, muscle: 33, fat: 28 }
       }
     }
   ];
@@ -326,7 +298,7 @@ test('resolves ties in health score ranking fairly', () => {
       months: {
         gender: 'female',
         m1: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 },
-        m3: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 }
+        m4: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 }
       }
     },
     {
@@ -338,7 +310,7 @@ test('resolves ties in health score ranking fairly', () => {
       months: {
         gender: 'female',
         m1: { weight: 70, bmi: 24.22, bodyage: 30, muscle: 20, fat: 35 },
-        m3: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 21.6, fat: 31 }
+        m4: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 21.6, fat: 31 }
       }
     },
     {
@@ -350,7 +322,7 @@ test('resolves ties in health score ranking fairly', () => {
       months: {
         gender: 'female',
         m1: { weight: 70, bmi: 24.22, bodyage: 30, muscle: 20, fat: 35 },
-        m3: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 22.0, fat: 31 }
+        m4: { weight: 60, bmi: 20.76, bodyage: 30, muscle: 22.0, fat: 31 }
       }
     }
   ];

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PFIG Well Being - บันทึกสุขภาพท้าทาย 3 เดือน</title>
+  <title>PFIG Well Being - บันทึกสุขภาพท้าทาย 4 รอบ</title>
   <script>
     if (location.hostname === "tharathip15.github.io") {
       location.replace("https://pfig-wellbeing.vercel.app/");
@@ -34,7 +34,7 @@
         </div>
         <div class="logo-text">
           <h1>PFIG WELL BEING</h1>
-          <p>สุขภาพดี เริ่มที่พวกเรา เพื่อชีวิตที่ดีกว่า • บันทึกท้าทายเปรียบเทียบข้อมูล 3 เดือน</p>
+          <p>สุขภาพดี เริ่มที่พวกเรา เพื่อชีวิตที่ดีกว่า • บันทึกท้าทายเปรียบเทียบข้อมูล 4 รอบ</p>
         </div>
       </div>
       <div class="header-actions">
@@ -128,7 +128,7 @@
             <h2 class="section-title" id="leaderboard-title">
               <span>🏆</span> 5 อันดับแรก ผู้ที่ลดอายุร่างกาย (Body Age) ได้มากที่สุด
             </h2>
-            <span style="font-size: 0.85rem; color: var(--text-muted);">เดือน 1 เทียบ เดือน 3</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">ค่าตั้งต้น เทียบ ผลลัพธ์สุดท้าย</span>
           </div>
           <div class="leaderboard-list" id="leaderboard-container">
             <!-- Items will be populated dynamically -->
@@ -181,8 +181,7 @@
             
             <div style="margin-top: auto; padding-top: 1rem; text-align: center;">
               <p style="font-size: 0.8rem; color: var(--text-muted);">
-                💡 การคำนวณเปรียบเทียบผลลัพธ์ยึดตาม <strong>น้ำหนัก และ อายุร่างกาย</strong> ที่ลดลงจากเดือนเริ่มต้น (เดือนที่ 1) ถึงเดือนปัจจุบันที่มีการบันทึก
-              </p>
+                การคำนวณเปรียบเทียบผลลัพธ์ยึดตาม <strong>น้ำหนัก และ อายุร่างกาย</strong> จากค่าตั้งต้น (ครั้งที่ 1) ถึงผลลัพธ์สุดท้าย (ครั้งที่ 4)
             </div>
           </div>
         </div>
@@ -203,8 +202,8 @@
 
           <select class="select-filter" id="filter-progress">
             <option value="all">ทั้งหมด</option>
-            <option value="has-records">มีข้อมูลบันทึกครบถ้วน</option>
-            <option value="missing-records">ข้อมูลยังไม่ครบ 3 เดือน</option>
+            <option value="has-records">มีข้อมูลค่าตั้งต้นและผลลัพธ์สุดท้ายครบถ้วน</option>
+            <option value="missing-records">ยังไม่มีผลลัพธ์สุดท้าย (ครั้งที่ 4)</option>
             <option value="bodyage-reduced">อายุร่างกายลดลง</option>
           </select>
 
@@ -234,13 +233,11 @@
               <th class="sortable" id="sort-name">รายชื่อพนักงาน</th>
               <th>อายุ / สูง</th>
               <th>แผนก</th>
-              <!-- Month 1 -->
-              <th>เดือน 1 (เริ่มต้น)</th>
-              <!-- Month 2 -->
-              <th>เดือน 2 (กลาง)</th>
-              <!-- Month 3 -->
-              <th>เดือน 3 (สรุปผล)</th>
-              <!-- Comparison -->
+              <!-- Four persisted measurement rounds -->
+              <th>ครั้งที่ 1 (ค่าตั้งต้น)</th>
+              <th>ครั้งที่ 2 (ติดตามผล)</th>
+              <th>ครั้งที่ 3 (ติดตามผล)</th>
+              <th>ครั้งที่ 4 (ผลลัพธ์สุดท้าย)</th>
               <th class="sortable" id="sort-w-diff">น.น. เปลี่ยนแปลง</th>
               <th class="sortable" id="sort-age-diff">อายุร่างกายเปลี่ยน</th>
               <th>จัดการ</th>
@@ -349,147 +346,45 @@
             </div>
           </div>
 
-          <!-- Section 2: Month 1 Metrics -->
+          <!-- Measurement rounds: m1 baseline, m2/m3 progress, m4 final -->
           <div class="month-record-grid">
-            <div class="month-label">
-              <span class="month-dot month-dot-1"></span>
-              <span>บันทึกข้อมูล เดือนที่ 1 (เริ่มต้น) *</span>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m1-weight">น้ำหนัก (kg) *</label>
-              <input type="number" class="form-control" id="form-m1-weight" step="0.1" min="30" max="250" required>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m1-bodyage">อายุร่างกาย (ปี) *</label>
-              <input type="number" class="form-control" id="form-m1-bodyage" min="10" max="120" required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
-              <input type="text" class="form-control" id="form-m1-bmi" disabled placeholder="-">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m1-muscle">กล้ามเนื้อ (%) *</label>
-              <input type="number" class="form-control" id="form-m1-muscle" step="0.1" min="5" max="95" required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m1-fat">ไขมัน (%) *</label>
-              <input type="number" class="form-control" id="form-m1-fat" step="0.1" min="3" max="95" required>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">รูปถ่ายความคืบหน้า</label>
-              <div class="image-upload-wrapper">
-                <input type="file" id="form-m1-photo-input" accept="image/*" style="display: none;">
-                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m1-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
-                <input type="hidden" id="form-m1-photo-data">
-                <div class="photo-preview-thumbnail" id="form-m1-photo-preview" style="display: none;">
-                  <img src="" alt="preview">
-                  <span class="remove-photo-btn" onclick="removePhoto(1)">&times;</span>
-                </div>
-              </div>
-            </div>
+            <div class="month-label"><span class="month-dot month-dot-1"></span><span>ครั้งที่ 1 (ค่าตั้งต้น / Baseline) *</span></div>
+            <div class="form-group"><label class="form-label" for="form-m1-weight">น้ำหนัก (kg) *</label><input type="number" class="form-control" id="form-m1-weight" step="0.1" min="30" max="250" required></div>
+            <div class="form-group"><label class="form-label" for="form-m1-bodyage">อายุร่างกาย (ปี) *</label><input type="number" class="form-control" id="form-m1-bodyage" min="10" max="120" required></div>
+            <div class="form-group"><label class="form-label">ค่าดัชนีมวลกาย BMI</label><input type="text" class="form-control" id="form-m1-bmi" disabled placeholder="-"></div>
+            <div class="form-group"><label class="form-label" for="form-m1-muscle">กล้ามเนื้อ (%) *</label><input type="number" class="form-control" id="form-m1-muscle" step="0.1" min="5" max="95" required></div>
+            <div class="form-group"><label class="form-label" for="form-m1-fat">ไขมัน (%) *</label><input type="number" class="form-control" id="form-m1-fat" step="0.1" min="3" max="95" required></div>
+            <div class="form-group"><label class="form-label">รูปถ่ายความคืบหน้า</label><div class="image-upload-wrapper"><input type="file" id="form-m1-photo-input" accept="image/*" style="display: none;"><button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m1-photo-input').click();">📸 เลือก/ถ่ายรูป</button><input type="hidden" id="form-m1-photo-data"><div class="photo-preview-thumbnail" id="form-m1-photo-preview" style="display: none;"><img src="" alt="preview"><span class="remove-photo-btn" onclick="removePhoto(1)">&times;</span></div></div></div>
           </div>
-
-          <!-- Section 3: Month 2 Metrics -->
           <div class="month-record-grid">
-            <div class="month-label">
-              <span class="month-dot month-dot-2"></span>
-              <span>บันทึกข้อมูล เดือนที่ 2 (ความคืบหน้า)</span>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m2-weight">น้ำหนัก (kg)</label>
-              <input type="number" class="form-control" id="form-m2-weight" step="0.1" min="30" max="250">
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m2-bodyage">อายุร่างกาย (ปี)</label>
-              <input type="number" class="form-control" id="form-m2-bodyage" min="10" max="120">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
-              <input type="text" class="form-control" id="form-m2-bmi" disabled placeholder="-">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m2-muscle">กล้ามเนื้อ (%)</label>
-              <input type="number" class="form-control" id="form-m2-muscle" step="0.1" min="5" max="95">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m2-fat">ไขมัน (%)</label>
-              <input type="number" class="form-control" id="form-m2-fat" step="0.1" min="3" max="95">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">รูปถ่ายความคืบหน้า</label>
-              <div class="image-upload-wrapper">
-                <input type="file" id="form-m2-photo-input" accept="image/*" style="display: none;">
-                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m2-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
-                <input type="hidden" id="form-m2-photo-data">
-                <div class="photo-preview-thumbnail" id="form-m2-photo-preview" style="display: none;">
-                  <img src="" alt="preview">
-                  <span class="remove-photo-btn" onclick="removePhoto(2)">&times;</span>
-                </div>
-              </div>
-            </div>
+            <div class="month-label"><span class="month-dot month-dot-2"></span><span>ครั้งที่ 2 (ติดตามผล)</span></div>
+            <div class="form-group"><label class="form-label" for="form-m2-weight">น้ำหนัก (kg)</label><input type="number" class="form-control" id="form-m2-weight" step="0.1" min="30" max="250"></div>
+            <div class="form-group"><label class="form-label" for="form-m2-bodyage">อายุร่างกาย (ปี)</label><input type="number" class="form-control" id="form-m2-bodyage" min="10" max="120"></div>
+            <div class="form-group"><label class="form-label">ค่าดัชนีมวลกาย BMI</label><input type="text" class="form-control" id="form-m2-bmi" disabled placeholder="-"></div>
+            <div class="form-group"><label class="form-label" for="form-m2-muscle">กล้ามเนื้อ (%)</label><input type="number" class="form-control" id="form-m2-muscle" step="0.1" min="5" max="95"></div>
+            <div class="form-group"><label class="form-label" for="form-m2-fat">ไขมัน (%)</label><input type="number" class="form-control" id="form-m2-fat" step="0.1" min="3" max="95"></div>
+            <div class="form-group"><label class="form-label">รูปถ่ายความคืบหน้า</label><div class="image-upload-wrapper"><input type="file" id="form-m2-photo-input" accept="image/*" style="display: none;"><button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m2-photo-input').click();">📸 เลือก/ถ่ายรูป</button><input type="hidden" id="form-m2-photo-data"><div class="photo-preview-thumbnail" id="form-m2-photo-preview" style="display: none;"><img src="" alt="preview"><span class="remove-photo-btn" onclick="removePhoto(2)">&times;</span></div></div></div>
           </div>
-
-          <!-- Section 4: Month 3 Metrics -->
           <div class="month-record-grid">
-            <div class="month-label">
-              <span class="month-dot month-dot-3"></span>
-              <span>บันทึกข้อมูล เดือนที่ 3 (ผลลัพธ์สุดท้าย)</span>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m3-weight">น้ำหนัก (kg)</label>
-              <input type="number" class="form-control" id="form-m3-weight" step="0.1" min="30" max="250">
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label" for="form-m3-bodyage">อายุร่างกาย (ปี)</label>
-              <input type="number" class="form-control" id="form-m3-bodyage" min="10" max="120">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ค่าดัชนีมวลกาย BMI</label>
-              <input type="text" class="form-control" id="form-m3-bmi" disabled placeholder="-">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m3-muscle">กล้ามเนื้อ (%)</label>
-              <input type="number" class="form-control" id="form-m3-muscle" step="0.1" min="5" max="95">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="form-m3-fat">ไขมัน (%)</label>
-              <input type="number" class="form-control" id="form-m3-fat" step="0.1" min="3" max="95">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">รูปถ่ายความคืบหน้า</label>
-              <div class="image-upload-wrapper">
-                <input type="file" id="form-m3-photo-input" accept="image/*" style="display: none;">
-                <button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m3-photo-input').click();">📸 เลือก/ถ่ายรูป</button>
-                <input type="hidden" id="form-m3-photo-data">
-                <div class="photo-preview-thumbnail" id="form-m3-photo-preview" style="display: none;">
-                  <img src="" alt="preview">
-                  <span class="remove-photo-btn" onclick="removePhoto(3)">&times;</span>
-                </div>
-              </div>
-            </div>
+            <div class="month-label"><span class="month-dot month-dot-3"></span><span>ครั้งที่ 3 (ติดตามผล)</span></div>
+            <div class="form-group"><label class="form-label" for="form-m3-weight">น้ำหนัก (kg)</label><input type="number" class="form-control" id="form-m3-weight" step="0.1" min="30" max="250"></div>
+            <div class="form-group"><label class="form-label" for="form-m3-bodyage">อายุร่างกาย (ปี)</label><input type="number" class="form-control" id="form-m3-bodyage" min="10" max="120"></div>
+            <div class="form-group"><label class="form-label">ค่าดัชนีมวลกาย BMI</label><input type="text" class="form-control" id="form-m3-bmi" disabled placeholder="-"></div>
+            <div class="form-group"><label class="form-label" for="form-m3-muscle">กล้ามเนื้อ (%)</label><input type="number" class="form-control" id="form-m3-muscle" step="0.1" min="5" max="95"></div>
+            <div class="form-group"><label class="form-label" for="form-m3-fat">ไขมัน (%)</label><input type="number" class="form-control" id="form-m3-fat" step="0.1" min="3" max="95"></div>
+            <div class="form-group"><label class="form-label">รูปถ่ายความคืบหน้า</label><div class="image-upload-wrapper"><input type="file" id="form-m3-photo-input" accept="image/*" style="display: none;"><button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m3-photo-input').click();">📸 เลือก/ถ่ายรูป</button><input type="hidden" id="form-m3-photo-data"><div class="photo-preview-thumbnail" id="form-m3-photo-preview" style="display: none;"><img src="" alt="preview"><span class="remove-photo-btn" onclick="removePhoto(3)">&times;</span></div></div></div>
           </div>
+          <div class="month-record-grid">
+            <div class="month-label"><span class="month-dot month-dot-4"></span><span>ครั้งที่ 4 (ผลลัพธ์สุดท้าย / Final)</span></div>
+            <div class="form-group"><label class="form-label" for="form-m4-weight">น้ำหนัก (kg)</label><input type="number" class="form-control" id="form-m4-weight" step="0.1" min="30" max="250"></div>
+            <div class="form-group"><label class="form-label" for="form-m4-bodyage">อายุร่างกาย (ปี)</label><input type="number" class="form-control" id="form-m4-bodyage" min="10" max="120"></div>
+            <div class="form-group"><label class="form-label">ค่าดัชนีมวลกาย BMI</label><input type="text" class="form-control" id="form-m4-bmi" disabled placeholder="-"></div>
+            <div class="form-group"><label class="form-label" for="form-m4-muscle">กล้ามเนื้อ (%)</label><input type="number" class="form-control" id="form-m4-muscle" step="0.1" min="5" max="95"></div>
+            <div class="form-group"><label class="form-label" for="form-m4-fat">ไขมัน (%)</label><input type="number" class="form-control" id="form-m4-fat" step="0.1" min="3" max="95"></div>
+            <div class="form-group"><label class="form-label">รูปถ่ายความคืบหน้า</label><div class="image-upload-wrapper"><input type="file" id="form-m4-photo-input" accept="image/*" style="display: none;"><button type="button" class="btn btn-secondary btn-sm btn-upload-photo" onclick="document.getElementById('form-m4-photo-input').click();">📸 เลือก/ถ่ายรูป</button><input type="hidden" id="form-m4-photo-data"><div class="photo-preview-thumbnail" id="form-m4-photo-preview" style="display: none;"><img src="" alt="preview"><span class="remove-photo-btn" onclick="removePhoto(4)">&times;</span></div></div></div>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">* ต้องระบุข้อมูลค่าตั้งต้น / ครั้งที่ 1 ส่วนครั้งที่ 2–4 สามารถกรอกภายหลังได้ คะแนนและการจัดอันดับใช้ค่าตั้งต้นเทียบผลลัพธ์สุดท้าย / ครั้งที่ 4</p>
 
-          <p style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">
-            * จำเป็นต้องระบุข้อมูลเบื้องต้นและเดือนที่ 1, ส่วนข้อมูลเดือนที่ 2 และ 3 สามารถทยอยกรอกภายหลังเมื่อผลลัพธ์ออกได้
-          </p>
 
         </div>
         <div class="modal-footer">
@@ -509,30 +404,10 @@
       </div>
       <div class="modal-body">
         <div class="photo-comparison-grid">
-          <!-- Month 1 -->
-          <div class="comparison-card">
-            <div class="comparison-card-header">เดือน 1 (เริ่มต้น)</div>
-            <div class="comparison-card-image" id="gallery-m1-img-container">
-              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
-            </div>
-            <div class="comparison-card-meta" id="gallery-m1-meta">- kg | BMI: -</div>
-          </div>
-          <!-- Month 2 -->
-          <div class="comparison-card">
-            <div class="comparison-card-header">เดือน 2 (ความคืบหน้า)</div>
-            <div class="comparison-card-image" id="gallery-m2-img-container">
-              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
-            </div>
-            <div class="comparison-card-meta" id="gallery-m2-meta">- kg | BMI: -</div>
-          </div>
-          <!-- Month 3 -->
-          <div class="comparison-card">
-            <div class="comparison-card-header">เดือน 3 (ผลลัพธ์สุดท้าย)</div>
-            <div class="comparison-card-image" id="gallery-m3-img-container">
-              <div class="image-placeholder">ไม่มีรูปถ่าย</div>
-            </div>
-            <div class="comparison-card-meta" id="gallery-m3-meta">- kg | BMI: -</div>
-          </div>
+          <div class="comparison-card"><div class="comparison-card-header">ครั้งที่ 1 (ค่าตั้งต้น)</div><div class="comparison-card-image" id="gallery-m1-img-container"><div class="image-placeholder">ไม่มีรูปถ่าย</div></div><div class="comparison-card-meta" id="gallery-m1-meta">- kg | BMI: -</div></div>
+          <div class="comparison-card"><div class="comparison-card-header">ครั้งที่ 2 (ติดตามผล)</div><div class="comparison-card-image" id="gallery-m2-img-container"><div class="image-placeholder">ไม่มีรูปถ่าย</div></div><div class="comparison-card-meta" id="gallery-m2-meta">- kg | BMI: -</div></div>
+          <div class="comparison-card"><div class="comparison-card-header">ครั้งที่ 3 (ติดตามผล)</div><div class="comparison-card-image" id="gallery-m3-img-container"><div class="image-placeholder">ไม่มีรูปถ่าย</div></div><div class="comparison-card-meta" id="gallery-m3-meta">- kg | BMI: -</div></div>
+          <div class="comparison-card"><div class="comparison-card-header">ครั้งที่ 4 (ผลลัพธ์สุดท้าย)</div><div class="comparison-card-image" id="gallery-m4-img-container"><div class="image-placeholder">ไม่มีรูปถ่าย</div></div><div class="comparison-card-meta" id="gallery-m4-meta">- kg | BMI: -</div></div>
         </div>
       </div>
     </div>
@@ -598,7 +473,7 @@
                     <div class="revealed-box-val" id="pres-rev-m1-age">45 ปี</div>
                   </div>
                   <div class="revealed-metric-box">
-                    <div class="revealed-box-label">อายุร่างกายใหม่</div>
+                    <div class="revealed-box-label">อายุร่างกายผลลัพธ์สุดท้าย</div>
                     <div class="revealed-box-val" id="pres-rev-latest-age">40 ปี</div>
                   </div>
                   <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
@@ -727,7 +602,7 @@
               </div>
             </div>
             
-            <h4 class="calc-section-title">📅 เดือนที่ 1 (เริ่มต้น)</h4>
+            <h4 class="calc-section-title">📅 ค่าตั้งต้น (ครั้งที่ 1)</h4>
             <div class="calc-grid-row-3">
               <div class="form-group">
                 <label for="calc-m1-weight">น้ำหนัก (กก.)</label>
@@ -743,25 +618,16 @@
               </div>
             </div>
             
-            <h4 class="calc-section-title">📅 เดือนล่าสุด (เปรียบเทียบ)</h4>
+            <h4 class="calc-section-title">📅 ผลลัพธ์สุดท้าย (ครั้งที่ 4)</h4>
             <div class="calc-grid-row-3">
-              <div class="form-group">
-                <label for="calc-latest-weight">น้ำหนัก (กก.)</label>
-                <input type="number" id="calc-latest-weight" value="72" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
-              </div>
-              <div class="form-group">
-                <label for="calc-latest-muscle">กล้ามเนื้อ (%)</label>
-                <input type="number" id="calc-latest-muscle" value="35" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
-              </div>
-              <div class="form-group">
-                <label for="calc-latest-fat">ไขมัน (%)</label>
-                <input type="number" id="calc-latest-fat" value="22" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;">
-              </div>
+              <div class="form-group"><label for="calc-latest-weight">น้ำหนัก (กก.)</label><input type="number" id="calc-latest-weight" value="72" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;"></div>
+              <div class="form-group"><label for="calc-latest-muscle">กล้ามเนื้อ (%)</label><input type="number" id="calc-latest-muscle" value="35" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;"></div>
+              <div class="form-group"><label for="calc-latest-fat">ไขมัน (%)</label><input type="number" id="calc-latest-fat" value="22" step="0.1" class="select-filter" style="width: 100%; appearance: textfield;"></div>
             </div>
-
             <div style="margin-top: 1.5rem; text-align: center;">
               <button type="button" class="btn btn-secondary" id="btn-reset-calc" style="width: 100%;">🧹 รีเซ็ตตัวเลขการทดลอง</button>
             </div>
+
           </div>
           
           <!-- Results Column -->
@@ -772,17 +638,18 @@
                 <span class="calc-score-label">คะแนนรวม</span>
               </div>
               <div class="calc-meta-details">
-                <div class="calc-meta-item">
-                  <span class="calc-meta-label">BMI เริ่มต้น:</span>
-                  <span class="calc-meta-val" id="calc-start-bmi">0.00</span>
-                </div>
-                <div class="calc-meta-item">
-                  <span class="calc-meta-label">เกณฑ์สุขภาพเริ่มต้น:</span>
-                  <span class="calc-meta-val" id="calc-start-category">-</span>
-                </div>
-                <div class="calc-meta-item">
-                  <span class="calc-meta-label">BMI ล่าสุด:</span>
-                  <span class="calc-meta-val" id="calc-latest-bmi">0.00</span>
+              <div class="calc-meta-item">
+                <span class="calc-meta-label">BMI ค่าตั้งต้น:</span>
+                <span class="calc-meta-val" id="calc-start-bmi">0.00</span>
+              </div>
+              <div class="calc-meta-item">
+                <span class="calc-meta-label">เกณฑ์สุขภาพค่าตั้งต้น:</span>
+                <span class="calc-meta-val" id="calc-start-category">-</span>
+              </div>
+              <div class="calc-meta-item">
+                <span class="calc-meta-label">BMI ผลลัพธ์สุดท้าย:</span>
+                <span class="calc-meta-val" id="calc-latest-bmi">0.00</span>
+              </div>
                 </div>
               </div>
             </div>

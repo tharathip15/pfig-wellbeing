@@ -80,19 +80,21 @@ const elements = {
   formM1Bmi: document.getElementById('form-m1-bmi'),
   formM1Muscle: document.getElementById('form-m1-muscle'),
   formM1Fat: document.getElementById('form-m1-fat'),
-  
   formM2Weight: document.getElementById('form-m2-weight'),
   formM2Bodyage: document.getElementById('form-m2-bodyage'),
   formM2Bmi: document.getElementById('form-m2-bmi'),
   formM2Muscle: document.getElementById('form-m2-muscle'),
   formM2Fat: document.getElementById('form-m2-fat'),
-  
   formM3Weight: document.getElementById('form-m3-weight'),
   formM3Bodyage: document.getElementById('form-m3-bodyage'),
   formM3Bmi: document.getElementById('form-m3-bmi'),
   formM3Muscle: document.getElementById('form-m3-muscle'),
   formM3Fat: document.getElementById('form-m3-fat'),
-  
+  formM4Weight: document.getElementById('form-m4-weight'),
+  formM4Bodyage: document.getElementById('form-m4-bodyage'),
+  formM4Bmi: document.getElementById('form-m4-bmi'),
+  formM4Muscle: document.getElementById('form-m4-muscle'),
+  formM4Fat: document.getElementById('form-m4-fat'),
   // Toast container
   toastWrapper: document.getElementById('toast-wrapper'),
 
@@ -406,66 +408,23 @@ function calcBMI(weight, height) {
   return parseFloat((w / (h * h)).toFixed(2));
 }
 
-// Helper: Get comparison stats for an employee
+// Helper: Compare baseline m1 to final m4 only
 function getComparison(emp) {
-  const m1 = emp.months.m1;
-  const m2 = emp.months.m2;
-  const m3 = emp.months.m3;
-  
-  // Determine latest available month
-  let latest = null;
-  let label = '-';
-  
-  if (m3 && m3.weight && m3.bodyage) {
-    latest = m3;
-    label = 'เดือน 3';
-  } else if (m2 && m2.weight && m2.bodyage) {
-    latest = m2;
-    label = 'เดือน 2';
+  const months = emp.months || {};
+  const m1 = months.m1;
+  const final = months.m4;
+  if (!m1 || !final || Number(m1.weight) <= 0 || Number(m1.bodyage) <= 0 || Number(final.weight) <= 0 || Number(final.bodyage) <= 0) {
+    return { weightDiff: 0, bmiDiff: 0, bodyageDiff: 0, muscleDiff: 0, fatDiff: 0, hasProgress: false, latestLabel: '-', latestWeight: null, latestBmi: null, latestBodyage: null, m1Weight: null, m1Bmi: null, m1Bodyage: null };
   }
-  
-  if (!latest || !m1) {
-    return {
-      weightDiff: 0,
-      bmiDiff: 0,
-      bodyageDiff: 0,
-      muscleDiff: 0,
-      fatDiff: 0,
-      hasProgress: false,
-      latestLabel: '-',
-      latestWeight: null,
-      latestBmi: null,
-      latestBodyage: null,
-      m1Weight: null,
-      m1Bmi: null,
-      m1Bodyage: null
-    };
-  }
-  
-  const muscleDiff = (latest.muscle !== undefined && latest.muscle !== null && m1.muscle !== undefined && m1.muscle !== null)
-    ? parseFloat((latest.muscle - m1.muscle).toFixed(1))
-    : 0;
-    
-  const fatDiff = (latest.fat !== undefined && latest.fat !== null && m1.fat !== undefined && m1.fat !== null)
-    ? parseFloat((latest.fat - m1.fat).toFixed(1))
-    : 0;
-
+  const muscleDiff = (final.muscle != null && m1.muscle != null) ? parseFloat((final.muscle - m1.muscle).toFixed(1)) : 0;
+  const fatDiff = (final.fat != null && m1.fat != null) ? parseFloat((final.fat - m1.fat).toFixed(1)) : 0;
   return {
-    weightDiff: parseFloat((latest.weight - m1.weight).toFixed(1)),
-    bmiDiff: parseFloat((latest.bmi - m1.bmi).toFixed(2)),
-    bodyageDiff: parseInt(latest.bodyage - m1.bodyage),
-    muscleDiff,
-    fatDiff,
-    hasProgress: true,
-    latestLabel: label,
-    latestWeight: latest.weight,
-    latestBmi: latest.bmi,
-    latestBodyage: latest.bodyage,
-    m1Weight: m1.weight,
-    m1Bmi: m1.bmi,
-    m1Bodyage: m1.bodyage
+    weightDiff: parseFloat((final.weight - m1.weight).toFixed(1)), bmiDiff: parseFloat(((final.bmi || 0) - (m1.bmi || 0)).toFixed(2)),
+    bodyageDiff: parseInt(final.bodyage - m1.bodyage), muscleDiff, fatDiff, hasProgress: true, latestLabel: 'ผลลัพธ์สุดท้าย (ครั้งที่ 4)',
+    latestWeight: final.weight, latestBmi: final.bmi || null, latestBodyage: final.bodyage, m1Weight: m1.weight, m1Bmi: m1.bmi || null, m1Bodyage: m1.bodyage
   };
 }
+  
 
 // Helper: Calculate 3D Health Score (Combined Weight, Muscle, Fat Progress)
 function calculateHealthScore(emp) {
@@ -516,6 +475,7 @@ function setupEventListeners() {
   hookBmiCalculation('form-m1-weight', 'form-m1-bodyage', 'form-m1-bmi');
   hookBmiCalculation('form-m2-weight', 'form-m2-bodyage', 'form-m2-bmi');
   hookBmiCalculation('form-m3-weight', 'form-m3-bodyage', 'form-m3-bmi');
+  hookBmiCalculation('form-m4-weight', 'form-m4-bodyage', 'form-m4-bmi');
 
   // Search box listener (with debounce)
   let searchTimeout;
@@ -615,8 +575,7 @@ function setupEventListeners() {
   setupPhotoInput('form-m1-photo-input', 'form-m1-photo-preview', 'form-m1-photo-data');
   setupPhotoInput('form-m2-photo-input', 'form-m2-photo-preview', 'form-m2-photo-data');
   setupPhotoInput('form-m3-photo-input', 'form-m3-photo-preview', 'form-m3-photo-data');
-
-  // Close gallery listeners
+  setupPhotoInput('form-m4-photo-input', 'form-m4-photo-preview', 'form-m4-photo-data');
   const closeGalleryBtn = document.getElementById('btn-close-gallery-modal');
   if (closeGalleryBtn) {
     closeGalleryBtn.addEventListener('click', window.closePhotoGallery);
@@ -811,66 +770,45 @@ function handleSort(field) {
 // Fetch Filtered and Sorted list of employees
 function getFilteredAndSortedEmployees() {
   let list = [...employees];
-  
-  // Filter by text search (name / department)
   if (currentSearchQuery) {
-    list = list.filter(emp => 
-      emp.name.toLowerCase().includes(currentSearchQuery) || 
-      emp.department.toLowerCase().includes(currentSearchQuery)
-    );
+    list = list.filter(emp => emp.name.toLowerCase().includes(currentSearchQuery) || emp.department.toLowerCase().includes(currentSearchQuery));
   }
-  
-  // Filter by Department select dropdown
   if (currentFilterDept) {
     list = list.filter(emp => emp.department === currentFilterDept);
   }
-  
-  // Filter by Progress status
   if (currentFilterProgress === 'has-records') {
-    // Has records for all 3 months
-    list = list.filter(emp => emp.months.m1 && emp.months.m2 && emp.months.m3);
+    list = list.filter(emp => getComparison(emp).hasProgress);
   } else if (currentFilterProgress === 'missing-records') {
-    // Missing either month 2 or month 3
-    list = list.filter(emp => !emp.months.m2 || !emp.months.m3);
+    list = list.filter(emp => !getComparison(emp).hasProgress);
   } else if (currentFilterProgress === 'bodyage-reduced') {
-    // Body age decreased
     list = list.filter(emp => {
       const comp = getComparison(emp);
       return comp.hasProgress && comp.bodyageDiff < 0;
     });
   }
-  
-  // Sorting logic
   list.sort((a, b) => {
     let valA, valB;
-    
     if (currentSortField === 'name') {
       valA = a.name.toLowerCase();
       valB = b.name.toLowerCase();
       if (valA < valB) return currentSortOrder === 'asc' ? -1 : 1;
       if (valA > valB) return currentSortOrder === 'asc' ? 1 : -1;
       return 0;
-    } else {
-      // Comparison metrics
-      const compA = getComparison(a);
-      const compB = getComparison(b);
-      
-      if (currentSortField === 'weightDiff') {
-        valA = compA.hasProgress ? compA.weightDiff : 999; // put incomplete at bottom
-        valB = compB.hasProgress ? compB.weightDiff : 999;
-      } else if (currentSortField === 'bodyageDiff') {
-        valA = compA.hasProgress ? compA.bodyageDiff : 999;
-        valB = compB.hasProgress ? compB.bodyageDiff : 999;
-      }
-      
-      // Since negative difference means improvement (weight loss, age reduction),
-      // we handle sorting: asc = biggest loss (e.g. -8 is smaller than -2, so it rises to top)
-      return currentSortOrder === 'asc' ? valA - valB : valB - valA;
     }
+    const compA = getComparison(a);
+    const compB = getComparison(b);
+    if (currentSortField === 'weightDiff') {
+      valA = compA.hasProgress ? compA.weightDiff : 999;
+      valB = compB.hasProgress ? compB.weightDiff : 999;
+    } else if (currentSortField === 'bodyageDiff') {
+      valA = compA.hasProgress ? compA.bodyageDiff : 999;
+      valB = compB.hasProgress ? compB.bodyageDiff : 999;
+    }
+    return currentSortOrder === 'asc' ? valA - valB : valB - valA;
   });
-  
   return list;
 }
+  
 
 // Update UI elements, tables, stats widgets, and charts
 function updateUI() {
@@ -1079,166 +1017,62 @@ function calculateWidgets() {
 // Render Table Rows with Pagination
 function renderTable(filteredEmployees) {
   elements.tableBody.innerHTML = '';
-  
   if (filteredEmployees.length === 0) {
     elements.emptyState.style.display = 'flex';
     elements.paginationSummary.textContent = 'กำลังแสดงผล 0 - 0 จากทั้งหมด 0 คน';
     elements.paginationButtons.innerHTML = '';
     return;
   }
-  
   elements.emptyState.style.display = 'none';
-  
-  // Pagination calculations
   const totalItems = filteredEmployees.length;
   let itemsToShow = filteredEmployees;
-  
   if (pageSize !== 'all') {
     const totalPages = Math.ceil(totalItems / pageSize);
     if (currentPage > totalPages) currentPage = totalPages || 1;
-    
     const startIdx = (currentPage - 1) * pageSize;
     const endIdx = startIdx + pageSize;
     itemsToShow = filteredEmployees.slice(startIdx, endIdx);
-    
     elements.paginationSummary.textContent = `กำลังแสดงผล ${startIdx + 1} - ${Math.min(endIdx, totalItems)} จากทั้งหมด ${totalItems} คน`;
     renderPaginationControls(totalPages);
   } else {
     elements.paginationSummary.textContent = `กำลังแสดงผล 1 - ${totalItems} จากทั้งหมด ${totalItems} คน`;
     elements.paginationButtons.innerHTML = '';
   }
-  
   itemsToShow.forEach(emp => {
     const comp = getComparison(emp);
-    const m1 = emp.months.m1;
-    const m2 = emp.months.m2;
-    const m3 = emp.months.m3;
-    
     const tr = document.createElement('tr');
-    
-    // Col 1: Basic Info Name
     const tdName = document.createElement('td');
-    const hasPhotos = (emp.months.m1 && emp.months.m1.photo) || 
-                      (emp.months.m2 && emp.months.m2.photo) || 
-                      (emp.months.m3 && emp.months.m3.photo);
-                      
-    const galleryBtn = hasPhotos 
-      ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>`
-      : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
-      
-    tdName.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; width: 100%;">
-        <div>
-          <div class="td-name">${emp.name}</div>
-          <div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div>
-        </div>
-        <div>
-          ${galleryBtn}
-        </div>
-      </div>
-    `;
+    const renderMeasurement = measurement => {
+      if (!measurement || !measurement.weight) return '<span style="color:var(--text-muted);font-style:italic;">ยังไม่บันทึก</span>';
+      const muscle = measurement.muscle != null ? `${measurement.muscle}%` : '-';
+      const fat = measurement.fat != null ? `${measurement.fat}%` : '-';
+      return `<div>⚖️ ${measurement.weight} kg</div><div class="td-subtitle">🧠 อายุร่างกาย: ${measurement.bodyage} ปี (BMI: ${measurement.bmi || '-'})</div><div class="td-subtitle">💪 กล้ามเนื้อ: ${muscle} | 📉 ไขมัน: ${fat}</div>`;
+    };
+    const measurements = ['m1', 'm2', 'm3', 'm4'].map(round => emp.months[round]);
+    const hasPhotos = measurements.some(measurement => measurement && measurement.photo);
+    const galleryBtn = hasPhotos ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>` : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
+    tdName.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;width:100%;"><div><div class="td-name">${emp.name}</div><div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div></div><div>${galleryBtn}</div></div>`;
     tr.appendChild(tdName);
-    
-    // Col 2: Age
     const tdAge = document.createElement('td');
-    tdAge.innerHTML = `
-      <div>จริง: ${emp.age} ปี</div>
-      <div class="td-subtitle">สูง: ${emp.height} ซม.</div>
-    `;
+    tdAge.innerHTML = `<div>จริง: ${emp.age} ปี</div><div class="td-subtitle">สูง: ${emp.height} ซม.</div>`;
     tr.appendChild(tdAge);
-    
-    // Col 3: Department
     const tdDept = document.createElement('td');
     tdDept.textContent = emp.department;
     tr.appendChild(tdDept);
-    
-    // Col 4: Month 1
-    const tdM1 = document.createElement('td');
-    const m1_muscle_text = m1.muscle !== undefined && m1.muscle !== null ? `${m1.muscle}%` : '-';
-    const m1_fat_text = m1.fat !== undefined && m1.fat !== null ? `${m1.fat}%` : '-';
-    tdM1.innerHTML = `
-      <div>⚖️ ${m1.weight} kg</div>
-      <div class="td-subtitle">🧠 อายุร่างกาย: ${m1.bodyage} ปี (BMI: ${m1.bmi})</div>
-      <div class="td-subtitle">💪 กล้ามเนื้อ: ${m1_muscle_text} | 📉 ไขมัน: ${m1_fat_text}</div>
-    `;
-    tr.appendChild(tdM1);
-    
-    // Col 5: Month 2
-    const tdM2 = document.createElement('td');
-    if (m2 && m2.weight) {
-      const m2_muscle_text = m2.muscle !== undefined && m2.muscle !== null ? `${m2.muscle}%` : '-';
-      const m2_fat_text = m2.fat !== undefined && m2.fat !== null ? `${m2.fat}%` : '-';
-      tdM2.innerHTML = `
-        <div>⚖️ ${m2.weight} kg</div>
-        <div class="td-subtitle">🧠 อายุร่างกาย: ${m2.bodyage} ปี (BMI: ${m2.bmi})</div>
-        <div class="td-subtitle">💪 กล้ามเนื้อ: ${m2_muscle_text} | 📉 ไขมัน: ${m2_fat_text}</div>
-      `;
-    } else {
-      tdM2.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">ยังไม่บันทึก</span>`;
-    }
-    tr.appendChild(tdM2);
-    
-    // Col 6: Month 3
-    const tdM3 = document.createElement('td');
-    if (m3 && m3.weight) {
-      const m3_muscle_text = m3.muscle !== undefined && m3.muscle !== null ? `${m3.muscle}%` : '-';
-      const m3_fat_text = m3.fat !== undefined && m3.fat !== null ? `${m3.fat}%` : '-';
-      tdM3.innerHTML = `
-        <div>⚖️ ${m3.weight} kg</div>
-        <div class="td-subtitle">🧠 อายุร่างกาย: ${m3.bodyage} ปี (BMI: ${m3.bmi})</div>
-        <div class="td-subtitle">💪 กล้ามเนื้อ: ${m3_muscle_text} | 📉 ไขมัน: ${m3_fat_text}</div>
-      `;
-    } else {
-      tdM3.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">ยังไม่บันทึก</span>`;
-    }
-    tr.appendChild(tdM3);
-    
-    // Col 7: Weight comparison diff
+    measurements.forEach(measurement => {
+      const td = document.createElement('td');
+      td.innerHTML = renderMeasurement(measurement);
+      tr.appendChild(td);
+    });
     const tdWDiff = document.createElement('td');
-    if (comp.hasProgress) {
-      const diffVal = comp.weightDiff;
-      if (diffVal < 0) {
-        tdWDiff.innerHTML = `<span class="metric-badge metric-badge-improved">↓ ${Math.abs(diffVal)} kg</span><div class="td-subtitle">เทียบกับ ม.1 (${comp.latestLabel})</div>`;
-      } else if (diffVal > 0) {
-        tdWDiff.innerHTML = `<span class="metric-badge metric-badge-worsened">↑ ${diffVal} kg</span><div class="td-subtitle">เทียบกับ ม.1 (${comp.latestLabel})</div>`;
-      } else {
-        tdWDiff.innerHTML = `<span class="metric-badge metric-badge-neutral">0.0 kg</span>`;
-      }
-    } else {
-      tdWDiff.innerHTML = `<span style="color: var(--text-muted);">-</span>`;
-    }
+    tdWDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.weightDiff < 0 ? 'metric-badge-improved' : comp.weightDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.weightDiff < 0 ? '↓ ' + Math.abs(comp.weightDiff) : comp.weightDiff > 0 ? '↑ ' + comp.weightDiff : '0.0'} kg</span><div class="td-subtitle">เทียบกับค่าตั้งต้น</div>` : '<span style="color:var(--text-muted);">-</span>';
     tr.appendChild(tdWDiff);
-    
-    // Col 8: Body age comparison diff
     const tdAgeDiff = document.createElement('td');
-    if (comp.hasProgress) {
-      const diffVal = comp.bodyageDiff;
-      if (diffVal < 0) {
-        tdAgeDiff.innerHTML = `<span class="metric-badge metric-badge-improved">ลดลง ${Math.abs(diffVal)} ปี</span><div class="td-subtitle">เทียบกับ ม.1 (${comp.latestLabel})</div>`;
-      } else if (diffVal > 0) {
-        tdAgeDiff.innerHTML = `<span class="metric-badge metric-badge-worsened">เพิ่ม ${diffVal} ปี</span><div class="td-subtitle">เทียบกับ ม.1 (${comp.latestLabel})</div>`;
-      } else {
-        tdAgeDiff.innerHTML = `<span class="metric-badge metric-badge-neutral">คงที่</span>`;
-      }
-    } else {
-      tdAgeDiff.innerHTML = `<span style="color: var(--text-muted);">-</span>`;
-    }
+    tdAgeDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.bodyageDiff < 0 ? 'metric-badge-improved' : comp.bodyageDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.bodyageDiff < 0 ? 'ลดลง ' + Math.abs(comp.bodyageDiff) : comp.bodyageDiff > 0 ? 'เพิ่ม ' + comp.bodyageDiff : 'คงที่'} ปี</span><div class="td-subtitle">เทียบกับครั้งที่ 1 ไปครั้งที่ 4</div>` : '<span style="color:var(--text-muted);">-</span>';
     tr.appendChild(tdAgeDiff);
-    
-    // Col 9: Manage Actions
     const tdAction = document.createElement('td');
-    tdAction.innerHTML = `
-      <div class="action-buttons">
-        <button class="btn-icon btn-icon-edit" onclick="openModal('edit', '${emp.id}')" title="แก้ไขข้อมูล">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-        </button>
-        <button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-        </button>
-      </div>
-    `;
+    tdAction.innerHTML = `<div class="action-buttons"><button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูล">แก้ไข</button><button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button></div>`;
     tr.appendChild(tdAction);
-    
     elements.tableBody.appendChild(tr);
   });
 }
@@ -1371,20 +1205,19 @@ function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
   if (criteria === 'bmi_closest') {
     const distance = Number.isFinite(comp.latestBmi) ? Math.abs(comp.latestBmi - 21) : null;
     const distanceText = distance === null ? 'ห่างเป้า -' : `ห่างเป้า ${distance.toFixed(2)}`;
-    return `BMI ล่าสุด ${comp.latestBmi.toFixed(2)} (${distanceText}) • ${formatChangeText('BMI', comp.bmiDiff, '', 2)}${formatFromToText(comp.m1Bmi, comp.latestBmi, '', 2)}`;
+    return `BMI ผลลัพธ์สุดท้าย ${comp.latestBmi.toFixed(2)} (${distanceText}) • ${formatChangeText('BMI', comp.bmiDiff, '', 2)}${formatFromToText(comp.m1Bmi, comp.latestBmi, '', 2)}`;
   }
 
   return '';
 }
 
-function hasCompleteMonth3(emp) {
-  return PfigHealthScore.hasCompleteMonth3(emp);
+function hasCompleteFinalMeasurement(emp) {
+  return PfigHealthScore.hasCompleteFinalMeasurement(emp);
 }
 
 function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
   const meta = getWinningCriteriaMeta(criteria);
-  const eligibleEmployees = employeeList.filter(hasCompleteMonth3);
-  let items = [];
+  const eligibleEmployees = employeeList.filter(hasCompleteFinalMeasurement);
 
   if (criteria === 'health_score') {
     items = eligibleEmployees
@@ -1519,7 +1352,7 @@ function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, empl
       titleText: 'รออันดับ',
       metricText: 'ยังไม่เข้าเงื่อนไข',
       descText: 'คะแนนสุขภาพรวม',
-      contextText: 'ต้องมีข้อมูลเดือน 3 ครบก่อนเข้าร่วมการจัดอันดับ'
+      contextText: 'ต้องมีข้อมูลค่าตั้งต้นและผลลัพธ์สุดท้ายครบก่อนเข้าร่วมการจัดอันดับ'
     };
   }
 
@@ -1661,99 +1494,40 @@ function renderProgressBars() {
 function openModal(mode, id = null) {
   modalMode = mode;
   elements.employeeForm.reset();
-  
+  const stages = [1, 2, 3, 4];
   if (mode === 'add') {
     elements.modalHeadline.textContent = 'เพิ่มข้อมูลพนักงานใหม่';
     elements.formId.value = '';
-    
-    // Clear disabled computed BMI placeholder fields
-    elements.formM1Bmi.value = '';
-    elements.formM2Bmi.value = '';
-    elements.formM3Bmi.value = '';
-    
-    // Reset Photos
-    removePhoto(1);
-    removePhoto(2);
-    removePhoto(3);
+    stages.forEach(stage => {
+      document.getElementById(`form-m${stage}-bmi`).value = '';
+      removePhoto(stage);
+    });
   } else {
     elements.modalHeadline.textContent = 'แก้ไขข้อมูลพนักงาน';
     const emp = employees.find(e => e.id === id);
-    if (!emp) {
-      showToast('ไม่พบข้อมูลพนักงานที่ต้องการแก้ไข', 'error');
-      return;
-    }
-    
+    if (!emp) { showToast('ไม่พบข้อมูลพนักงานที่ต้องการแก้ไข', 'error'); return; }
     elements.formId.value = emp.id;
     elements.formName.value = emp.name;
     elements.formDept.value = emp.department;
     elements.formEntraOid.value = emp.entra_oid || '';
     elements.formAge.value = emp.age;
     elements.formHeight.value = emp.height;
-    
-    // Fill Month 1
-    elements.formM1Weight.value = emp.months.m1.weight;
-    elements.formM1Bodyage.value = emp.months.m1.bodyage;
-    elements.formM1Bmi.value = emp.months.m1.bmi || calcBMI(emp.months.m1.weight, emp.height);
-    elements.formM1Muscle.value = emp.months.m1.muscle || '';
-    elements.formM1Fat.value = emp.months.m1.fat || '';
-    
-    if (emp.months.m1.photo) {
-      document.getElementById('form-m1-photo-data').value = emp.months.m1.photo;
-      document.getElementById('form-m1-photo-preview').querySelector('img').src = emp.months.m1.photo;
-      document.getElementById('form-m1-photo-preview').style.display = 'block';
-    } else {
-      removePhoto(1);
-    }
-    
-    // Fill Month 2
-    if (emp.months.m2) {
-      elements.formM2Weight.value = emp.months.m2.weight || '';
-      elements.formM2Bodyage.value = emp.months.m2.bodyage || '';
-      elements.formM2Bmi.value = emp.months.m2.bmi || '';
-      elements.formM2Muscle.value = emp.months.m2.muscle || '';
-      elements.formM2Fat.value = emp.months.m2.fat || '';
-      
-      if (emp.months.m2.photo) {
-        document.getElementById('form-m2-photo-data').value = emp.months.m2.photo;
-        document.getElementById('form-m2-photo-preview').querySelector('img').src = emp.months.m2.photo;
-        document.getElementById('form-m2-photo-preview').style.display = 'block';
-      } else {
-        removePhoto(2);
-      }
-    } else {
-      elements.formM2Weight.value = '';
-      elements.formM2Bodyage.value = '';
-      elements.formM2Bmi.value = '';
-      elements.formM2Muscle.value = '';
-      elements.formM2Fat.value = '';
-      removePhoto(2);
-    }
-    
-    // Fill Month 3
-    if (emp.months.m3) {
-      elements.formM3Weight.value = emp.months.m3.weight || '';
-      elements.formM3Bodyage.value = emp.months.m3.bodyage || '';
-      elements.formM3Bmi.value = emp.months.m3.bmi || '';
-      elements.formM3Muscle.value = emp.months.m3.muscle || '';
-      elements.formM3Fat.value = emp.months.m3.fat || '';
-      
-      if (emp.months.m3.photo) {
-        document.getElementById('form-m3-photo-data').value = emp.months.m3.photo;
-        document.getElementById('form-m3-photo-preview').querySelector('img').src = emp.months.m3.photo;
-        document.getElementById('form-m3-photo-preview').style.display = 'block';
-      } else {
-        removePhoto(3);
-      }
-    } else {
-      elements.formM3Weight.value = '';
-      elements.formM3Bodyage.value = '';
-      elements.formM3Bmi.value = '';
-      elements.formM3Muscle.value = '';
-      elements.formM3Fat.value = '';
-      removePhoto(3);
-    }
+    stages.forEach(stage => {
+      const measurement = emp.months[`m${stage}`] || {};
+      elements[`formM${stage}Weight`].value = measurement.weight || '';
+      elements[`formM${stage}Bodyage`].value = measurement.bodyage || '';
+      elements[`formM${stage}Bmi`].value = measurement.bmi || calcBMI(measurement.weight, emp.height) || '';
+      elements[`formM${stage}Muscle`].value = measurement.muscle || '';
+      elements[`formM${stage}Fat`].value = measurement.fat || '';
+      const photo = document.getElementById(`form-m${stage}-photo-data`);
+      const preview = document.getElementById(`form-m${stage}-photo-preview`);
+      if (measurement.photo) {
+        photo.value = measurement.photo;
+        preview.querySelector('img').src = measurement.photo;
+        preview.style.display = 'block';
+      } else removePhoto(stage);
+    });
   }
-  
   elements.employeeModal.classList.add('active');
 }
 
@@ -1763,138 +1537,38 @@ function closeModal() {
 }
 
 // Save Form Data (Add or Edit)
-// Save Form Data (Add or Edit)
 async function saveForm() {
   const name = elements.formName.value.trim();
   const department = elements.formDept.value.trim();
   const entra_oid = elements.formEntraOid.value.trim() || null;
   const age = parseInt(elements.formAge.value);
   const height = parseInt(elements.formHeight.value);
-  
-  // Month 1
-  const m1_weight = parseFloat(elements.formM1Weight.value);
-  const m1_bodyage = parseInt(elements.formM1Bodyage.value);
-  const m1_muscle = parseFloat(elements.formM1Muscle.value);
-  const m1_fat = parseFloat(elements.formM1Fat.value);
-  const m1_bmi = calcBMI(m1_weight, height);
-  const m1_photo = document.getElementById('form-m1-photo-data').value || null;
-  
-  // Month 2
-  const m2_weight = parseFloat(elements.formM2Weight.value);
-  const m2_bodyage = parseInt(elements.formM2Bodyage.value);
-  const m2_muscle = parseFloat(elements.formM2Muscle.value);
-  const m2_fat = parseFloat(elements.formM2Fat.value);
-  const m2_photo = document.getElementById('form-m2-photo-data').value || null;
-  let m2 = null;
-  if (!isNaN(m2_weight) && !isNaN(m2_bodyage)) {
-    m2 = {
-      weight: m2_weight,
-      bodyage: m2_bodyage,
-      bmi: calcBMI(m2_weight, height),
-      muscle: isNaN(m2_muscle) ? null : m2_muscle,
-      fat: isNaN(m2_fat) ? null : m2_fat,
-      photo: m2_photo
-    };
-  } else if (m2_photo) {
-    m2 = {
-      weight: null,
-      bodyage: null,
-      bmi: null,
-      muscle: null,
-      fat: null,
-      photo: m2_photo
-    };
-  }
-  
-  // Month 3
-  const m3_weight = parseFloat(elements.formM3Weight.value);
-  const m3_bodyage = parseInt(elements.formM3Bodyage.value);
-  const m3_muscle = parseFloat(elements.formM3Muscle.value);
-  const m3_fat = parseFloat(elements.formM3Fat.value);
-  const m3_photo = document.getElementById('form-m3-photo-data').value || null;
-  let m3 = null;
-  if (!isNaN(m3_weight) && !isNaN(m3_bodyage)) {
-    m3 = {
-      weight: m3_weight,
-      bodyage: m3_bodyage,
-      bmi: calcBMI(m3_weight, height),
-      muscle: isNaN(m3_muscle) ? null : m3_muscle,
-      fat: isNaN(m3_fat) ? null : m3_fat,
-      photo: m3_photo
-    };
-  } else if (m3_photo) {
-    m3 = {
-      weight: null,
-      bodyage: null,
-      bmi: null,
-      muscle: null,
-      fat: null,
-      photo: m3_photo
-    };
-  }
-  
-  // Preserve existing gender value if editing
+  const readMeasurement = stage => {
+    const weight = parseFloat(elements[`formM${stage}Weight`].value);
+    const bodyage = parseInt(elements[`formM${stage}Bodyage`].value);
+    const muscle = parseFloat(elements[`formM${stage}Muscle`].value);
+    const fat = parseFloat(elements[`formM${stage}Fat`].value);
+    const photo = document.getElementById(`form-m${stage}-photo-data`).value || null;
+    if (isNaN(weight) || isNaN(bodyage)) return photo ? { weight: null, bodyage: null, bmi: null, muscle: null, fat: null, photo } : null;
+    return { weight, bodyage, bmi: calcBMI(weight, height), muscle: isNaN(muscle) ? null : muscle, fat: isNaN(fat) ? null : fat, photo };
+  };
   const editingId = elements.formId.value;
   const existingEmp = modalMode === 'edit' ? employees.find(e => e.id === editingId) : null;
+  const months = { m1: readMeasurement(1), m2: readMeasurement(2), m3: readMeasurement(3), m4: readMeasurement(4) };
   const existingGender = existingEmp && existingEmp.months ? existingEmp.months.gender : null;
-
-  const months = {
-    m1: { 
-      weight: m1_weight, 
-      bodyage: m1_bodyage, 
-      bmi: m1_bmi, 
-      muscle: isNaN(m1_muscle) ? null : m1_muscle, 
-      fat: isNaN(m1_fat) ? null : m1_fat,
-      photo: m1_photo
-    },
-    m2,
-    m3
-  };
-  
-  if (existingGender) {
-    months.gender = existingGender;
-  }
-  
+  if (existingGender) months.gender = existingGender;
   showLoader(true);
   try {
-    if (modalMode === 'add') {
-      await wellbeingApiRequest('/api/employees', {
-        method: 'POST',
-        body: JSON.stringify({ name, department, age, height, months, entra_oid })
-      });
-      const error = null;
-        
-      if (error) {
-        showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message, 'error');
-        console.error(error);
-      } else {
-        showToast('เพิ่มพนักงานสำเร็จเรียบร้อย', 'success');
-      }
-    } else {
-      const id = elements.formId.value;
-      await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name, department, age, height, months, entra_oid })
-      });
-      const error = null;
-        
-      if (error) {
-        showToast('เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + error.message, 'error');
-        console.error(error);
-      } else {
-        showToast('อัปเดตข้อมูลพนักงานสำเร็จ', 'success');
-      }
-    }
+    const payload = { name, department, age, height, months, entra_oid };
+    const path = modalMode === 'add' ? '/api/employees' : `/api/employees?id=${encodeURIComponent(editingId)}`;
+    await wellbeingApiRequest(path, { method: modalMode === 'add' ? 'POST' : 'PATCH', body: JSON.stringify(payload) });
+    showToast(modalMode === 'add' ? 'เพิ่มพนักงานสำเร็จเรียบร้อย' : 'อัปเดตข้อมูลพนักงานสำเร็จ', 'success');
+    await loadData(); updateUI(); closeModal();
   } catch (err) {
-    console.error(err);
-    showToast('เกิดข้อผิดพลาดในการสื่อสารกับเซิร์ฟเวอร์', 'error');
-  }
-  
-  await loadData();
-  updateUI();
-  closeModal();
-  showLoader(false);
+    console.error(err); showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+  } finally { showLoader(false); }
 }
+
 
 // Delete Employee record
 async function deleteEmployee(id) {
@@ -1949,229 +1623,75 @@ function showToast(message, type = 'info', duration = 3500) {
 }
 
 // Export Database to CSV
-function exportCSV() {
-  if (employees.length === 0) {
-    showToast('ไม่มีข้อมูลพนักงานสำหรับส่งออก', 'error');
-    return;
-  }
-  
-  let csvContent = "\ufeff"; // UTF-8 BOM for Excel compatibility with Thai text
-  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,กล้ามเนื้อ% เดือน 1,ไขมัน% เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,กล้ามเนื้อ% เดือน 2,ไขมัน% เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3,กล้ามเนื้อ% เดือน 3,ไขมัน% เดือน 3\n";
-  
-  employees.forEach(emp => {
-    const m1 = emp.months.m1 || {};
-    const m2 = emp.months.m2 || {};
-    const m3 = emp.months.m3 || {};
-    
-    const row = [
-      `"${emp.name.replace(/"/g, '""')}"`,
-      `"${emp.department.replace(/"/g, '""')}"`,
-      emp.age,
-      emp.height,
-      m1.weight || '',
-      m1.bodyage || '',
-      m1.muscle || '',
-      m1.fat || '',
-      m2.weight || '',
-      m2.bodyage || '',
-      m2.muscle || '',
-      m2.fat || '',
-      m3.weight || '',
-      m3.bodyage || '',
-      m3.muscle || '',
-      m3.fat || ''
-    ];
-    
-    csvContent += row.join(",") + "\n";
-  });
-  
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `PFIG_WellBeing_Data_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast('ส่งออกไฟล์ CSV สำเร็จ!', 'success');
+function csvColumns() {
+  const headers = ['ชื่อ-นามสกุล', 'แผนก', 'อายุจริง', 'ส่วนสูง'];
+  for (let stage = 1; stage <= 4; stage++) headers.push(`น้ำหนัก ครั้งที่ ${stage}`, `อายุร่างกาย ครั้งที่ ${stage}`, `กล้ามเนื้อ% ครั้งที่ ${stage}`, `ไขมัน% ครั้งที่ ${stage}`);
+  return headers;
 }
 
-// Download CSV template
-function downloadTemplateCSV() {
-  let csvContent = "\ufeff"; // UTF-8 BOM
-  csvContent += "ชื่อ-นามสกุล,แผนก,อายุจริง,ส่วนสูง,น้ำหนัก เดือน 1,อายุร่างกาย เดือน 1,กล้ามเนื้อ% เดือน 1,ไขมัน% เดือน 1,น้ำหนัก เดือน 2,อายุร่างกาย เดือน 2,กล้ามเนื้อ% เดือน 2,ไขมัน% เดือน 2,น้ำหนัก เดือน 3,อายุร่างกาย เดือน 3,กล้ามเนื้อ% เดือน 3,ไขมัน% เดือน 3\n";
-  csvContent += "John Doe,Sales,30,175,85.5,42,32.5,28.4,83.0,40,33.1,27.2,79.5,38,34.0,25.8\n";
-  csvContent += "Jane Smith,Finance,28,160,65.0,32,25.0,35.5,64.2,32,25.2,35.0,62.1,30,26.0,32.8\n";
-  
+function csvLine(values) {
+  return values.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',');
+}
+
+function csvRowForEmployee(emp) {
+  const row = [emp.name, emp.department, emp.age, emp.height];
+  for (let stage = 1; stage <= 4; stage++) {
+    const measurement = emp.months[`m${stage}`] || {};
+    row.push(measurement.weight || '', measurement.bodyage || '', measurement.muscle || '', measurement.fat || '');
+  }
+  return row;
+}
+
+function exportCSV() {
+  if (employees.length === 0) { showToast('ไม่มีข้อมูลพนักงานสำหรับส่งออก', 'error'); return; }
+  let csvContent = '\ufeff' + csvLine(csvColumns()) + '\n';
+  employees.forEach(emp => { csvContent += csvLine(csvRowForEmployee(emp)) + '\n'; });
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "PFIG_WellBeing_Template.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast('ดาวน์โหลดตัวอย่างไฟล์สำเร็จ นำไปกรอกและอัปโหลดได้ทันที', 'success');
+  const url = URL.createObjectURL(blob); const link = document.createElement('a');
+  link.setAttribute('href', url); link.setAttribute('download', `PFIG_WellBeing_Data_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link); link.click(); document.body.removeChild(link); showToast('ส่งออกไฟล์ CSV สำเร็จ!', 'success');
+}
+
+function downloadTemplateCSV() {
+  const examples = [
+    ['John Doe', 'Sales', 30, 175, 85.5, 42, 32.5, 28.4, 83, 40, 33, 27, 81, 39, 33.5, 26.5, 79.5, 38, 34, 25.8],
+    ['Jane Smith', 'Finance', 28, 160, 65, 32, 25, 35.5, 64, 31, 25.5, 34, 63, 30, 26, 33.2, 62.1, 30, 26, 32.8]
+  ];
+  const csvContent = '\ufeff' + csvLine(csvColumns()) + '\n' + examples.map(csvLine).join('\n') + '\n';
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a');
+  link.setAttribute('href', url); link.setAttribute('download', 'PFIG_WellBeing_Template.csv'); document.body.appendChild(link); link.click(); document.body.removeChild(link); showToast('ดาวน์โหลดตัวอย่างไฟล์สำเร็จ นำไปกรอกและอัปโหลดได้ทันที', 'success');
 }
 
 // Import CSV File and Parse
 function handleCSVImport(event) {
   const file = event.target.files[0];
   if (!file) return;
-  
   const reader = new FileReader();
-  reader.onload = function(e) {
-    const text = e.target.result;
-    parseCSV(text);
-  };
-  reader.readAsText(file, "UTF-8");
-  // reset file input
+  reader.onload = e => parseCSV(e.target.result);
+  reader.readAsText(file, 'UTF-8');
   elements.csvFileInput.value = '';
 }
 
-// Parse CSV content into employee objects
-// Parse CSV content into employee objects
 async function parseCSV(text) {
-  const lines = text.split(/\r\n|\n/);
-  if (lines.length < 2) {
-    showToast('ไฟล์ CSV ไม่มีข้อมูลเพียงพอ', 'error');
-    return;
-  }
-  
-  let successCount = 0;
-  let errorCount = 0;
-  const importedList = [];
-  
-  // Skip header (i=0)
+  const lines = text.replace(/^\ufeff/, '').split(/\r\n|\n/);
+  if (lines.length < 2) { showToast('ไฟล์ CSV ไม่มีข้อมูลเพียงพอ', 'error'); return; }
+  let successCount = 0; let errorCount = 0; const importedList = [];
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    // Parse CSV line handling potential quotes properly
-    const columns = [];
-    let insideQuotes = false;
-    let currentColumn = '';
-    
-    for (let charIdx = 0; charIdx < line.length; charIdx++) {
-      const char = line[charIdx];
-      if (char === '"') {
-        insideQuotes = !insideQuotes;
-      } else if (char === ',' && !insideQuotes) {
-        columns.push(currentColumn.trim());
-        currentColumn = '';
-      } else {
-        currentColumn += char;
-      }
-    }
+    const line = lines[i].trim(); if (!line) continue;
+    const columns = []; let insideQuotes = false; let currentColumn = '';
+    for (const char of line) { if (char === '"') insideQuotes = !insideQuotes; else if (char === ',' && !insideQuotes) { columns.push(currentColumn.trim()); currentColumn = ''; } else currentColumn += char; }
     columns.push(currentColumn.trim());
-    
-    // Validate we have minimum columns (Name, Dept, Age, Height, M1_W, M1_BA, M1_M, M1_F)
-    if (columns.length < 8) {
-      errorCount++;
-      continue;
-    }
-    
-    const name = columns[0].replace(/^"|"$/g, '').trim();
-    const department = columns[1].replace(/^"|"$/g, '').trim();
-    const age = parseInt(columns[2]);
-    const height = parseInt(columns[3]);
-    
-    // M1
-    const m1_weight = parseFloat(columns[4]);
-    const m1_bodyage = parseInt(columns[5]);
-    const m1_muscle = parseFloat(columns[6]);
-    const m1_fat = parseFloat(columns[7]);
-    
-    if (!name || !department || isNaN(age) || isNaN(height) || isNaN(m1_weight) || isNaN(m1_bodyage)) {
-      errorCount++;
-      continue;
-    }
-    
-    // Optional M2
-    let m2 = null;
-    if (columns.length >= 12) {
-      const m2_weight = parseFloat(columns[8]);
-      const m2_bodyage = parseInt(columns[9]);
-      const m2_muscle = parseFloat(columns[10]);
-      const m2_fat = parseFloat(columns[11]);
-      if (!isNaN(m2_weight) && !isNaN(m2_bodyage)) {
-        m2 = {
-          weight: m2_weight,
-          bodyage: m2_bodyage,
-          bmi: calcBMI(m2_weight, height),
-          muscle: isNaN(m2_muscle) ? null : m2_muscle,
-          fat: isNaN(m2_fat) ? null : m2_fat
-        };
-      }
-    }
-    
-    // Optional M3
-    let m3 = null;
-    if (columns.length >= 16) {
-      const m3_weight = parseFloat(columns[12]);
-      const m3_bodyage = parseInt(columns[13]);
-      const m3_muscle = parseFloat(columns[14]);
-      const m3_fat = parseFloat(columns[15]);
-      if (!isNaN(m3_weight) && !isNaN(m3_bodyage)) {
-        m3 = {
-          weight: m3_weight,
-          bodyage: m3_bodyage,
-          bmi: calcBMI(m3_weight, height),
-          muscle: isNaN(m3_muscle) ? null : m3_muscle,
-          fat: isNaN(m3_fat) ? null : m3_fat
-        };
-      }
-    }
-    
-    importedList.push({
-      name: name,
-      department: department,
-      age: age,
-      height: height,
-      months: {
-        m1: {
-          weight: m1_weight,
-          bodyage: m1_bodyage,
-          bmi: calcBMI(m1_weight, height),
-          muscle: isNaN(m1_muscle) ? null : m1_muscle,
-          fat: isNaN(m1_fat) ? null : m1_fat
-        },
-        m2: m2,
-        m3: m3
-      }
-    });
-    
-    successCount++;
+    if (columns.length < 8) { errorCount++; continue; }
+    const name = columns[0].replace(/^"|"$/g, '').trim(); const department = columns[1].replace(/^"|"$/g, '').trim(); const age = parseInt(columns[2]); const height = parseInt(columns[3]);
+    const baseWeight = parseFloat(columns[4]); const baseBodyage = parseInt(columns[5]);
+    if (!name || !department || isNaN(age) || isNaN(height) || isNaN(baseWeight) || isNaN(baseBodyage)) { errorCount++; continue; }
+    const months = {};
+    for (let stage = 1; stage <= 4; stage++) { const offset = 4 + (stage - 1) * 4; const weight = parseFloat(columns[offset]); const bodyage = parseInt(columns[offset + 1]); const muscle = parseFloat(columns[offset + 2]); const fat = parseFloat(columns[offset + 3]); if (!isNaN(weight) && !isNaN(bodyage)) months[`m${stage}`] = { weight, bodyage, bmi: calcBMI(weight, height), muscle: isNaN(muscle) ? null : muscle, fat: isNaN(fat) ? null : fat }; }
+    importedList.push({ name, department, age, height, months }); successCount++;
   }
-  
-  if (successCount > 0) {
-    showLoader(true);
-    try {
-      for (const employee of importedList) {
-        await wellbeingApiRequest('/api/employees', {
-          method: 'POST',
-          body: JSON.stringify(employee)
-        });
-      }
-      const error = null;
-        
-      if (error) {
-        showToast('เกิดข้อผิดพลาดในการนำเข้าข้อมูล: ' + error.message, 'error');
-        console.error(error);
-      } else {
-        showToast(`นำเข้าพนักงานสำเร็จ ${successCount} คน ${errorCount > 0 ? `(ผิดพลาด ${errorCount} แถว)` : ''}`, 'success');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
-    }
-    await loadData();
-    updateUI();
-    showLoader(false);
-  } else {
-    showToast('ไม่มีข้อมูลพนักงานที่ถูกต้องได้รับการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์', 'error');
-  }
+  if (successCount > 0) { showLoader(true); try { for (const employee of importedList) await wellbeingApiRequest('/api/employees', { method: 'POST', body: JSON.stringify(employee) }); showToast(`นำเข้าพนักงานสำเร็จ ${successCount} คน ${errorCount > 0 ? `(ผิดพลาด ${errorCount} แถว)` : ''}`, 'success'); await loadData(); updateUI(); } catch (err) { console.error(err); showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error'); } finally { showLoader(false); } } else showToast('ไม่มีข้อมูลพนักงานที่ถูกต้องได้รับการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์', 'error');
 }
+  
 
 // --- Audio Synthesizer (Using Web Audio API) ---
 const AudioSynth = {
@@ -2623,7 +2143,7 @@ function goPresentationStage(stageIndex) {
           <div class="revealed-box-val">${winnerData.m1Bmi.toFixed(2)}</div>
         </div>
         <div class="revealed-metric-box">
-          <div class="revealed-box-label">BMI ล่าสุด</div>
+          <div class="revealed-box-label">BMI ผลลัพธ์สุดท้าย</div>
           <div class="revealed-box-val">${winnerData.latestBmi.toFixed(2)}</div>
         </div>
         <div class="revealed-metric-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
@@ -2643,7 +2163,7 @@ function goPresentationStage(stageIndex) {
     if (currentWinningCriteria === 'health_score') {
       const ageDiffVal = winnerData.bodyageDiff;
       const ageText = ageDiffVal < 0 ? `ลดลง ${Math.abs(ageDiffVal)} ปี` : ageDiffVal > 0 ? `เพิ่มขึ้น +${ageDiffVal} ปี` : 'คงที่';
-      subStatsHtml = `🌿 อายุร่างกาย: <strong>${ageText}</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ล่าสุด: <strong>${winnerData.latestBmi ? winnerData.latestBmi.toFixed(2) : '-'}</strong>`;
+      subStatsHtml = `🌿 อายุร่างกาย: <strong>${ageText}</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ผลลัพธ์สุดท้าย: <strong>${winnerData.latestBmi ? winnerData.latestBmi.toFixed(2) : '-'}</strong>`;
     } else if (currentWinningCriteria === 'bodyage') {
       subStatsHtml = `⚖️ น้ำหนักลดลง: <strong>${winnerData.weightLoss.toFixed(1)} kg</strong> &nbsp;&nbsp;|&nbsp;&nbsp; 📊 BMI ลดลง: <strong>${winnerData.bmiLoss.toFixed(2)}</strong>`;
     } else if (currentWinningCriteria === 'weight') {
@@ -2803,29 +2323,25 @@ window.removePhoto = function(monthNum) {
 window.openPhotoGallery = function(empId) {
   const emp = employees.find(e => e.id === empId);
   if (!emp) return;
-  
   document.getElementById('photo-gallery-title').textContent = `รูปภาพเปรียบเทียบความคืบหน้า - ${emp.name}`;
-  
   const renderCard = (monthKey, label, imgContainerId, metaId) => {
     const m = emp.months[monthKey];
     const container = document.getElementById(imgContainerId);
     const meta = document.getElementById(metaId);
-    
     if (m && m.photo) {
       container.innerHTML = `<img src="${m.photo}" alt="${label}">`;
-      const wText = m.weight ? `${m.weight} kg` : '- kg';
-      const bmiText = m.bmi ? `BMI: ${m.bmi}` : 'BMI: -';
-      meta.textContent = `${wText} | ${bmiText}`;
+      meta.textContent = `${m.weight ? `${m.weight} kg` : '- kg'} | ${m.bmi ? `BMI: ${m.bmi}` : 'BMI: -'}`;
     } else {
-      container.innerHTML = `<div class="image-placeholder">ไม่มีรูปถ่าย</div>`;
-      meta.textContent = `- kg | BMI: -`;
+      container.innerHTML = '<div class="image-placeholder">ไม่มีรูปถ่าย</div>';
+      meta.textContent = '- kg | BMI: -';
     }
   };
-  
-  renderCard('m1', 'เดือน 1', 'gallery-m1-img-container', 'gallery-m1-meta');
-  renderCard('m2', 'เดือน 2', 'gallery-m2-img-container', 'gallery-m2-meta');
-  renderCard('m3', 'เดือน 3', 'gallery-m3-img-container', 'gallery-m3-meta');
-  
+  [
+    ['m1', 'ครั้งที่ 1 (ค่าตั้งต้น)', 'gallery-m1-img-container', 'gallery-m1-meta'],
+    ['m2', 'ครั้งที่ 2 (ติดตามผล)', 'gallery-m2-img-container', 'gallery-m2-meta'],
+    ['m3', 'ครั้งที่ 3 (ติดตามผล)', 'gallery-m3-img-container', 'gallery-m3-meta'],
+    ['m4', 'ครั้งที่ 4 (ผลลัพธ์สุดท้าย)', 'gallery-m4-img-container', 'gallery-m4-meta']
+  ].forEach(args => renderCard(...args));
   document.getElementById('photo-gallery-modal').classList.add('active');
 };
 
@@ -2960,7 +2476,6 @@ window.setProfileGender = async function(gender) {
         body: JSON.stringify({ months: emp.months })
       });
       const error = null;
-        
       if (error) {
         console.error('Failed to save gender:', error);
         showToast('ไม่สามารถบันทึกเพศในฐานข้อมูลได้: ' + error.message, 'error');
@@ -3076,8 +2591,6 @@ function showPersonalProfile(empId, selectedGender = null) {
 
   const comp = getComparison(emp);
   const m1 = emp.months.m1 || {};
-  const m2 = emp.months.m2;
-  const m3 = emp.months.m3;
   
   // Format statistics change panels
   const formatDiff = (diffVal, unit, isPositiveImprovement = false) => {
@@ -3187,9 +2700,12 @@ function showPersonalProfile(empId, selectedGender = null) {
     `;
   };
 
-  const colM1 = renderMonthColumn(m1, 'เดือน 1 (เริ่มต้น)', 'personal-month-badge-1');
-  const colM2 = renderMonthColumn(m2, 'เดือน 2 (ความคืบหน้า)', 'personal-month-badge-2');
-  const colM3 = renderMonthColumn(m3, 'เดือน 3 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-3');
+  const monthColumns = [
+    renderMonthColumn(emp.months.m1, 'ครั้งที่ 1 (ค่าตั้งต้น)', 'personal-month-badge-1'),
+    renderMonthColumn(emp.months.m2, 'ครั้งที่ 2 (ติดตามผล)', 'personal-month-badge-2'),
+    renderMonthColumn(emp.months.m3, 'ครั้งที่ 3 (ติดตามผล)', 'personal-month-badge-3'),
+    renderMonthColumn(emp.months.m4, 'ครั้งที่ 4 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-4')
+  ];
 
   // 1. Calculate Ideal Weight Range and Target based on height
   const heightM = parseFloat(emp.height) / 100;
@@ -3376,9 +2892,9 @@ function showPersonalProfile(empId, selectedGender = null) {
         </div>
       </div>
 
-      <!-- Comparative stats grid (latest vs month 1) -->
+      <!-- Comparative stats grid: final round 4 vs baseline round 1 -->
       <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-        <span>🏆</span> สรุปความเปลี่ยนแปลงทั้งหมด (เริ่มต้น ➔ ล่าสุดที่บันทึก)
+        <span>🏆</span> สรุปความเปลี่ยนแปลงทั้งหมด (ค่าตั้งต้น ➔ ผลลัพธ์สุดท้าย)
       </h4>
       <div class="personal-stats-grid">
         <!-- Stat 1: Weight change -->
@@ -3427,16 +2943,13 @@ function showPersonalProfile(empId, selectedGender = null) {
         </div>
       </div>
 
-      <!-- 3 columns months details -->
+      <!-- Four measurement rounds details -->
       <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-        <span>📈</span> รายละเอียดข้อมูลรายเดือน
+        <span>📈</span> รายละเอียดการวัดทั้ง 4 รอบ
       </h4>
       <div class="personal-months-grid">
-        ${colM1}
-        ${colM2}
-        ${colM3}
+        ${monthColumns.join('')}
       </div>
-
       <!-- Health Reference Standards Guide -->
       <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
         <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
@@ -3484,13 +2997,7 @@ function showPersonalProfile(empId, selectedGender = null) {
  
           <!-- Body Fat Card -->
           <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
-            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: #ef4444; display: flex; align-items: center; gap: 0.4rem;">
-              <span>📉</span> ไขมันในร่างกาย (Body Fat %)
-            </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
-              <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: var(--secondary-light); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้ชาย (Men)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--text-main);">6 - 13%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">14 - 17%:</span> หุ่นฟิต สมส่วน</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">18 - 24%:</span> สุขภาพดีมาตรฐาน</li>
@@ -3503,9 +3010,6 @@ function showPersonalProfile(empId, selectedGender = null) {
                   <li><span style="color: var(--text-main);">14 - 20%:</span> ระดับนักกีฬา</li>
                   <li><span style="color: var(--text-main);">21 - 24%:</span> หุ่นฟิต สมส่วน</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">25 - 31%:</span> สุขภาพดีมาตรฐาน</li>
-                  <li><span style="color: var(--danger); font-weight: 600;">&ge; 32%:</span> สูงเกินเกณฑ์ (อ้วน)</li>
-                </ul>
-              </div>
             </div>
           </div>
  
@@ -3607,8 +3111,8 @@ function runCalculatorCalculation() {
       <div class="calc-math-step">
         <strong>1) คะแนนมิติ BMI (เต็ม 20 คะแนน):</strong><br>
         สภาวะเริ่มต้นคือ <strong>"สมส่วน (น้ำหนักปกติ)"</strong> (BMI 18.5 - 22.9)<br>
-        กติกา: รักษาระดับให้อยู่ในเกณฑ์มาตรฐานได้ล่าสุด รับ 20 คะแนนเต็ม<br>
-        BMI ล่าสุดของคุณคือ: <span class="calc-formula-inline">${latestBmi.toFixed(2)}</span> (ตกเกณฑ์มาตรฐานหรือไม่: ${latestBmi >= 18.5 && latestBmi <= 22.9 ? 'อยู่ในเกณฑ์ปกติ' : 'หลุดเกณฑ์ปกติ'})<br>
+        กติกา: รักษาระดับให้อยู่ในเกณฑ์มาตรฐานได้ในผลลัพธ์สุดท้าย รับ 20 คะแนนเต็ม<br>
+        BMI ผลลัพธ์สุดท้ายของคุณคือ: <span class="calc-formula-inline">${latestBmi.toFixed(2)}</span> (ตกเกณฑ์มาตรฐานหรือไม่: ${latestBmi >= 18.5 && latestBmi <= 22.9 ? 'อยู่ในเกณฑ์ปกติ' : 'หลุดเกณฑ์ปกติ'})<br>
         คะแนน BMI ที่ได้: <strong>${bmiScore.toFixed(2)} / 20.00 คะแนน</strong>
       </div>
     `;
