@@ -41,6 +41,18 @@ test("returns a non-ranked result for an employee without complete final measure
   });
 });
 
+test("computes personal health ranking using round 3 when m3 targetRound is selected", async () => {
+  const { getPersonalHealthRanking } = await import("../api/_lib/health-ranking.js");
+  const employees = [
+    employee("self", "Signed In Person", { gender: "female", m1: { weight: 70, bmi: 24.22, bodyage: 40, muscle: 20, fat: 35 }, m3: { weight: 63.5, bmi: 21.97, bodyage: 35, muscle: 20.8, fat: 33 } }),
+    employee("other", "Other", { gender: "female", m1: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 }, m3: { weight: 55, bmi: 19.03, bodyage: 30, muscle: 28, fat: 20 } }),
+  ];
+  const ranking = getPersonalHealthRanking(employees, "self", "m3");
+  assert.equal(ranking.hasRank, true);
+  assert.equal(ranking.totalParticipants, 2);
+  assert.ok(ranking.rank >= 1);
+});
+
 test("employee API returns only the signed-in row plus its global health ranking", async () => {
   process.env.WELLBEING_SESSION_SECRET = "server-ranking-test-secret-at-least-32-characters";
   const { createSession, SESSION_COOKIE_NAME } = await import("../api/_lib/session.js");

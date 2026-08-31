@@ -6,29 +6,33 @@
     root.PfigHealthScore = api;
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createHealthScoreApi() {
-  function hasCompleteFinalMeasurement(emp) {
+  function hasCompleteMeasurement(emp, round = 'm4') {
     const months = emp && emp.months;
     const baseline = months && months.m1;
-    const final = months && months.m4;
+    const target = months && months[round];
     return Number(baseline && baseline.weight) > 0
       && Number(baseline && baseline.bodyage) > 0
-      && Number(final && final.weight) > 0
-      && Number(final && final.bodyage) > 0;
+      && Number(target && target.weight) > 0
+      && Number(target && target.bodyage) > 0;
   }
 
-  function latestMonth(emp) {
+  function hasCompleteFinalMeasurement(emp) {
+    return hasCompleteMeasurement(emp, 'm4');
+  }
+
+  function targetMonth(emp, round = 'm4') {
     const months = (emp && emp.months) || {};
-    const final = months.m4;
-    return Number(final && final.weight) > 0 && Number(final && final.bodyage) > 0
-      ? final
+    const target = months[round];
+    return Number(target && target.weight) > 0 && Number(target && target.bodyage) > 0
+      ? target
       : null;
   }
 
-  function calculateHealthScore(emp) {
+  function calculateHealthScore(emp, targetRound = 'm4') {
     const months = (emp && emp.months) || {};
     const m1 = months.m1;
-    const latest = latestMonth(emp);
-    if (!hasCompleteFinalMeasurement(emp) || !m1 || !latest) {
+    const latest = targetMonth(emp, targetRound);
+    if (!hasCompleteMeasurement(emp, targetRound) || !m1 || !latest) {
       return { weightScore: 0, muscleScore: 0, fatScore: 0, totalScore: 0 };
     }
 
@@ -82,5 +86,5 @@
     };
   }
 
-  return { calculateHealthScore, hasCompleteFinalMeasurement };
+  return { calculateHealthScore, hasCompleteFinalMeasurement, hasCompleteMeasurement };
 });

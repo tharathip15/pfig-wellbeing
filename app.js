@@ -23,6 +23,7 @@ let cardRevealed = false; // Whether the current slide card is revealed
 // Personal Lookup and Microsoft authorization state
 let currentView = 'personal'; // 'admin' or 'personal'
 let currentWinningCriteria = 'health_score'; // Default winning criteria
+let currentEvaluationRound = 'm4'; // 'm3' or 'm4'
 
 // DOM Elements
 const elements = {
@@ -38,6 +39,8 @@ const elements = {
   
   // Leaderboard & Summary
   leaderboardContainer: document.getElementById('leaderboard-container'),
+  leaderboardRoundSubtitle: document.getElementById('leaderboard-round-subtitle'),
+  summaryRoundNote: document.getElementById('summary-round-note'),
   summaryBodyagePercent: document.getElementById('summary-bodyage-percent'),
   summaryWeightPercent: document.getElementById('summary-weight-percent'),
   summaryBmiPercent: document.getElementById('summary-bmi-percent'),
@@ -48,6 +51,7 @@ const elements = {
   // Filters & Controls
   searchBox: document.getElementById('search-box'),
   filterDept: document.getElementById('filter-department'),
+  selectEvalRound: document.getElementById('select-eval-round'),
   filterProgress: document.getElementById('filter-progress'),
   filterCriteria: document.getElementById('filter-criteria'),
   pageSizeSelect: document.getElementById('select-page-size'),
@@ -307,6 +311,19 @@ async function loadData() {
       months: item.months,
       entra_oid: item.entra_oid || null
     }));
+
+    // Auto-detect round: if anyone has complete m4, default to m4; otherwise if anyone has complete m3, default to m3
+    const hasM4Data = employees.some(emp => PfigHealthScore.hasCompleteMeasurement(emp, 'm4'));
+    const hasM3Data = employees.some(emp => PfigHealthScore.hasCompleteMeasurement(emp, 'm3'));
+    if (!hasM4Data && hasM3Data) {
+      currentEvaluationRound = 'm3';
+    } else {
+      currentEvaluationRound = 'm4';
+    }
+    if (elements.selectEvalRound) {
+      elements.selectEvalRound.value = currentEvaluationRound;
+    }
+
     if (result.requiresIdentityLink) {
       elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
       elements.personalProfileDisplay.style.display = 'block';
@@ -408,27 +425,28 @@ function calcBMI(weight, height) {
   return parseFloat((w / (h * h)).toFixed(2));
 }
 
-// Helper: Compare baseline m1 to final m4 only
-function getComparison(emp) {
+// Helper: Compare baseline m1 to target round (m3 or m4)
+function getComparison(emp, round = currentEvaluationRound) {
   const months = emp.months || {};
   const m1 = months.m1;
-  const final = months.m4;
-  if (!m1 || !final || Number(m1.weight) <= 0 || Number(m1.bodyage) <= 0 || Number(final.weight) <= 0 || Number(final.bodyage) <= 0) {
+  const target = months[round];
+  const targetName = round === 'm3' ? 'ติดตามผล (ครั้งที่ 3)' : 'ผลลัพธ์สุดท้าย (ครั้งที่ 4)';
+  if (!m1 || !target || Number(m1.weight) <= 0 || Number(m1.bodyage) <= 0 || Number(target.weight) <= 0 || Number(target.bodyage) <= 0) {
     return { weightDiff: 0, bmiDiff: 0, bodyageDiff: 0, muscleDiff: 0, fatDiff: 0, hasProgress: false, latestLabel: '-', latestWeight: null, latestBmi: null, latestBodyage: null, m1Weight: null, m1Bmi: null, m1Bodyage: null };
   }
-  const muscleDiff = (final.muscle != null && m1.muscle != null) ? parseFloat((final.muscle - m1.muscle).toFixed(1)) : 0;
-  const fatDiff = (final.fat != null && m1.fat != null) ? parseFloat((final.fat - m1.fat).toFixed(1)) : 0;
+  const muscleDiff = (target.muscle != null && m1.muscle != null) ? parseFloat((target.muscle - m1.muscle).toFixed(1)) : 0;
+  const fatDiff = (target.fat != null && m1.fat != null) ? parseFloat((target.fat - m1.fat).toFixed(1)) : 0;
   return {
-    weightDiff: parseFloat((final.weight - m1.weight).toFixed(1)), bmiDiff: parseFloat(((final.bmi || 0) - (m1.bmi || 0)).toFixed(2)),
-    bodyageDiff: parseInt(final.bodyage - m1.bodyage), muscleDiff, fatDiff, hasProgress: true, latestLabel: 'ผลลัพธ์สุดท้าย (ครั้งที่ 4)',
-    latestWeight: final.weight, latestBmi: final.bmi || null, latestBodyage: final.bodyage, m1Weight: m1.weight, m1Bmi: m1.bmi || null, m1Bodyage: m1.bodyage
+    weightDiff: parseFloat((target.weight - m1.weight).toFixed(1)), bmiDiff: parseFloat(((target.bmi || 0) - (m1.bmi || 0)).toFixed(2)),
+    bodyageDiff: parseInt(target.bodyage - m1.bodyage), muscleDiff, fatDiff, hasProgress: true, latestLabel: targetName,
+    latestWeight: target.weight, latestBmi: target.bmi || null, latestBodyage: target.bodyage, m1Weight: m1.weight, m1Bmi: m1.bmi || null, m1Bodyage: m1.bodyage
   };
 }
   
 
 // Helper: Calculate 3D Health Score (Combined Weight, Muscle, Fat Progress)
-function calculateHealthScore(emp) {
-  return PfigHealthScore.calculateHealthScore(emp);
+function calculateHealthScore(emp, round = currentEvaluationRound) {
+  return PfigHealthScore.calculateHealthScore(emp, round);
 }
 
 // Setup Event Listeners
@@ -494,6 +512,15 @@ function setupEventListeners() {
     currentPage = 1;
     updateUI();
   });
+
+  // Evaluation Round Filter
+  if (elements.selectEvalRound) {
+    elements.selectEvalRound.addEventListener('change', (e) => {
+      currentEvaluationRound = e.target.value;
+      currentPage = 1;
+      updateUI();
+    });
+  }
 
   // Progress Status Filter
   elements.filterProgress.addEventListener('change', (e) => {
@@ -777,12 +804,12 @@ function getFilteredAndSortedEmployees() {
     list = list.filter(emp => emp.department === currentFilterDept);
   }
   if (currentFilterProgress === 'has-records') {
-    list = list.filter(emp => getComparison(emp).hasProgress);
+    list = list.filter(emp => getComparison(emp, currentEvaluationRound).hasProgress);
   } else if (currentFilterProgress === 'missing-records') {
-    list = list.filter(emp => !getComparison(emp).hasProgress);
+    list = list.filter(emp => !getComparison(emp, currentEvaluationRound).hasProgress);
   } else if (currentFilterProgress === 'bodyage-reduced') {
     list = list.filter(emp => {
-      const comp = getComparison(emp);
+      const comp = getComparison(emp, currentEvaluationRound);
       return comp.hasProgress && comp.bodyageDiff < 0;
     });
   }
@@ -795,8 +822,8 @@ function getFilteredAndSortedEmployees() {
       if (valA > valB) return currentSortOrder === 'asc' ? 1 : -1;
       return 0;
     }
-    const compA = getComparison(a);
-    const compB = getComparison(b);
+    const compA = getComparison(a, currentEvaluationRound);
+    const compB = getComparison(b, currentEvaluationRound);
     if (currentSortField === 'weightDiff') {
       valA = compA.hasProgress ? compA.weightDiff : 999;
       valB = compB.hasProgress ? compB.weightDiff : 999;
@@ -881,7 +908,7 @@ function calculateWidgets() {
   let maxAgeWinner = null;
   
   employees.forEach(emp => {
-    const comp = getComparison(emp);
+    const comp = getComparison(emp, currentEvaluationRound);
     if (comp.hasProgress) {
       totalWeightLoss += comp.weightDiff; // Weight diff (negative value is weight loss)
       totalBmiLoss += comp.bmiDiff;
@@ -911,7 +938,7 @@ function calculateWidgets() {
     
     // Success rate info
     const weightProgressPercent = (employees.filter(emp => {
-      const c = getComparison(emp);
+      const c = getComparison(emp, currentEvaluationRound);
       return c.hasProgress && c.weightDiff < 0;
     }).length / total * 100).toFixed(0);
     
@@ -936,9 +963,9 @@ function calculateWidgets() {
     let maxScore = -999;
     let bestScoreWinner = null;
     employees.forEach(emp => {
-      const comp = getComparison(emp);
+      const comp = getComparison(emp, currentEvaluationRound);
       if (comp.hasProgress && emp.department !== 'Executive') {
-        const scoreData = calculateHealthScore(emp);
+        const scoreData = calculateHealthScore(emp, currentEvaluationRound);
         if (scoreData.totalScore > maxScore) {
           maxScore = scoreData.totalScore;
           bestScoreWinner = emp;
@@ -966,7 +993,7 @@ function calculateWidgets() {
     let maxWeightLoss = 0;
     let maxWeightWinner = null;
     employees.forEach(emp => {
-      const comp = getComparison(emp);
+      const comp = getComparison(emp, currentEvaluationRound);
       if (comp.hasProgress && emp.department !== 'Executive') {
         const loss = -comp.weightDiff;
         if (loss > maxWeightLoss) {
@@ -988,7 +1015,7 @@ function calculateWidgets() {
     let bestBmiWinner = null;
     let bestBmiVal = 0;
     employees.forEach(emp => {
-      const comp = getComparison(emp);
+      const comp = getComparison(emp, currentEvaluationRound);
       if (comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null) {
         const distance = Math.abs(comp.latestBmi - 21);
         if (distance < minBmiDistance) {
@@ -1042,14 +1069,23 @@ function renderTable(filteredEmployees) {
     const comp = getComparison(emp);
     const tr = document.createElement('tr');
     const tdName = document.createElement('td');
-    const renderMeasurement = measurement => {
+    const renderMeasurement = (measurement, roundKey) => {
       if (!measurement || !measurement.weight) return '<span style="color:var(--text-muted);font-style:italic;">ยังไม่บันทึก</span>';
       const muscle = measurement.muscle != null ? `${measurement.muscle}%` : '-';
       const fat = measurement.fat != null ? `${measurement.fat}%` : '-';
-      return `<div>⚖️ ${measurement.weight} kg</div><div class="td-subtitle">🧠 อายุร่างกาย: ${measurement.bodyage} ปี (BMI: ${measurement.bmi || '-'})</div><div class="td-subtitle">💪 กล้ามเนื้อ: ${muscle} | 📉 ไขมัน: ${fat}</div>`;
+      let scoreBadgeHtml = '';
+      if (roundKey === 'm3' || roundKey === 'm4') {
+        const canScore = PfigHealthScore.hasCompleteMeasurement(emp, roundKey);
+        if (canScore) {
+          const s = PfigHealthScore.calculateHealthScore(emp, roundKey);
+          scoreBadgeHtml = `<div class="td-subtitle" style="margin-top:2px;"><span style="color:var(--primary-light);font-weight:600;">🎯 คะแนนสุขภาพ: ${s.totalScore.toFixed(1)}</span></div>`;
+        }
+      }
+      return `<div>⚖️ ${measurement.weight} kg</div><div class="td-subtitle">🧠 อายุร่างกาย: ${measurement.bodyage} ปี (BMI: ${measurement.bmi || '-'})</div><div class="td-subtitle">💪 กล้ามเนื้อ: ${muscle} | 📉 ไขมัน: ${fat}</div>${scoreBadgeHtml}`;
     };
-    const measurements = ['m1', 'm2', 'm3', 'm4'].map(round => emp.months[round]);
-    const hasPhotos = measurements.some(measurement => measurement && measurement.photo);
+    const roundKeys = ['m1', 'm2', 'm3', 'm4'];
+    const measurements = roundKeys.map(round => ({ data: emp.months[round], roundKey: round }));
+    const hasPhotos = measurements.some(item => item.data && item.data.photo);
     const galleryBtn = hasPhotos ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>` : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
     tdName.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;width:100%;"><div><div class="td-name">${emp.name}</div><div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div></div><div>${galleryBtn}</div></div>`;
     tr.appendChild(tdName);
@@ -1059,16 +1095,17 @@ function renderTable(filteredEmployees) {
     const tdDept = document.createElement('td');
     tdDept.textContent = emp.department;
     tr.appendChild(tdDept);
-    measurements.forEach(measurement => {
+    measurements.forEach(item => {
       const td = document.createElement('td');
-      td.innerHTML = renderMeasurement(measurement);
+      td.innerHTML = renderMeasurement(item.data, item.roundKey);
       tr.appendChild(td);
     });
+    const roundLabelNumber = currentEvaluationRound === 'm3' ? '3' : '4';
     const tdWDiff = document.createElement('td');
     tdWDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.weightDiff < 0 ? 'metric-badge-improved' : comp.weightDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.weightDiff < 0 ? '↓ ' + Math.abs(comp.weightDiff) : comp.weightDiff > 0 ? '↑ ' + comp.weightDiff : '0.0'} kg</span><div class="td-subtitle">เทียบกับค่าตั้งต้น</div>` : '<span style="color:var(--text-muted);">-</span>';
     tr.appendChild(tdWDiff);
     const tdAgeDiff = document.createElement('td');
-    tdAgeDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.bodyageDiff < 0 ? 'metric-badge-improved' : comp.bodyageDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.bodyageDiff < 0 ? 'ลดลง ' + Math.abs(comp.bodyageDiff) : comp.bodyageDiff > 0 ? 'เพิ่ม ' + comp.bodyageDiff : 'คงที่'} ปี</span><div class="td-subtitle">เทียบกับครั้งที่ 1 ไปครั้งที่ 4</div>` : '<span style="color:var(--text-muted);">-</span>';
+    tdAgeDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.bodyageDiff < 0 ? 'metric-badge-improved' : comp.bodyageDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.bodyageDiff < 0 ? 'ลดลง ' + Math.abs(comp.bodyageDiff) : comp.bodyageDiff > 0 ? 'เพิ่ม ' + comp.bodyageDiff : 'คงที่'} ปี</span><div class="td-subtitle">เทียบกับครั้งที่ 1 ไปครั้งที่ ${roundLabelNumber}</div>` : '<span style="color:var(--text-muted);">-</span>';
     tr.appendChild(tdAgeDiff);
     const tdAction = document.createElement('td');
     tdAction.innerHTML = `<div class="action-buttons"><button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูล">แก้ไข</button><button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button></div>`;
@@ -1182,11 +1219,11 @@ function formatFromToText(startVal, endVal, unit = '', decimals = 1) {
   return ` (${start.toFixed(decimals)}→${end.toFixed(decimals)}${unitText})`;
 }
 
-function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
-  const comp = getComparison(emp);
+function getDashboardLeaderboardReason(criteria, emp, scoreData = null, round = currentEvaluationRound) {
+  const comp = getComparison(emp, round);
 
   if (criteria === 'health_score') {
-    const score = scoreData || calculateHealthScore(emp);
+    const score = scoreData || calculateHealthScore(emp, round);
     return [
       `BMI ${score.weightScore.toFixed(1)}/20 (${formatChangeText('BMI', comp.bmiDiff, '', 2)})`,
       `กล้ามเนื้อ ${score.muscleScore.toFixed(1)}/40 (${formatChangeText('กล้ามเนื้อ', comp.muscleDiff, '%', 1)})`,
@@ -1205,34 +1242,36 @@ function getDashboardLeaderboardReason(criteria, emp, scoreData = null) {
   if (criteria === 'bmi_closest') {
     const distance = Number.isFinite(comp.latestBmi) ? Math.abs(comp.latestBmi - 21) : null;
     const distanceText = distance === null ? 'ห่างเป้า -' : `ห่างเป้า ${distance.toFixed(2)}`;
-    return `BMI ผลลัพธ์สุดท้าย ${comp.latestBmi.toFixed(2)} (${distanceText}) • ${formatChangeText('BMI', comp.bmiDiff, '', 2)}${formatFromToText(comp.m1Bmi, comp.latestBmi, '', 2)}`;
+    const roundLabel = round === 'm3' ? 'ติดตามผล (ครั้งที่ 3)' : 'ผลลัพธ์สุดท้าย';
+    return `BMI ${roundLabel} ${comp.latestBmi.toFixed(2)} (${distanceText}) • ${formatChangeText('BMI', comp.bmiDiff, '', 2)}${formatFromToText(comp.m1Bmi, comp.latestBmi, '', 2)}`;
   }
 
   return '';
 }
 
-function hasCompleteFinalMeasurement(emp) {
-  return PfigHealthScore.hasCompleteFinalMeasurement(emp);
+function hasCompleteFinalMeasurement(emp, round = currentEvaluationRound) {
+  return PfigHealthScore.hasCompleteMeasurement(emp, round);
 }
 
-function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees) {
+function getRankedAchievers(criteria = currentWinningCriteria, employeeList = employees, round = currentEvaluationRound) {
   const meta = getWinningCriteriaMeta(criteria);
-  const eligibleEmployees = employeeList.filter(hasCompleteFinalMeasurement);
+  const eligibleEmployees = employeeList.filter(emp => PfigHealthScore.hasCompleteMeasurement(emp, round));
+  let items = [];
 
   if (criteria === 'health_score') {
     items = eligibleEmployees
       .filter(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return comp.hasProgress && emp.department !== 'Executive';
       })
       .map(emp => {
-        const scoreData = calculateHealthScore(emp);
-        const comp = getComparison(emp);
+        const scoreData = calculateHealthScore(emp, round);
+        const comp = getComparison(emp, round);
         return {
           emp: emp,
           valText: `${scoreData.totalScore.toFixed(1)} คะแนน`,
           descText: 'คะแนนสุขภาพรวม',
-          reasonText: getDashboardLeaderboardReason(criteria, emp, scoreData),
+          reasonText: getDashboardLeaderboardReason(criteria, emp, scoreData, round),
           sortKey: scoreData.totalScore,
           fatDiff: comp.fatDiff,
           muscleDiff: comp.muscleDiff
@@ -1253,16 +1292,16 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
   } else if (criteria === 'bodyage') {
     items = eligibleEmployees
       .filter(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return comp.hasProgress && comp.bodyageDiff < 0 && emp.department !== 'Executive';
       })
       .map(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return {
           emp: emp,
           valText: `-${Math.abs(comp.bodyageDiff)} ปี`,
           descText: 'อายุร่างกายลดลง',
-          reasonText: getDashboardLeaderboardReason(criteria, emp),
+          reasonText: getDashboardLeaderboardReason(criteria, emp, null, round),
           sortKey: -comp.bodyageDiff
         };
       })
@@ -1275,16 +1314,16 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
   } else if (criteria === 'weight') {
     items = eligibleEmployees
       .filter(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return comp.hasProgress && comp.weightDiff < 0 && emp.department !== 'Executive';
       })
       .map(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return {
           emp: emp,
           valText: `-${Math.abs(comp.weightDiff).toFixed(1)} kg`,
           descText: 'น้ำหนักตัวลดลง',
-          reasonText: getDashboardLeaderboardReason(criteria, emp),
+          reasonText: getDashboardLeaderboardReason(criteria, emp, null, round),
           sortKey: -comp.weightDiff
         };
       })
@@ -1297,17 +1336,17 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
   } else if (criteria === 'bmi_closest') {
     items = eligibleEmployees
       .filter(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         return comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null;
       })
       .map(emp => {
-        const comp = getComparison(emp);
+        const comp = getComparison(emp, round);
         const distance = Math.abs(comp.latestBmi - 21);
         return {
           emp: emp,
           valText: `${comp.latestBmi.toFixed(2)}`,
           descText: `ห่างเป้า ${distance.toFixed(2)}`,
-          reasonText: getDashboardLeaderboardReason(criteria, emp),
+          reasonText: getDashboardLeaderboardReason(criteria, emp, null, round),
           sortKey: distance
         };
       })
@@ -1328,7 +1367,7 @@ function getRankedAchievers(criteria = currentWinningCriteria, employeeList = em
   };
 }
 
-function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, employeeList = employees, serverHealthRanking = null) {
+function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, employeeList = employees, serverHealthRanking = null, round = currentEvaluationRound) {
   if (criteria === 'health_score' && serverHealthRanking) {
     if (serverHealthRanking.hasRank) {
       const rank = serverHealthRanking.rank;
@@ -1352,11 +1391,11 @@ function getPersonalRankBadgeData(empId, criteria = currentWinningCriteria, empl
       titleText: 'รออันดับ',
       metricText: 'ยังไม่เข้าเงื่อนไข',
       descText: 'คะแนนสุขภาพรวม',
-      contextText: 'ต้องมีข้อมูลค่าตั้งต้นและผลลัพธ์สุดท้ายครบก่อนเข้าร่วมการจัดอันดับ'
+      contextText: 'ต้องมีข้อมูลค่าตั้งต้นและผลลัพธ์รอบประเมินครบก่อนเข้าร่วมการจัดอันดับ'
     };
   }
 
-  const ranking = getRankedAchievers(criteria, employeeList);
+  const ranking = getRankedAchievers(criteria, employeeList, round);
   const rankIndex = ranking.items.findIndex(item => item.emp.id === empId);
 
   if (rankIndex === -1) {
@@ -1406,15 +1445,20 @@ function renderPersonalRankInlineBadge(rankData) {
   `;
 }
 
-// Render Top 5 Leaderboard (Based on selected winning criteria)
 function renderLeaderboard() {
   elements.leaderboardContainer.innerHTML = '';
-  const ranking = getRankedAchievers(currentWinningCriteria, employees);
+  const ranking = getRankedAchievers(currentWinningCriteria, employees, currentEvaluationRound);
 
   // Update Leaderboard Card Title dynamically
   const titleEl = document.getElementById('leaderboard-title');
   if (titleEl) {
     titleEl.innerHTML = `<span>🏆</span> ${ranking.titleText}`;
+  }
+
+  // Update Leaderboard Round Subtitle dynamically
+  if (elements.leaderboardRoundSubtitle) {
+    const roundText = currentEvaluationRound === 'm3' ? 'ติดตามผล (ครั้งที่ 3)' : 'ผลลัพธ์สุดท้าย (ครั้งที่ 4)';
+    elements.leaderboardRoundSubtitle.textContent = `ค่าตั้งต้น เทียบ ${roundText}`;
   }
   
   const topAchievers = ranking.items.slice(0, 5);
@@ -1452,6 +1496,12 @@ function renderLeaderboard() {
 
 // Render Summary Progress bars
 function renderProgressBars() {
+  const roundNum = currentEvaluationRound === 'm3' ? '3' : '4';
+  const roundName = currentEvaluationRound === 'm3' ? 'ติดตามผล (ครั้งที่ 3)' : 'ผลลัพธ์สุดท้าย (ครั้งที่ 4)';
+  if (elements.summaryRoundNote) {
+    elements.summaryRoundNote.innerHTML = `การคำนวณเปรียบเทียบผลลัพธ์ยึดตาม <strong>น้ำหนัก และ อายุร่างกาย</strong> จากค่าตั้งต้น (ครั้งที่ 1) ถึง${roundName}`;
+  }
+
   const total = employees.length;
   if (total === 0) {
     elements.summaryBodyagePercent.textContent = '0% (0 คน)';
@@ -1468,7 +1518,7 @@ function renderProgressBars() {
   let bmiDropCount = 0;
   
   employees.forEach(emp => {
-    const comp = getComparison(emp);
+    const comp = getComparison(emp, currentEvaluationRound);
     if (comp.hasProgress) {
       if (comp.bodyageDiff < 0) bodyageDropCount++;
       if (comp.weightDiff < 0) weightDropCount++;
@@ -2589,7 +2639,12 @@ function showPersonalProfile(empId, selectedGender = null) {
     }
   };
 
-  const comp = getComparison(emp);
+  // Determine personal evaluation round: if m4 complete use m4; else if m3 complete use m3; else currentEvaluationRound
+  const personalRound = PfigHealthScore.hasCompleteMeasurement(emp, 'm4')
+    ? 'm4'
+    : (PfigHealthScore.hasCompleteMeasurement(emp, 'm3') ? 'm3' : currentEvaluationRound);
+
+  const comp = getComparison(emp, personalRound);
   const m1 = emp.months.m1 || {};
   
   // Format statistics change panels
@@ -2730,7 +2785,7 @@ function showPersonalProfile(empId, selectedGender = null) {
   const currentPinEdgeClass = currentPct <= 15 ? 'is-edge-left' : currentPct >= 85 ? 'is-edge-right' : '';
 
   // 2. Calculate Personal 3D Health Score Breakdown
-  const scoreData = calculateHealthScore(emp);
+  const scoreData = calculateHealthScore(emp, personalRound);
   const totalScoreVal = scoreData.totalScore;
   const wContribution = scoreData.weightScore; // BMI score out of 20
   const mContribution = scoreData.muscleScore; // Muscle score out of 40
@@ -2777,7 +2832,7 @@ function showPersonalProfile(empId, selectedGender = null) {
   const serverRank = signedInOid && signedInOid === employeeOid && emp.department !== 'Executive'
     ? wellbeingPersonalHealthRanking
     : null;
-  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees, serverRank);
+  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees, serverRank, personalRound);
   const personalRankHtml = renderPersonalRankInlineBadge(personalRankData);
 
   // Generate Profile HTML

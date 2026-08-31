@@ -36,3 +36,12 @@ test('rejects incomplete m4 even when middle data is complete', () => {
   assert.equal(hasCompleteFinalMeasurement(employee), false);
   assert.equal(calculateHealthScore(employee).totalScore, 0);
 });
+
+test('calculates health score for m3 when targetRound is m3', () => {
+  const employee = { months: { m1: baseline, m2: middleTwo, m3: middleThree } };
+  const scoreM3 = calculateHealthScore(employee, 'm3');
+
+  assert.ok(scoreM3.totalScore > 0);
+  assert.deepEqual(scoreM3, calculateHealthScore({ months: { m1: baseline, m3: middleThree } }, 'm3'));
+});
+

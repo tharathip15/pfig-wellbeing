@@ -201,6 +201,33 @@ test('excludes employees with only baseline and middle data from every leaderboa
   }
 });
 
+test('ranks participants using round 3 when targetRound is m3', () => {
+  const app = loadApp();
+  const fixtures = [
+    {
+      id: 'middle-only',
+      name: 'Middle Only',
+      department: 'Finance & Acc',
+      months: {
+        m1: { weight: 70, bodyage: 40, bmi: 24.22, muscle: 25, fat: 30 },
+        m3: { weight: 65, bodyage: 35, bmi: 22.49, muscle: 28, fat: 25 }
+      }
+    },
+    {
+      id: 'no-m3',
+      name: 'No M3',
+      department: 'Logistics',
+      months: {
+        m1: { weight: 70, bodyage: 40, bmi: 24.22, muscle: 25, fat: 30 }
+      }
+    }
+  ];
+
+  const ranking = app.getRankedAchievers('health_score', fixtures, 'm3');
+  assert.deepEqual(ranking.items.map(item => item.emp.id), ['middle-only']);
+  assert.ok(ranking.items[0].sortKey > 0);
+});
+
 test('renders personal rank as a compact inline badge for the score card title', () => {
   const app = loadApp();
 

@@ -21,7 +21,7 @@ export default async function handler(request, response) {
       const allEmployees = await listEmployeesForAdmin();
       const employees = session.canEdit ? allEmployees : personalEmployees;
       const personalHealthRanking = personalEmployees.length > 0
-        ? getPersonalHealthRanking(allEmployees, personalEmployees[0].id)
+        ? getPersonalHealthRanking(allEmployees, personalEmployees[0].id, "auto")
         : null;
       return sendJson(response, 200, {
         ok: true,

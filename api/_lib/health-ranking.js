@@ -1,20 +1,31 @@
 import healthScore from "../../health-score.js";
 
-const { calculateHealthScore, hasCompleteFinalMeasurement } = healthScore;
+const { calculateHealthScore, hasCompleteMeasurement } = healthScore;
 
-export function rankHealthScores(employees) {
+export function resolveEvaluationRound(employees, preferredRound = "auto") {
+  if (preferredRound === "m3" || preferredRound === "m4") {
+    return preferredRound;
+  }
+  const hasM4 = employees.some(emp => hasCompleteMeasurement(emp, "m4"));
+  if (hasM4) return "m4";
+  const hasM3 = employees.some(emp => hasCompleteMeasurement(emp, "m3"));
+  return hasM3 ? "m3" : "m4";
+}
+
+export function rankHealthScores(employees, targetRound = "m4") {
+  const round = resolveEvaluationRound(employees, targetRound);
   return employees
-    .filter(employee => hasCompleteFinalMeasurement(employee) && employee.department !== "Executive")
+    .filter(employee => hasCompleteMeasurement(employee, round) && employee.department !== "Executive")
     .map(employee => {
-      const score = calculateHealthScore(employee);
+      const score = calculateHealthScore(employee, round);
       const m1 = employee.months.m1;
-      const m4 = employee.months.m4;
+      const target = employee.months[round];
       return {
         employeeId: employee.id,
         employeeName: employee.name,
         totalScore: score.totalScore,
-        fatDiff: parseFloat(((m4.fat || 0) - (m1.fat || 0)).toFixed(1)),
-        muscleDiff: parseFloat(((m4.muscle || 0) - (m1.muscle || 0)).toFixed(1)),
+        fatDiff: parseFloat(((target.fat || 0) - (m1.fat || 0)).toFixed(1)),
+        muscleDiff: parseFloat(((target.muscle || 0) - (m1.muscle || 0)).toFixed(1)),
       };
     })
     .sort((left, right) => {
@@ -25,8 +36,8 @@ export function rankHealthScores(employees) {
     });
 }
 
-export function getPersonalHealthRanking(employees, employeeId) {
-  const ranking = rankHealthScores(employees);
+export function getPersonalHealthRanking(employees, employeeId, targetRound = "m4") {
+  const ranking = rankHealthScores(employees, targetRound);
   const rankIndex = ranking.findIndex(item => item.employeeId === employeeId);
   if (rankIndex === -1) {
     return { hasRank: false, rank: null, totalParticipants: ranking.length, totalScore: null };
