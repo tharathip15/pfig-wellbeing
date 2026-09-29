@@ -21,6 +21,48 @@ test("signed wellbeing sessions preserve oid and admin roles", async () => {
   assert.equal(parsed.email, "admin@example.test");
 });
 
+test("configured admin emails grant edit access case-insensitively", async () => {
+  const sessionModule = await sessionModulePromise;
+  const previousAdminEmails = process.env.WELLBEING_ADMIN_EMAILS;
+  process.env.WELLBEING_ADMIN_EMAILS = "first.admin@pfig.co.th, kulthara.w@pfig.co.th";
+
+  try {
+    const { payload } = sessionModule.createSession({
+      oid: "33333333-3333-4333-8333-333333333333",
+      tid: "22222222-2222-4222-8222-222222222222",
+      name: "Kulthara",
+      email: "Kulthara.W@PFIG.CO.TH",
+      roles: [],
+    });
+
+    assert.equal(payload.canEdit, true);
+  } finally {
+    if (previousAdminEmails === undefined) delete process.env.WELLBEING_ADMIN_EMAILS;
+    else process.env.WELLBEING_ADMIN_EMAILS = previousAdminEmails;
+  }
+});
+
+test("unlisted emails without an admin role remain read-only", async () => {
+  const sessionModule = await sessionModulePromise;
+  const previousAdminEmails = process.env.WELLBEING_ADMIN_EMAILS;
+  process.env.WELLBEING_ADMIN_EMAILS = "kulthara.w@pfig.co.th";
+
+  try {
+    const { payload } = sessionModule.createSession({
+      oid: "44444444-4444-4444-8444-444444444444",
+      tid: "22222222-2222-4222-8222-222222222222",
+      name: "Employee",
+      email: "employee@pfig.co.th",
+      roles: [],
+    });
+
+    assert.equal(payload.canEdit, false);
+  } finally {
+    if (previousAdminEmails === undefined) delete process.env.WELLBEING_ADMIN_EMAILS;
+    else process.env.WELLBEING_ADMIN_EMAILS = previousAdminEmails;
+  }
+});
+
 test("tampered wellbeing sessions are rejected", async () => {
   const sessionModule = await sessionModulePromise;
   const { token } = sessionModule.createSession({

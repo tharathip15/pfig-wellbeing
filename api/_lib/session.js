@@ -26,21 +26,33 @@ function configuredAdminRoles() {
     .filter(Boolean);
 }
 
+function configuredAdminEmails() {
+  return String(process.env.WELLBEING_ADMIN_EMAILS || "")
+    .split(",")
+    .map(value => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function hasAdminRole(roles) {
   const allowed = new Set(configuredAdminRoles());
   return (Array.isArray(roles) ? roles : []).some(role => allowed.has(String(role).trim().toLowerCase()));
 }
 
+export function hasAdminEmail(email) {
+  return new Set(configuredAdminEmails()).has(String(email || "").trim().toLowerCase());
+}
+
 export function createSession(identity) {
   const now = Math.floor(Date.now() / 1000);
   const roles = Array.isArray(identity.roles) ? identity.roles.map(String) : [];
+  const email = String(identity.email || "");
   const payload = {
     oid: String(identity.oid || ""),
     tid: String(identity.tid || ""),
     name: String(identity.name || "Microsoft User"),
-    email: String(identity.email || ""),
+    email,
     roles,
-    canEdit: hasAdminRole(roles),
+    canEdit: hasAdminRole(roles) || hasAdminEmail(email),
     csrf: crypto.randomBytes(24).toString("base64url"),
     iat: now,
     exp: now + SESSION_TTL_SECONDS,
