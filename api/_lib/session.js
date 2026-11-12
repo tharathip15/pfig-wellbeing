@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import {companySession} from '../../server/pfig-sso/native.mjs';
 
 export const SESSION_COOKIE_NAME = "pfig_wellbeing_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
@@ -91,6 +92,7 @@ function parseCookies(request) {
 }
 
 export function getSession(request) {
+  if(companySession(request))return companySession(request);
   return parseSessionToken(parseCookies(request)[SESSION_COOKIE_NAME]);
 }
 

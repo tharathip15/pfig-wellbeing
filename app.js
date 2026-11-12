@@ -10,6 +10,15 @@ let pageSize = 10; // 'all' means show all
 let wellbeingSession = null;
 let wellbeingDataMode = 'personal';
 let wellbeingPersonalHealthRanking = null;
+let wellbeingCommunityPulse = null;
+let wellbeingRequiresOnboarding = false;
+let currentTrendMetric = 'weight';
+let currentTrendRange = 'all';
+
+function getHealthTracker() {
+  return (typeof window !== 'undefined' && window.PfigHealthTracker)
+    || (typeof PfigHealthTracker !== 'undefined' ? PfigHealthTracker : null);
+}
 
 // Form state variables
 let modalMode = 'add'; // 'add' or 'edit'
@@ -300,17 +309,23 @@ async function loadData() {
   try {
     const result = await wellbeingApiRequest('/api/employees');
     const data = Array.isArray(result.employees) ? result.employees : [];
+    const tracker = getHealthTracker();
     wellbeingDataMode = result.mode || 'personal';
     wellbeingPersonalHealthRanking = result.personalHealthRanking || null;
-    employees = data.map(item => ({
-      id: item.id,
-      name: item.name,
-      department: item.department,
-      age: item.age,
-      height: item.height,
-      months: item.months,
-      entra_oid: item.entra_oid || null
-    }));
+    wellbeingCommunityPulse = result.communityPulse || null;
+    wellbeingRequiresOnboarding = Boolean(result.requiresOnboarding || result.requiresIdentityLink);
+    employees = data.map(item => {
+      const baseEmp = {
+        id: item.id,
+        name: item.name,
+        department: item.department,
+        age: item.age,
+        height: item.height,
+        months: item.months || {},
+        entra_oid: item.entra_oid || null
+      };
+      return tracker ? tracker.normalizeEmployeeTimeline(baseEmp) : baseEmp;
+    });
 
     // Auto-detect round: if anyone has complete m4, default to m4; otherwise if anyone has complete m3, default to m3
     const hasM4Data = employees.some(emp => PfigHealthScore.hasCompleteMeasurement(emp, 'm4'));
@@ -324,9 +339,8 @@ async function loadData() {
       elements.selectEvalRound.value = currentEvaluationRound;
     }
 
-    if (result.requiresIdentityLink) {
-      elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
-      elements.personalProfileDisplay.style.display = 'block';
+    if (wellbeingRequiresOnboarding && !wellbeingSession?.identity?.canEdit) {
+      renderSelfOnboardingCard();
     }
   } catch (err) {
     console.error('Wellbeing API error:', err);
@@ -603,6 +617,7 @@ function setupEventListeners() {
   setupPhotoInput('form-m2-photo-input', 'form-m2-photo-preview', 'form-m2-photo-data');
   setupPhotoInput('form-m3-photo-input', 'form-m3-photo-preview', 'form-m3-photo-data');
   setupPhotoInput('form-m4-photo-input', 'form-m4-photo-preview', 'form-m4-photo-data');
+  setupPhotoInput('checkin-photo-input', 'checkin-photo-preview', 'checkin-photo-data');
   const closeGalleryBtn = document.getElementById('btn-close-gallery-modal');
   if (closeGalleryBtn) {
     closeGalleryBtn.addEventListener('click', window.closePhotoGallery);
@@ -2422,13 +2437,19 @@ function switchToPersonalView() {
   elements.personalProfileDisplay.innerHTML = '';
   elements.personalProfileDisplay.style.display = 'none';
 
+  const searchCard = document.getElementById('personal-search-card');
+  if (searchCard) {
+    searchCard.style.display = wellbeingSession?.identity?.canEdit ? 'block' : 'none';
+  }
+
   const signedInEmployee = resolveSignedInEmployee(employees, wellbeingSession?.identity);
   if (signedInEmployee) {
     elements.personalSearchInput.value = signedInEmployee.name;
     showPersonalProfile(signedInEmployee.id);
   } else if (wellbeingSession?.identity && !wellbeingSession.identity.canEdit) {
-    elements.personalProfileDisplay.innerHTML = '<div class="empty-state"><h3>Account not linked</h3><p>Please ask the Wellbeing administrator to link your Microsoft account to your employee record.</p></div>';
-    elements.personalProfileDisplay.style.display = 'block';
+    renderSelfOnboardingCard();
+  } else if (wellbeingSession?.identity?.canEdit && employees.length > 0) {
+    showPersonalProfile(employees[0].id);
   }
 }
 
@@ -2497,43 +2518,44 @@ function switchToAdminView() {
   updateUI();
 }
 
-// --- Dynamic Personal Profile Renderer ---
+// --- Dynamic Personal Profile Renderer & Self-Service Health Tracker ---
 let currentProfileEmpId = null;
+
+function canManageProfile(emp) {
+  if (!emp) return false;
+  if (wellbeingSession?.identity?.canEdit) return true;
+  const signedInOid = String(wellbeingSession?.identity?.oid || '').trim().toLowerCase();
+  const empOid = String(emp.entra_oid || '').trim().toLowerCase();
+  if (signedInOid && empOid && signedInOid === empOid) return true;
+  return !wellbeingSession?.identity?.canEdit && employees.length === 1 && employees[0].id === emp.id;
+}
 
 window.setProfileGender = async function(gender) {
   if (!currentProfileEmpId) return;
-  if (!wellbeingSession?.identity?.canEdit) {
-    showToast('Only a Wellbeing administrator can update employee data.', 'error');
-    return;
-  }
-  
   const emp = employees.find(e => e.id === currentProfileEmpId);
   if (!emp) return;
-  
+  if (!canManageProfile(emp)) {
+    showToast('คุณสามารถอัปเดตได้เฉพาะข้อมูลสุขภาพของตัวเองเท่านั้น', 'error');
+    return;
+  }
+
   const currentSavedGender = emp.months ? emp.months.gender : null;
   if (currentSavedGender !== gender) {
     if (!emp.months) emp.months = {};
     emp.months.gender = gender;
-    
-    // Immediately show changes on screen
+
     showPersonalProfile(currentProfileEmpId, gender);
-    
-    // Save selection to Supabase database
+
     try {
       showLoader(true);
       await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(emp.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({ months: emp.months })
       });
-      const error = null;
-      if (error) {
-        console.error('Failed to save gender:', error);
-        showToast('ไม่สามารถบันทึกเพศในฐานข้อมูลได้: ' + error.message, 'error');
-      } else {
-        showToast('บันทึกข้อมูลเพศลงฐานข้อมูลเรียบร้อยแล้ว', 'success');
-      }
+      showToast('บันทึกข้อมูลเพศเรียบร้อยแล้ว ✨', 'success');
     } catch (err) {
       console.error('Error saving gender to DB:', err);
+      showToast('ไม่สามารถบันทึกเพศได้ กรุณาลองใหม่', 'error');
     } finally {
       showLoader(false);
     }
@@ -2542,59 +2564,529 @@ window.setProfileGender = async function(gender) {
   }
 };
 
+function renderSelfOnboardingCard() {
+  const defaultName = wellbeingSession?.identity?.name || '';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  elements.personalProfileDisplay.innerHTML = `
+    <div class="personal-profile-card tracker-onboarding-card animate-fade">
+      <div class="tracker-onboarding-header">
+        <div class="tracker-onboarding-badge">🌱 ยินดีต้อนรับสู่สมุดบันทึกสุขภาพ PFIG</div>
+        <h3>สร้างสมุดบันทึกสุขภาพส่วนตัวของคุณ</h3>
+        <p>มาเริ่มต้นจดบันทึกน้ำหนักและข้อมูลร่างกายเพื่อตัวคุณเองกัน! กรอกข้อมูลพื้นฐานเพียงครั้งเดียว แล้วเริ่มบันทึกผลวัดรายวัน รายสัปดาห์ หรือรายเดือนได้ทันที</p>
+      </div>
+      <form id="onboarding-form" onsubmit="event.preventDefault(); handleSelfOnboardingSubmit();">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="onboard-name">👤 ชื่อ - นามสกุล *</label>
+            <input type="text" class="form-control" id="onboard-name" value="${defaultName}" placeholder="ชื่อ-นามสกุลของคุณ" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-dept">🏢 แผนก / ฝ่าย *</label>
+            <select class="form-control" id="onboard-dept" required>
+              <option value="Corporate">Corporate</option>
+              <option value="Finance & Acc">Finance & Acc</option>
+              <option value="Logistics">Logistics</option>
+              <option value="Sales">Sales</option>
+              <option value="Executive">Executive</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-age">🎂 อายุจริง (ปี) *</label>
+            <input type="number" class="form-control" id="onboard-age" min="15" max="100" placeholder="เช่น 29" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-height">📏 ส่วนสูง (cm) *</label>
+            <input type="number" class="form-control" id="onboard-height" min="100" max="250" placeholder="เช่น 168" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-gender">⚧️ เพศ *</label>
+            <select class="form-control" id="onboard-gender" required>
+              <option value="male">ชาย (Men)</option>
+              <option value="female">หญิง (Women)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-weight">⚖️ น้ำหนักเริ่มต้นวันนี้ (kg) *</label>
+            <input type="number" class="form-control" id="onboard-weight" step="0.1" min="25" max="250" placeholder="เช่น 65.0" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-bodyage">🧬 อายุร่างกายวันนี้ (ปี - ถ้ามี)</label>
+            <input type="number" class="form-control" id="onboard-bodyage" min="10" max="120" placeholder="ไม่บังคับ">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="onboard-target-weight">🎯 น้ำหนักเป้าหมายที่อยากไปให้ถึง (kg - ถ้ามี)</label>
+            <input type="number" class="form-control" id="onboard-target-weight" step="0.1" min="25" max="220" placeholder="เช่น 60.0">
+          </div>
+        </div>
+        <input type="hidden" id="onboard-date" value="${todayStr}">
+        <div style="margin-top: 1.5rem; text-align: center;">
+          <button type="submit" class="btn btn-primary" style="padding: 0.85rem 2.2rem; font-size: 1rem;">
+            🚀 เริ่มต้นสมุดบันทึกสุขภาพของฉัน
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  elements.personalProfileDisplay.style.display = 'block';
+}
+window.renderSelfOnboardingCard = renderSelfOnboardingCard;
+
+window.handleSelfOnboardingSubmit = async function() {
+  const name = document.getElementById('onboard-name')?.value?.trim();
+  const department = document.getElementById('onboard-dept')?.value?.trim();
+  const age = parseInt(document.getElementById('onboard-age')?.value, 10);
+  const height = parseInt(document.getElementById('onboard-height')?.value, 10);
+  const gender = document.getElementById('onboard-gender')?.value || 'male';
+  const weight = parseFloat(document.getElementById('onboard-weight')?.value);
+  const bodyage = parseFloat(document.getElementById('onboard-bodyage')?.value);
+  const targetWeight = parseFloat(document.getElementById('onboard-target-weight')?.value);
+  const dateStr = document.getElementById('onboard-date')?.value || new Date().toISOString().slice(0, 10);
+
+  if (!name || !department || isNaN(age) || isNaN(height) || isNaN(weight) || weight <= 0) {
+    showToast('กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน', 'error');
+    return;
+  }
+
+  const bmi = calcBMI(weight, height);
+  const firstLog = {
+    id: `log-${dateStr}-init`,
+    date: dateStr,
+    label: 'บันทึกเริ่มต้นวันแรก 🌱',
+    weight,
+    bmi,
+    bodyage: isNaN(bodyage) ? null : Math.round(bodyage),
+    muscle: null,
+    fat: null,
+    visceralFat: null,
+    note: 'เริ่มต้นสมุดบันทึกสุขภาพส่วนตัว!',
+    photo: null,
+  };
+
+  const months = {
+    gender,
+    goals: {
+      targetWeight: isNaN(targetWeight) ? null : targetWeight,
+      targetFat: null,
+      targetMuscle: null,
+      targetBodyage: null,
+    },
+    logs: [firstLog],
+    m1: {
+      weight,
+      bmi,
+      bodyage: isNaN(bodyage) ? age : Math.round(bodyage),
+      muscle: null,
+      fat: null,
+    }
+  };
+
+  showLoader(true);
+  try {
+    await wellbeingApiRequest('/api/employees', {
+      method: 'POST',
+      body: JSON.stringify({ name, department, age, height, months })
+    });
+    showToast('🎉 สร้างสมุดบันทึกสุขภาพส่วนตัวสำเร็จ!', 'success');
+    await loadData();
+    switchToPersonalView();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'ไม่สามารถสร้างโปรไฟล์ได้', 'error');
+  } finally {
+    showLoader(false);
+  }
+};
+
+window.clearCheckinPhoto = function() {
+  const fileInput = document.getElementById('checkin-photo-input');
+  const dataInput = document.getElementById('checkin-photo-data');
+  const previewDiv = document.getElementById('checkin-photo-preview');
+  if (fileInput) fileInput.value = '';
+  if (dataInput) dataInput.value = '';
+  if (previewDiv) {
+    previewDiv.style.display = 'none';
+    const img = previewDiv.querySelector('img');
+    if (img) img.src = '';
+  }
+};
+
+window.updateCheckinBmiPreview = function() {
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  const weightVal = parseFloat(document.getElementById('checkin-weight')?.value);
+  const previewEl = document.getElementById('checkin-bmi-preview');
+  if (!previewEl) return;
+  if (!emp || !emp.height || isNaN(weightVal) || weightVal <= 0) {
+    previewEl.value = '';
+    return;
+  }
+  const bmi = calcBMI(weightVal, emp.height);
+  previewEl.value = bmi ? `${bmi} (${bmi < 18.5 ? 'บาง' : bmi <= 22.9 ? 'สมส่วน 🌱' : 'เกินเกณฑ์'})` : '';
+};
+
+window.openCheckinModal = function(logId = null) {
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  if (!emp) return;
+  if (!canManageProfile(emp)) {
+    showToast('คุณสามารถบันทึกข้อมูลของตัวเองเท่านั้น', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('checkin-modal');
+  const titleEl = document.getElementById('checkin-modal-title');
+  const idInput = document.getElementById('checkin-log-id');
+  const dateInput = document.getElementById('checkin-date');
+  const weightInput = document.getElementById('checkin-weight');
+  const labelInput = document.getElementById('checkin-label');
+  const bodyageInput = document.getElementById('checkin-bodyage');
+  const muscleInput = document.getElementById('checkin-muscle');
+  const fatInput = document.getElementById('checkin-fat');
+  const visceralInput = document.getElementById('checkin-visceral-fat');
+  const noteInput = document.getElementById('checkin-note');
+  const photoDataInput = document.getElementById('checkin-photo-data');
+  const photoPreview = document.getElementById('checkin-photo-preview');
+
+  window.clearCheckinPhoto();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const logs = emp.months?.logs || [];
+  const existingLog = logId ? logs.find(item => item.id === String(logId)) : null;
+
+  if (existingLog) {
+    if (titleEl) titleEl.textContent = '✏️ แก้ไขบันทึกข้อมูลร่างกาย';
+    if (idInput) idInput.value = existingLog.id;
+    if (dateInput) dateInput.value = existingLog.date || todayStr;
+    if (weightInput) weightInput.value = existingLog.weight ?? '';
+    if (labelInput) labelInput.value = existingLog.label || '';
+    if (bodyageInput) bodyageInput.value = existingLog.bodyage ?? '';
+    if (muscleInput) muscleInput.value = existingLog.muscle ?? '';
+    if (fatInput) fatInput.value = existingLog.fat ?? '';
+    if (visceralInput) visceralInput.value = existingLog.visceralFat ?? '';
+    if (noteInput) noteInput.value = existingLog.note || '';
+    if (existingLog.photo && photoDataInput && photoPreview) {
+      photoDataInput.value = existingLog.photo;
+      const img = photoPreview.querySelector('img');
+      if (img) img.src = existingLog.photo;
+      photoPreview.style.display = 'block';
+    }
+  } else {
+    if (titleEl) titleEl.textContent = '📝 บันทึกข้อมูลร่างกายวันนี้';
+    if (idInput) idInput.value = '';
+    if (dateInput) dateInput.value = todayStr;
+    if (weightInput) weightInput.value = '';
+    if (labelInput) labelInput.value = '';
+    if (bodyageInput) bodyageInput.value = '';
+    if (muscleInput) muscleInput.value = '';
+    if (fatInput) fatInput.value = '';
+    if (visceralInput) visceralInput.value = '';
+    if (noteInput) noteInput.value = '';
+  }
+
+  window.updateCheckinBmiPreview();
+  if (modal) modal.classList.add('active');
+};
+
+window.closeCheckinModal = function() {
+  const modal = document.getElementById('checkin-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+window.openCelebrationModal = function(feedback) {
+  const modal = document.getElementById('celebration-modal');
+  if (!modal || !feedback) return;
+  const titleEl = document.getElementById('celebration-title');
+  const msgEl = document.getElementById('celebration-message');
+  const chipsEl = document.getElementById('celebration-highlights');
+
+  if (titleEl) titleEl.textContent = feedback.title;
+  if (msgEl) msgEl.textContent = feedback.message;
+  if (chipsEl) {
+    chipsEl.innerHTML = (feedback.highlights || [])
+      .map(h => `<span class="tracker-celebration-chip">${h}</span>`)
+      .join('');
+  }
+  modal.classList.add('active');
+};
+
+window.closeCelebrationModal = function() {
+  const modal = document.getElementById('celebration-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+window.handleSaveCheckin = async function() {
+  const empIndex = employees.findIndex(e => e.id === currentProfileEmpId);
+  if (empIndex === -1) return;
+  const emp = employees[empIndex];
+  const tracker = getHealthTracker();
+  if (!tracker) return;
+
+  const logId = document.getElementById('checkin-log-id')?.value?.trim() || null;
+  const date = document.getElementById('checkin-date')?.value?.trim();
+  const weight = parseFloat(document.getElementById('checkin-weight')?.value);
+  const label = document.getElementById('checkin-label')?.value?.trim() || '';
+  const bodyage = parseFloat(document.getElementById('checkin-bodyage')?.value);
+  const muscle = parseFloat(document.getElementById('checkin-muscle')?.value);
+  const fat = parseFloat(document.getElementById('checkin-fat')?.value);
+  const visceralFat = parseFloat(document.getElementById('checkin-visceral-fat')?.value);
+  const note = document.getElementById('checkin-note')?.value?.trim() || '';
+  const photo = document.getElementById('checkin-photo-data')?.value || null;
+
+  if (isNaN(weight) || weight <= 0) {
+    showToast('กรุณากรอกน้ำหนัก (kg) ที่ถูกต้อง', 'error');
+    return;
+  }
+
+  try {
+    const { employee: updatedEmp, savedLog, previousLog } = tracker.addOrUpdateHealthLog(emp, {
+      id: logId || undefined,
+      date,
+      weight,
+      label,
+      bodyage: isNaN(bodyage) ? null : bodyage,
+      muscle: isNaN(muscle) ? null : muscle,
+      fat: isNaN(fat) ? null : fat,
+      visceralFat: isNaN(visceralFat) ? null : visceralFat,
+      note,
+      photo,
+    });
+
+    showLoader(true);
+    await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(emp.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ months: updatedEmp.months })
+    });
+
+    await loadData();
+    window.closeCheckinModal();
+    showPersonalProfile(emp.id);
+
+    const feedback = tracker.generateCelebrationFeedback(updatedEmp, savedLog, previousLog);
+    window.openCelebrationModal(feedback);
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'ไม่สามารถบันทึกผลวัดได้', 'error');
+  } finally {
+    showLoader(false);
+  }
+};
+
+window.handleDeleteLog = async function(logId) {
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  const tracker = getHealthTracker();
+  if (!emp || !tracker || !canManageProfile(emp)) return;
+
+  if (typeof confirm === 'function' && !confirm('คุณต้องการลบรายการบันทึกนี้ใช่หรือไม่?')) {
+    return;
+  }
+
+  try {
+    const updatedEmp = tracker.deleteHealthLog(emp, logId);
+    showLoader(true);
+    await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(emp.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ months: updatedEmp.months })
+    });
+    await loadData();
+    showPersonalProfile(emp.id);
+    showToast('ลบรายการบันทึกเรียบร้อยแล้ว', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'ไม่สามารถลบรายการได้', 'error');
+  } finally {
+    showLoader(false);
+  }
+};
+
+window.openGoalModal = function() {
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  if (!emp || !canManageProfile(emp)) return;
+  const goals = emp.months?.goals || {};
+  const modal = document.getElementById('goal-modal');
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val !== null && val !== undefined ? val : '';
+  };
+  setVal('goal-target-weight', goals.targetWeight);
+  setVal('goal-target-fat', goals.targetFat);
+  setVal('goal-target-muscle', goals.targetMuscle);
+  setVal('goal-target-bodyage', goals.targetBodyage);
+  setVal('goal-user-height', emp.height);
+  setVal('goal-user-age', emp.age);
+
+  if (modal) modal.classList.add('active');
+};
+
+window.closeGoalModal = function() {
+  const modal = document.getElementById('goal-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+window.handleSaveGoals = async function() {
+  const emp = employees.find(e => e.id === currentProfileEmpId);
+  if (!emp || !canManageProfile(emp)) return;
+
+  const parseOpt = (id) => {
+    const v = parseFloat(document.getElementById(id)?.value);
+    return !isNaN(v) && v > 0 ? v : null;
+  };
+  const targetWeight = parseOpt('goal-target-weight');
+  const targetFat = parseOpt('goal-target-fat');
+  const targetMuscle = parseOpt('goal-target-muscle');
+  const targetBodyage = parseOpt('goal-target-bodyage');
+  const newHeight = parseInt(document.getElementById('goal-user-height')?.value, 10) || emp.height;
+  const newAge = parseInt(document.getElementById('goal-user-age')?.value, 10) || emp.age;
+
+  const updatedMonths = {
+    ...(emp.months || {}),
+    goals: {
+      targetWeight,
+      targetFat,
+      targetMuscle,
+      targetBodyage,
+    },
+  };
+
+  showLoader(true);
+  try {
+    await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(emp.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        age: newAge,
+        height: newHeight,
+        months: updatedMonths
+      })
+    });
+    await loadData();
+    window.closeGoalModal();
+    showPersonalProfile(emp.id);
+    showToast('🎯 บันทึกเป้าหมายส่วนตัวเรียบร้อยแล้ว!', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'ไม่สามารถบันทึกเป้าหมายได้', 'error');
+  } finally {
+    showLoader(false);
+  }
+};
+
+window.setTrendMetric = function(metricKey) {
+  currentTrendMetric = metricKey;
+  if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
+};
+
+window.setTrendRange = function(rangeKey) {
+  currentTrendRange = rangeKey;
+  if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
+};
+
+function renderTrendChartSvg(logs, metricKey, rangeKey) {
+  const metricConfigs = {
+    weight: { label: 'น้ำหนัก (kg)', unit: 'kg', color: '#10b981' },
+    bmi: { label: 'ดัชนีมวลกาย (BMI)', unit: '', color: '#06b6d4' },
+    bodyage: { label: 'อายุร่างกาย (ปี)', unit: 'ปี', color: '#8b5cf6' },
+    muscle: { label: 'กล้ามเนื้อ (%)', unit: '%', color: '#3b82f6' },
+    fat: { label: 'อัตราไขมัน (%)', unit: '%', color: '#f59e0b' },
+    visceralFat: { label: 'ไขมันช่องท้อง', unit: '', color: '#ec4899' },
+  };
+  const cfg = metricConfigs[metricKey] || metricConfigs.weight;
+
+  let filtered = (logs || []).filter(item => Number.isFinite(Number(item[metricKey])) && Number(item[metricKey]) > 0);
+  if (rangeKey === '30d' || rangeKey === '90d') {
+    const maxDays = rangeKey === '30d' ? 30 : 90;
+    const latestDateStr = filtered.length > 0 ? filtered[filtered.length - 1].date : new Date().toISOString().slice(0, 10);
+    const latestMs = Date.parse(latestDateStr) || Date.now();
+    filtered = filtered.filter(item => {
+      const itemMs = Date.parse(item.date);
+      return !isNaN(itemMs) && (latestMs - itemMs) <= maxDays * 86400000;
+    });
+  }
+
+  if (filtered.length === 0) {
+    return `
+      <div class="tracker-chart-empty">
+        <span>📉</span>
+        <p>ยังไม่มีข้อมูล <strong>${cfg.label}</strong> ในช่วงเวลานี้ ลองกด "+ บันทึกข้อมูลร่างกาย" เพื่อดูกราฟแนวโน้มได้เลย!</p>
+      </div>
+    `;
+  }
+
+  const values = filtered.map(item => Number(item[metricKey]));
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const pad = Math.max(1, (maxVal - minVal) * 0.25);
+  const yMin = Math.max(0, minVal - pad);
+  const yMax = maxVal + pad;
+  const width = 680;
+  const height = 220;
+  const padLeft = 48;
+  const padRight = 32;
+  const padTop = 28;
+  const padBottom = 38;
+  const innerW = width - padLeft - padRight;
+  const innerH = height - padTop - padBottom;
+
+  const points = filtered.map((item, idx) => {
+    const x = filtered.length === 1
+      ? padLeft + innerW / 2
+      : padLeft + (idx / (filtered.length - 1)) * innerW;
+    const val = Number(item[metricKey]);
+    const yRatio = yMax === yMin ? 0.5 : (val - yMin) / (yMax - yMin);
+    const y = padTop + innerH - yRatio * innerH;
+    return { x: parseFloat(x.toFixed(1)), y: parseFloat(y.toFixed(1)), val, date: item.date, label: item.label };
+  });
+
+  const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+  const areaPoints = `${points[0].x},${padTop + innerH} ${polylinePoints} ${points[points.length - 1].x},${padTop + innerH}`;
+
+  const gridLines = [0, 0.5, 1].map(r => {
+    const y = (padTop + innerH - r * innerH).toFixed(1);
+    const labelVal = (yMin + r * (yMax - yMin)).toFixed(1);
+    return `
+      <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--border-color)" stroke-dasharray="4 4" />
+      <text x="${padLeft - 8}" y="${Number(y) + 4}" text-anchor="end" fill="var(--text-muted)" font-size="11">${labelVal}</text>
+    `;
+  }).join('');
+
+  const dotsHtml = points.map((p, idx) => {
+    const showDate = filtered.length <= 8 || idx === 0 || idx === filtered.length - 1 || idx % Math.ceil(filtered.length / 6) === 0;
+    const shortDate = String(p.date || '').slice(5);
+    return `
+      <g class="tracker-chart-point">
+        <circle cx="${p.x}" cy="${p.y}" r="5" fill="${cfg.color}" stroke="var(--bg-card)" stroke-width="2" />
+        <text x="${p.x}" y="${p.y - 10}" text-anchor="middle" fill="var(--text-main)" font-size="11" font-weight="600">${p.val}</text>
+        ${showDate ? `<text x="${p.x}" y="${height - 10}" text-anchor="middle" fill="var(--text-muted)" font-size="10">${shortDate}</text>` : ''}
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <div class="tracker-chart-svg-wrap">
+      <svg viewBox="0 0 ${width} ${height}" width="100%" height="220" role="img" aria-label="กราฟแนวโน้ม ${cfg.label}">
+        <defs>
+          <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${cfg.color}" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="${cfg.color}" stop-opacity="0.0" />
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        ${points.length > 1 ? `<polygon points="${areaPoints}" fill="url(#trendGrad)" />` : ''}
+        ${points.length > 1 ? `<polyline fill="none" stroke="${cfg.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${polylinePoints}" />` : ''}
+        ${dotsHtml}
+      </svg>
+    </div>
+  `;
+}
+
 function showPersonalProfile(empId, selectedGender = null) {
   currentProfileEmpId = empId;
-  const emp = employees.find(e => e.id === empId);
-  if (!emp) return;
+  const rawEmp = employees.find(e => e.id === empId);
+  if (!rawEmp) return;
 
-  // Use saved gender from DB by default, fallback to selectedGender parameter
+  const tracker = getHealthTracker();
+  const emp = tracker ? tracker.normalizeEmployeeTimeline(rawEmp) : rawEmp;
+  const empIdx = employees.findIndex(e => e.id === empId);
+  if (empIdx >= 0) employees[empIdx] = emp;
+
   const gender = selectedGender || (emp.months ? emp.months.gender : null);
-
-  // Show gender selection popup modal if not yet set in database
-  if (!gender && !selectedGender && wellbeingSession?.identity?.canEdit) {
-    let existingModal = document.getElementById('gender-selection-modal');
-    if (!existingModal) {
-      const modalOverlay = document.createElement('div');
-      modalOverlay.className = 'modal-overlay active';
-      modalOverlay.id = 'gender-selection-modal';
-      modalOverlay.style.zIndex = '2000';
-      modalOverlay.style.display = 'flex';
-      modalOverlay.style.alignItems = 'center';
-      modalOverlay.style.justifyContent = 'center';
-      
-      modalOverlay.innerHTML = `
-        <div class="modal-content animate-scale" style="max-width: 380px; text-align: center; background: var(--bg-modal); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border-color); box-shadow: var(--shadow-md); padding: 2rem; border-radius: 16px;">
-          <div style="font-size: 3rem; margin-bottom: 0.75rem;">⚧️</div>
-          <h3 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">ระบุเพศของคุณ</h3>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5; font-family: 'Outfit', sans-serif;">เพื่อใช้เปรียบเทียบและประเมินผลลัพธ์มวลกล้ามเนื้อและปริมาณไขมันในร่างกายตามเกณฑ์มาตรฐานสุขภาพ</p>
-          
-          <div style="display: flex; gap: 0.85rem; justify-content: center;">
-            <button onclick="saveSelectedGender('male')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: var(--primary-glow); border: 1px solid var(--primary); color: var(--primary-light); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
-              <span style="font-size: 1.5rem;">👨</span>
-              <span style="font-weight: 600;">ชาย (Men)</span>
-            </button>
-            <button onclick="saveSelectedGender('female')" class="btn" style="flex: 1; padding: 0.75rem; font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: var(--bg-pink-female-glow); border: 1px solid var(--pink-female); color: var(--pink-female); border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;">
-              <span style="font-size: 1.5rem;">👩</span>
-              <span style="font-weight: 600;">หญิง (Women)</span>
-            </button>
-          </div>
-          
-          <button onclick="cancelGenderSelection()" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; margin-top: 1.25rem; cursor: pointer; text-decoration: underline; font-family: 'Outfit', sans-serif;">ข้ามไปก่อน (Skip)</button>
-        </div>
-      `;
-      
-      document.body.appendChild(modalOverlay);
-      
-      window.saveSelectedGender = async function(chosenGender) {
-        modalOverlay.remove();
-        await setProfileGender(chosenGender);
-      };
-      
-      window.cancelGenderSelection = function() {
-        modalOverlay.remove();
-      };
-    }
-  }
+  const canEditOwn = canManageProfile(emp);
 
   // Status evaluators
   const getBmiStatus = (bmiVal) => {
@@ -2607,176 +3099,71 @@ function showPersonalProfile(empId, selectedGender = null) {
     return { text: 'อ้วนระดับ 2', color: 'var(--danger)' };
   };
 
-  const getFatStatus = (fatVal, gender) => {
+  const getFatStatus = (fatVal, g) => {
     const fat = parseFloat(fatVal);
     if (isNaN(fat)) return { text: '', color: '' };
-    if (gender === 'female') {
+    if (g === 'female') {
       if (fat < 14) return { text: 'ต่ำเกินไป', color: 'var(--warning)' };
       if (fat <= 20) return { text: 'ระดับนักกีฬา', color: 'var(--success)' };
       if (fat <= 24) return { text: 'หุ่นฟิต สมส่วน', color: 'var(--success)' };
       if (fat <= 31) return { text: 'สุขภาพดีมาตรฐาน', color: 'var(--success)' };
       return { text: 'สูงเกินเกณฑ์', color: 'var(--danger)' };
-    } else {
-      if (fat < 6) return { text: 'ต่ำเกินไป', color: 'var(--warning)' };
-      if (fat <= 13) return { text: 'ระดับนักกีฬา', color: 'var(--success)' };
-      if (fat <= 17) return { text: 'หุ่นฟิต สมส่วน', color: 'var(--success)' };
-      if (fat <= 24) return { text: 'สุขภาพดีมาตรฐาน', color: 'var(--success)' };
-      return { text: 'สูงเกินเกณฑ์', color: 'var(--danger)' };
     }
+    if (fat < 6) return { text: 'ต่ำเกินไป', color: 'var(--warning)' };
+    if (fat <= 13) return { text: 'ระดับนักกีฬา', color: 'var(--success)' };
+    if (fat <= 17) return { text: 'หุ่นฟิต สมส่วน', color: 'var(--success)' };
+    if (fat <= 24) return { text: 'สุขภาพดีมาตรฐาน', color: 'var(--success)' };
+    return { text: 'สูงเกินเกณฑ์', color: 'var(--danger)' };
   };
 
-  const getMuscleStatus = (muscleVal, gender) => {
+  const getMuscleStatus = (muscleVal, g) => {
     const muscle = parseFloat(muscleVal);
     if (isNaN(muscle)) return { text: '', color: '' };
-    if (gender === 'female') {
+    if (g === 'female') {
       if (muscle < 27) return { text: 'กล้ามเนื้อต่ำ', color: 'var(--danger)' };
       if (muscle <= 35) return { text: 'มาตรฐานปกติ', color: 'var(--success)' };
       return { text: 'กล้ามเนื้อสูง/ฟิต', color: 'var(--secondary-light)' };
-    } else {
-      if (muscle < 33) return { text: 'กล้ามเนื้อต่ำ', color: 'var(--danger)' };
-      if (muscle <= 40) return { text: 'มาตรฐานปกติ', color: 'var(--success)' };
-      return { text: 'กล้ามเนื้อสูง/ฟิต', color: 'var(--secondary-light)' };
     }
+    if (muscle < 33) return { text: 'กล้ามเนื้อต่ำ', color: 'var(--danger)' };
+    if (muscle <= 40) return { text: 'มาตรฐานปกติ', color: 'var(--success)' };
+    return { text: 'กล้ามเนื้อสูง/ฟิต', color: 'var(--secondary-light)' };
   };
 
-  // Determine personal evaluation round: if m4 complete use m4; else if m3 complete use m3; else currentEvaluationRound
-  const personalRound = PfigHealthScore.hasCompleteMeasurement(emp, 'm4')
-    ? 'm4'
-    : (PfigHealthScore.hasCompleteMeasurement(emp, 'm3') ? 'm3' : currentEvaluationRound);
+  const stats = tracker
+    ? tracker.calculateStreakAndStats(emp)
+    : { totalLogs: 0, streakCount: 0, logsThisMonth: 0, baselineLog: null, latestLog: null, previousLog: null, latestVsBaseline: {}, latestVsPrevious: {} };
+  const goalProgress = tracker ? tracker.calculateGoalProgress(emp) : { hasGoals: false, items: [] };
+  const badges = tracker ? tracker.evaluateBadges(emp) : [];
+  const unlockedBadgesCount = badges.filter(b => b.unlocked).length;
+  const pulse = wellbeingCommunityPulse || (tracker ? tracker.buildCommunityPulse(employees) : null);
 
-  const comp = getComparison(emp, personalRound);
-  const m1 = emp.months.m1 || {};
-  
-  // Format statistics change panels
-  const formatDiff = (diffVal, unit, isPositiveImprovement = false) => {
-    if (!comp.hasProgress) return `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
-    
-    // For Weight, BMI, Fat, Body Age: negative difference is improvement
-    // For Muscle: positive difference is improvement
-    const isImproved = isPositiveImprovement ? (diffVal > 0) : (diffVal < 0);
-    const isWorsened = isPositiveImprovement ? (diffVal < 0) : (diffVal > 0);
+  const latestLog = stats.latestLog;
+  const baselineLog = stats.baselineLog;
+  const logs = emp.months?.logs || [];
+
+  // Format diff pill
+  const formatDelta = (diffVal, unit, positiveIsGood = false) => {
+    if (diffVal === null || diffVal === undefined || isNaN(diffVal)) {
+      return `<span style="color: var(--text-muted); font-size: 0.85rem;">รอเปรียบเทียบ</span>`;
+    }
+    if (diffVal === 0) {
+      return `<span style="color: var(--text-main); font-weight: 600;">คงที่ (0 ${unit})</span>`;
+    }
+    const isGood = positiveIsGood ? diffVal > 0 : diffVal < 0;
     const sign = diffVal > 0 ? '+' : '';
-    
-    if (isImproved) {
-      return `<span style="color: var(--success); font-weight: 700;">${sign}${diffVal} ${unit}</span>`;
-    } else if (isWorsened) {
-      return `<span style="color: var(--danger); font-weight: 700;">${sign}${diffVal} ${unit}</span>`;
-    } else {
-      return `<span style="color: var(--text-main); font-weight: 600;">คงที่</span>`;
-    }
+    const color = isGood ? 'var(--success)' : 'var(--warning)';
+    return `<span style="color: ${color}; font-weight: 700;">${sign}${diffVal} ${unit}</span>`;
   };
 
-  const weightChangeHtml = formatDiff(comp.weightDiff, 'kg', false);
-  const bmiChangeHtml = formatDiff(comp.bmiDiff, '', false);
-  const bodyageChangeHtml = formatDiff(comp.bodyageDiff, 'ปี', false);
-  
-  const muscleChangeHtml = (m1.muscle !== undefined && m1.muscle !== null && comp.hasProgress) ? formatDiff(comp.muscleDiff, '%', true) : `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
-  const fatChangeHtml = (m1.fat !== undefined && m1.fat !== null && comp.hasProgress) ? formatDiff(comp.fatDiff, '%', false) : `<span style="color: var(--text-muted); font-size: 0.95rem; font-style: italic;">รอข้อมูลสรุป</span>`;
-
-  // Build Monthly Columns
-  const renderMonthColumn = (m, label, badgeClass) => {
-    if (!m || (m.weight === undefined && m.bodyage === undefined && !m.photo)) {
-      return `
-        <div class="personal-month-card">
-          <div class="personal-month-card-header ${badgeClass}">
-            <span>📅</span> ${label}
-          </div>
-          <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 150px; flex-direction: column;">
-            <span style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.3;">📭</span>
-            <span style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">ยังไม่มีการบันทึกข้อมูล</span>
-          </div>
-        </div>
-      `;
-    }
-    
-    const bmiVal = m.bmi ? m.bmi : (calcBMI(m.weight, emp.height) || null);
-    let bmiHtml = '-';
-    if (bmiVal) {
-      const status = getBmiStatus(bmiVal);
-      bmiHtml = `<span style="color: ${status.color}; font-weight: 700;">${bmiVal} <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
-    }
-    
-    let muscleHtml = '-';
-    if (m.muscle !== undefined && m.muscle !== null) {
-      if (gender) {
-        const status = getMuscleStatus(m.muscle, gender);
-        muscleHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.muscle}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
-      } else {
-        muscleHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.muscle}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
-      }
-    }
-    
-    let fatHtml = '-';
-    if (m.fat !== undefined && m.fat !== null) {
-      if (gender) {
-        const status = getFatStatus(m.fat, gender);
-        fatHtml = `<span style="color: ${status.color}; font-weight: 700;">${m.fat}% <span style="font-size: 0.72rem; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: var(--border-color); margin-left: 2px;">${status.text}</span></span>`;
-      } else {
-        fatHtml = `<span style="color: var(--text-muted); font-weight: 600;">${m.fat}% <span style="font-size: 0.7rem; font-weight: normal; opacity: 0.6; margin-left: 2px;">(โปรดระบุเพศ)</span></span>`;
-      }
-    }
-    
-    const weightText = m.weight ? `${m.weight} kg` : '- kg';
-    const bodyageText = m.bodyage ? `${m.bodyage} ปี` : '- ปี';
-    
-    const photoFrame = m.photo 
-      ? `<div class="personal-photo-frame"><img src="${m.photo}" alt="${label}"></div>`
-      : `<div class="personal-photo-frame"><div class="image-placeholder">ไม่มีรูปถ่ายความคืบหน้า</div></div>`;
-      
-    return `
-      <div class="personal-month-card">
-        <div class="personal-month-card-header ${badgeClass}">
-          <span>📅</span> ${label}
-        </div>
-        <div class="personal-metrics-list">
-          <div class="personal-metric-item">
-            <span class="personal-metric-name">⚖️ น้ำหนัก</span>
-            <span class="personal-metric-val" style="color: var(--text-main); font-weight: 700;">${weightText}</span>
-          </div>
-          <div class="personal-metric-item">
-            <span class="personal-metric-name">🧠 อายุร่างกาย</span>
-            <span class="personal-metric-val" style="color: var(--text-main); font-weight: 700;">${bodyageText}</span>
-          </div>
-          <div class="personal-metric-item">
-            <span class="personal-metric-name">📊 ค่า BMI</span>
-            <span class="personal-metric-val">${bmiHtml}</span>
-          </div>
-          <div class="personal-metric-item">
-            <span class="personal-metric-name">💪 กล้ามเนื้อ</span>
-            <span class="personal-metric-val">${muscleHtml}</span>
-          </div>
-          <div class="personal-metric-item">
-            <span class="personal-metric-name">📉 ไขมัน</span>
-            <span class="personal-metric-val">${fatHtml}</span>
-          </div>
-        </div>
-        ${photoFrame}
-      </div>
-    `;
-  };
-
-  const monthColumns = [
-    renderMonthColumn(emp.months.m1, 'ครั้งที่ 1 (ค่าตั้งต้น)', 'personal-month-badge-1'),
-    renderMonthColumn(emp.months.m2, 'ครั้งที่ 2 (ติดตามผล)', 'personal-month-badge-2'),
-    renderMonthColumn(emp.months.m3, 'ครั้งที่ 3 (ติดตามผล)', 'personal-month-badge-3'),
-    renderMonthColumn(emp.months.m4, 'ครั้งที่ 4 (ผลลัพธ์สุดท้าย)', 'personal-month-badge-4')
-  ];
-
-  // 1. Calculate Ideal Weight Range and Target based on height
+  // Healthy Weight Range Visualizer
   const heightM = parseFloat(emp.height) / 100;
   const minWeight = parseFloat((18.5 * heightM * heightM).toFixed(1));
   const maxWeight = parseFloat((22.9 * heightM * heightM).toFixed(1));
   const targetWeight = parseFloat((21.0 * heightM * heightM).toFixed(1));
-
-  // Determine current weight
-  const latestWeight = comp.latestWeight || (m1 ? m1.weight : 0) || 0;
-
-  // Visualizer scale boundaries: from minWeight - 5 to maxWeight + 5
+  const latestWeight = latestLog?.weight || baselineLog?.weight || 0;
   const leftLimit = parseFloat((minWeight - 5).toFixed(1));
   const rightLimit = parseFloat((maxWeight + 5).toFixed(1));
   const rangeWidth = rightLimit - leftLimit;
-
-  // Calculate percentages for CSS placement
   const healthyStartPct = ((minWeight - leftLimit) / rangeWidth) * 100;
   const healthyEndPct = ((maxWeight - leftLimit) / rangeWidth) * 100;
   const healthyWidthPct = healthyEndPct - healthyStartPct;
@@ -2784,162 +3171,265 @@ function showPersonalProfile(empId, selectedGender = null) {
   const currentPct = Math.min(100, Math.max(0, ((latestWeight - leftLimit) / rangeWidth) * 100));
   const currentPinEdgeClass = currentPct <= 15 ? 'is-edge-left' : currentPct >= 85 ? 'is-edge-right' : '';
 
-  // 2. Calculate Personal 3D Health Score Breakdown
-  const scoreData = calculateHealthScore(emp, personalRound);
-  const totalScoreVal = scoreData.totalScore;
-  const wContribution = scoreData.weightScore; // BMI score out of 20
-  const mContribution = scoreData.muscleScore; // Muscle score out of 40
-  const fContribution = scoreData.fatScore; // Fat score out of 40
-
-  // Calculate progress bar percentages (capped at 100% and min 0%)
-  const wBarPct = Math.min(100, Math.max(0, (wContribution / 20.0) * 100));
-  const mBarPct = Math.min(100, Math.max(0, (mContribution / 40.0) * 100));
-  const fBarPct = Math.min(100, Math.max(0, (fContribution / 40.0) * 100));
-
-  // Determine starting BMI category and construct advice message
-  let startBmiText = '-';
-  let weightAdvice = '';
-  if (m1 && m1.bmi) {
-    if (m1.bmi < 18.5) {
-      startBmiText = 'ต่ำกว่าเกณฑ์ (ผอม)';
-      const neededGain = parseFloat((targetWeight - latestWeight).toFixed(1));
-      if (neededGain > 0) {
-        weightAdvice = `คุณเริ่มต้นท้าชิงด้วยสภาวะน้ำหนักต่ำกว่าเกณฑ์ เป้าหมายหลักคือการเพิ่มน้ำหนักตัวเพื่อสุขภาพ (Weight Gain) โดยควรเพิ่มน้ำหนักขึ้นอีกประมาณ <strong style="color: var(--primary-light);">${neededGain} kg</strong> เพื่อเข้าสู่จุดสมส่วนอุดมคติที่ <strong>${targetWeight} kg</strong>`;
-      } else {
-        weightAdvice = `ยินดีด้วย! ปัจจุบันคุณสามารถเพิ่มน้ำหนักขึ้นมาอยู่ในช่วงน้ำหนักสุขภาพดีที่สมส่วนเรียบร้อยแล้ว`;
-      }
-    } else if (m1.bmi >= 22.9) {
-      startBmiText = 'เกินเกณฑ์ (น้ำหนักเกิน/อ้วน)';
-      const neededLoss = parseFloat((latestWeight - targetWeight).toFixed(1));
-      if (neededLoss > 0) {
-        weightAdvice = `คุณเริ่มต้นท้าชิงด้วยสภาวะน้ำหนักเกิน/อ้วน เป้าหมายหลักคือการลดน้ำหนักตัวเพื่อสุขภาพ (Weight Loss) โดยควรลดน้ำหนักลงอีกประมาณ <strong style="color: #f87171;">${neededLoss} kg</strong> เพื่อเข้าสู่จุดสมส่วนอุดมคติที่ <strong>${targetWeight} kg</strong>`;
-      } else {
-        weightAdvice = `ยินดีด้วย! ปัจจุบันคุณสามารถลดน้ำหนักลงมาอยู่ในช่วงน้ำหนักสุขภาพดีที่สมส่วนเรียบร้อยแล้ว`;
-      }
+  let weightAdvice = 'กดปุ่ม "+ บันทึกข้อมูลร่างกาย" เพื่อดูคำแนะนำสุขภาพเฉพาะตัวคุณ!';
+  if (latestLog && latestLog.bmi) {
+    if (latestLog.bmi < 18.5) {
+      const neededGain = parseFloat((minWeight - latestWeight).toFixed(1));
+      weightAdvice = `น้ำหนักปัจจุบันต่ำกว่าเกณฑ์มาตรฐาน แนะนำให้เพิ่มมวลกล้ามเนื้อและน้ำหนักอีกประมาณ <strong>+${neededGain} kg</strong> เพื่อเข้าสู่โซนสุขภาพดี (${minWeight} - ${maxWeight} kg)`;
+    } else if (latestLog.bmi > 22.9) {
+      const neededLoss = parseFloat((latestWeight - maxWeight).toFixed(1));
+      weightAdvice = `อีกเพียง <strong>-${neededLoss} kg</strong> คุณจะเข้าสู่โซนน้ำหนักสมส่วนมาตรฐาน (${minWeight} - ${maxWeight} kg) ค่อยๆ สะสมวินัยไปด้วยกันนะ!`;
     } else {
-      startBmiText = 'สมส่วน (น้ำหนักปกติ)';
-      const diffFromTarget = parseFloat(Math.abs(latestWeight - targetWeight).toFixed(1));
-      if (diffFromTarget <= 1.0) {
-        weightAdvice = `น้ำหนักตัวของคุณอยู่ในเกณฑ์ดีเยี่ยมและใกล้เคียงจุดสมดุลอุดมคติแล้ว รักษาระดับน้ำหนักตัวนี้ไว้และมุ่งเน้นที่การเพิ่มมวลกล้ามเนื้อและลดไขมัน (Body Recomposition) เพื่อความฟิตระดับสูงสุด`;
-      } else {
-        weightAdvice = `น้ำหนักตัวของคุณอยู่ในเกณฑ์สมส่วนสุขภาพดี (ห่างจากเป้าหมายเบี่ยงเบนเล็กน้อย ±${diffFromTarget} kg) แนะนำให้มุ่งเน้นรักษาระดับน้ำหนักตัวนี้ ควบคู่กับการสร้างมวลกล้ามเนื้อและควบคุมปริมาณไขมัน`;
-      }
+      weightAdvice = `ยอดเยี่ยมมาก! น้ำหนักปัจจุบันของคุณ (${latestWeight} kg) อยู่ในโซนสมส่วนมาตรฐานแล้ว มุ่งเน้นรักษามวลกล้ามเนื้อและสุขภาพที่แข็งแรงต่อไปได้เลย 🌱`;
     }
   }
 
-  const signedInOid = String(wellbeingSession?.identity?.oid || '').toLowerCase();
-  const employeeOid = String(emp.entra_oid || '').toLowerCase();
-  const serverRank = signedInOid && signedInOid === employeeOid && emp.department !== 'Executive'
-    ? wellbeingPersonalHealthRanking
-    : null;
-  const personalRankData = getPersonalRankBadgeData(emp.id, currentWinningCriteria, employees, serverRank, personalRound);
-  const personalRankHtml = renderPersonalRankInlineBadge(personalRankData);
+  // Render Personal Goals List
+  const goalsListHtml = goalProgress.hasGoals
+    ? goalProgress.items.map(g => `
+        <div class="tracker-goal-item">
+          <div class="tracker-goal-header">
+            <span class="tracker-goal-title">${g.icon} ${g.label}: <strong>${g.targetVal} ${g.unit}</strong></span>
+            <span class="tracker-goal-status">${g.remainingText}</span>
+          </div>
+          <div class="personal-score-bar-bg">
+            <div class="personal-score-bar-fill" style="width: ${g.progressPct}%; background: ${g.achieved ? 'var(--success)' : 'var(--primary)'};"></div>
+          </div>
+        </div>
+      `).join('')
+    : `
+      <div class="tracker-goal-empty">
+        <p>ยังไม่ได้ตั้งเป้าหมายส่วนตัว ลองตั้งเป้าน้ำหนัก %ไขมัน หรืออายุร่างกายที่อยากพิชิต เพื่อดูหลอดพลังความก้าวหน้าของคุณกัน!</p>
+        ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">🎯 ตั้งเป้าหมายแรกของฉัน</button>` : ''}
+      </div>
+    `;
 
-  // Generate Profile HTML
+  // Render Badges Grid
+  const badgesHtml = badges.map(b => `
+    <div class="tracker-badge-card ${b.unlocked ? 'unlocked' : 'locked'}">
+      <div class="tracker-badge-icon">${b.icon}</div>
+      <div class="tracker-badge-info">
+        <div class="tracker-badge-title">${b.title}</div>
+        <div class="tracker-badge-desc">${b.desc}</div>
+      </div>
+      <div class="tracker-badge-pill">${b.unlocked ? 'ปลดล็อกแล้ว ✨' : 'ล็อกอยู่ 🔒'}</div>
+    </div>
+  `).join('');
+
+  // Render Community Pulse
+  const leadersHtml = pulse && Array.isArray(pulse.consistencyLeaders) && pulse.consistencyLeaders.length > 0
+    ? pulse.consistencyLeaders.map((leader, idx) => `
+        <div class="tracker-community-leader">
+          <span class="tracker-leader-rank">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</span>
+          <div class="tracker-leader-meta">
+            <strong>${leader.name}</strong>
+            <span>${leader.department}</span>
+          </div>
+          <div class="tracker-leader-tags">
+            <span class="tracker-streak-tag">🔥 ต่อเนื่อง ${leader.streakCount} ครั้ง</span>
+            <span class="tracker-badge-tag">🏅 ${leader.unlockedBadges} เหรียญ</span>
+          </div>
+        </div>
+      `).join('')
+    : `<div style="color: var(--text-muted); font-size: 0.85rem;">มาร่วมเช็คอินสะสมความสม่ำเสมอครบ 3 ครั้งขึ้นไป เพื่อขึ้นบอร์ดคนรักสุขภาพกัน!</div>`;
+
+  // Render Timeline History Cards (Newest first)
+  const reversedLogs = [...logs].reverse();
+  const timelineHtml = reversedLogs.length > 0
+    ? reversedLogs.map((logItem, revIdx) => {
+        const chronologicalIdx = logs.length - 1 - revIdx;
+        const prevItem = chronologicalIdx > 0 ? logs[chronologicalIdx - 1] : null;
+        const wDelta = prevItem && logItem.weight && prevItem.weight
+          ? parseFloat((logItem.weight - prevItem.weight).toFixed(1))
+          : null;
+        const wDeltaBadge = wDelta !== null
+          ? `<span class="tracker-log-delta ${wDelta < 0 ? 'good' : wDelta > 0 ? 'warn' : 'neutral'}">${wDelta > 0 ? `+${wDelta}` : wDelta} kg</span>`
+          : `<span class="tracker-log-delta neutral">จุดเริ่มต้น</span>`;
+
+        const bmiStatus = logItem.bmi ? getBmiStatus(logItem.bmi) : { text: '', color: '' };
+        const fatStatus = logItem.fat && gender ? getFatStatus(logItem.fat, gender) : { text: '', color: '' };
+        const muscleStatus = logItem.muscle && gender ? getMuscleStatus(logItem.muscle, gender) : { text: '', color: '' };
+
+        return `
+          <div class="tracker-timeline-card">
+            <div class="tracker-timeline-top">
+              <div class="tracker-timeline-date-group">
+                <span class="tracker-timeline-date">📅 ${logItem.date}</span>
+                ${logItem.label ? `<span class="tracker-timeline-label">${logItem.label}</span>` : ''}
+                ${wDeltaBadge}
+              </div>
+              ${canEditOwn ? `
+                <div class="tracker-timeline-actions">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openCheckinModal('${logItem.id}')">✏️ แก้ไข</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="handleDeleteLog('${logItem.id}')">🗑️</button>
+                </div>
+              ` : ''}
+            </div>
+            <div class="tracker-timeline-metrics">
+              <div class="tracker-metric-chip">
+                <span class="chip-label">⚖️ น้ำหนัก</span>
+                <span class="chip-val">${logItem.weight != null ? `${logItem.weight} kg` : '-'}</span>
+              </div>
+              <div class="tracker-metric-chip">
+                <span class="chip-label">📊 BMI</span>
+                <span class="chip-val" style="color: ${bmiStatus.color || 'var(--text-main)'};">
+                  ${logItem.bmi != null ? logItem.bmi : '-'}
+                  ${bmiStatus.text ? `<small>(${bmiStatus.text})</small>` : ''}
+                </span>
+              </div>
+              <div class="tracker-metric-chip">
+                <span class="chip-label">🧬 อายุร่างกาย</span>
+                <span class="chip-val">${logItem.bodyage != null ? `${logItem.bodyage} ปี` : '-'}</span>
+              </div>
+              <div class="tracker-metric-chip">
+                <span class="chip-label">💪 กล้ามเนื้อ</span>
+                <span class="chip-val" style="color: ${muscleStatus.color || 'var(--text-main)'};">
+                  ${logItem.muscle != null ? `${logItem.muscle}%` : '-'}
+                </span>
+              </div>
+              <div class="tracker-metric-chip">
+                <span class="chip-label">📉 ไขมัน</span>
+                <span class="chip-val" style="color: ${fatStatus.color || 'var(--text-main)'};">
+                  ${logItem.fat != null ? `${logItem.fat}%` : '-'}
+                </span>
+              </div>
+              ${logItem.visceralFat != null ? `
+                <div class="tracker-metric-chip">
+                  <span class="chip-label">🫀 ไขมันช่องท้อง</span>
+                  <span class="chip-val">${logItem.visceralFat}</span>
+                </div>
+              ` : ''}
+            </div>
+            ${logItem.note ? `<div class="tracker-timeline-note">💬 "${logItem.note}"</div>` : ''}
+            ${logItem.photo ? `<div class="tracker-timeline-photo"><img src="${logItem.photo}" alt="รูปความคืบหน้า ${logItem.date}"></div>` : ''}
+          </div>
+        `;
+      }).join('')
+    : `
+      <div class="empty-state" style="padding: 2rem;">
+        <p>ยังไม่มีประวัติการบันทึก กดปุ่ม <strong>"+ บันทึกข้อมูลร่างกาย"</strong> ด้านบนเพื่อเริ่มบันทึกครั้งแรกกันเลย!</p>
+      </div>
+    `;
+
+  const trendChartSvg = renderTrendChartSvg(logs, currentTrendMetric, currentTrendRange);
+
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
-      <!-- Profile Info Header -->
+      <!-- Profile Info Header + Quick Actions -->
       <div class="personal-profile-header">
         <div class="personal-profile-title-group">
           <div class="personal-avatar">👤</div>
           <div class="personal-name">
-            <h3>${emp.name}</h3>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;">
+              <h3>${emp.name}</h3>
+              <span class="tracker-streak-banner">🔥 เช็คอินต่อเนื่อง ${stats.streakCount} ครั้ง • สะสม ${stats.totalLogs} บันทึก</span>
+            </div>
             <div class="personal-meta-info" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.4rem;">
               <span class="personal-meta-badge personal-meta-badge-dept">🏢 แผนก: ${emp.department}</span>
               <span class="personal-meta-badge">🎂 อายุจริง: ${emp.age} ปี</span>
               <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
-              
-              <!-- Inline Gender Selector -->
               <span class="personal-meta-badge" style="background: var(--bg-item); border: 1px solid var(--border-item); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
-                ⚧️ ระบุเพศ:
-                <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'var(--border-color)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">ชาย</button>
-                <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? 'var(--pink-female)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'female' ? 'var(--pink-female)' : 'var(--border-color)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'}; transition: all 0.2s; outline: none;">หญิง</button>
+                ⚧️ เพศ:
+                <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'var(--border-color)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'};">ชาย</button>
+                <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? 'var(--pink-female)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'female' ? 'var(--pink-female)' : 'var(--border-color)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'};">หญิง</button>
               </span>
             </div>
           </div>
         </div>
-        <div class="personal-profile-id">
-          ID: ${emp.id.substring(0, 8)}...
+        ${canEditOwn ? `
+          <div class="tracker-header-cta">
+            <button type="button" class="btn btn-secondary" onclick="openGoalModal()">🎯 ตั้งเป้าหมายของฉัน</button>
+            <button type="button" class="btn btn-primary" onclick="openCheckinModal()">➕ บันทึกข้อมูลร่างกาย</button>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Latest Snapshot & Deltas Summary -->
+      <div class="personal-stats-grid" style="margin-bottom: 1.75rem;">
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary-light);">⚖️</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">น้ำหนักล่าสุด (เทียบเริ่มต้น)</span>
+            <span class="personal-stat-value">
+              <strong>${latestLog?.weight != null ? `${latestLog.weight} kg` : '-'}</strong>
+              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.weightDiff, 'kg', false)}</div>
+            </span>
+          </div>
+        </div>
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--secondary-glow); color: var(--secondary-light);">🧬</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">อายุร่างกายล่าสุด (เทียบเริ่มต้น)</span>
+            <span class="personal-stat-value">
+              <strong>${latestLog?.bodyage != null ? `${latestLog.bodyage} ปี` : '-'}</strong>
+              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.bodyageDiff, 'ปี', false)}</div>
+            </span>
+          </div>
+        </div>
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">📊</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">ดัชนีมวลกาย (BMI ล่าสุด)</span>
+            <span class="personal-stat-value">
+              <strong>${latestLog?.bmi != null ? latestLog.bmi : '-'}</strong>
+              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.bmiDiff, '', false)}</div>
+            </span>
+          </div>
+        </div>
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary);">💪</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">กล้ามเนื้อล่าสุด</span>
+            <span class="personal-stat-value">
+              <strong>${latestLog?.muscle != null ? `${latestLog.muscle}%` : '-'}</strong>
+              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.muscleDiff, '%', true)}</div>
+            </span>
+          </div>
+        </div>
+        <div class="personal-stat-card">
+          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">📉</div>
+          <div class="personal-stat-details">
+            <span class="personal-stat-label">อัตราไขมันล่าสุด</span>
+            <span class="personal-stat-value">
+              <strong>${latestLog?.fat != null ? `${latestLog.fat}%` : '-'}</strong>
+              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.fatDiff, '%', false)}</div>
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- NEW: Premium Health Insights Dashboard Section -->
+      <!-- Goals & Healthy Weight Range Visualizer -->
       <div class="personal-insights-container">
-        <!-- Card 1: 3D Health Score Breakdown -->
-        <div class="personal-insight-card">
+        <div class="personal-insight-card tracker-goals-card">
           <div class="personal-insight-title">
             <div class="personal-insight-title-main">
-              <span>🎯</span> คะแนนสุขภาพรวมของคุณ
+              <span>🎯</span> เป้าหมายสุขภาพส่วนตัวของคุณ
             </div>
-            ${personalRankHtml}
+            ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">⚙️ แก้ไขเป้าหมาย</button>` : ''}
           </div>
-          <div class="personal-score-layout">
-            <div class="personal-score-radial-group">
-              <div class="personal-score-circle">
-                <span class="personal-score-circle-value">${totalScoreVal.toFixed(1)}</span>
-                <span class="personal-score-circle-label">คะแนนรวม</span>
-              </div>
-            </div>
-            <div class="personal-score-bars-list">
-              <!-- Weight component -->
-              <div class="personal-score-bar-row">
-                <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">⚖️ คะแนนดัชนีมวลกาย BMI (20%)</span>
-                  <span style="font-weight: 600; color: var(--accent-light);">${wContribution.toFixed(1)} / 20.00</span>
-                </div>
-                <div class="personal-score-bar-bg">
-                  <div class="personal-score-bar-fill" style="width: ${wBarPct}%; background: var(--accent);"></div>
-                </div>
-              </div>
-              <!-- Muscle component -->
-              <div class="personal-score-bar-row">
-                <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">💪 คะแนนมิติมวลกล้ามเนื้อ (40%)</span>
-                  <span style="font-weight: 600; color: var(--primary-light);">${mContribution.toFixed(1)} / 40.00</span>
-                </div>
-                <div class="personal-score-bar-bg">
-                  <div class="personal-score-bar-fill" style="width: ${mBarPct}%; background: var(--primary);"></div>
-                </div>
-              </div>
-              <!-- Fat component -->
-              <div class="personal-score-bar-row">
-                <div class="personal-score-bar-header">
-                  <span style="color: var(--text-main); font-weight: 500;">📉 คะแนนมิติอัตราไขมันสะสม (40%)</span>
-                  <span style="font-weight: 600; color: #f87171;">${fContribution.toFixed(1)} / 40.00</span>
-                </div>
-                <div class="personal-score-bar-bg">
-                  <div class="personal-score-bar-fill" style="width: ${fBarPct}%; background: #f87171;"></div>
-                </div>
-              </div>
-            </div>
+          <div class="tracker-goals-list">
+            ${goalsListHtml}
           </div>
         </div>
 
-        <!-- Card 2: Healthy Weight Target visualizer -->
         <div class="personal-insight-card">
           <div class="personal-insight-title">
-            <span>⚖️</span> ขอบเขตน้ำหนักที่เหมาะสมสำหรับคุณ
+            <span>⚖️</span> ขอบเขตน้ำหนักที่เหมาะสมสำหรับส่วนสูง ${emp.height} ซม.
           </div>
           <div class="weight-range-visualizer">
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
               <span>น้ำหนักเหมาะสม (BMI 18.5 - 22.9): <strong>${minWeight} - ${maxWeight} kg</strong></span>
             </div>
-            
-            <!-- Range visualization slider bar -->
             <div class="weight-range-bar-wrapper">
               <div class="weight-range-bar"></div>
               <div class="weight-range-fill" style="left: ${healthyStartPct}%; width: ${healthyWidthPct}%;"></div>
               <div class="weight-range-target-marker" style="left: ${targetPct}%;"></div>
               <div class="weight-range-pin ${currentPinEdgeClass}" style="left: ${currentPct}%;"></div>
-              
-              <!-- Scale Labels -->
               <div class="weight-range-scale-label" style="left: 0%;">${leftLimit}</div>
               <div class="weight-range-scale-label" style="left: ${healthyStartPct}%; color: var(--success); font-weight: 600;">${minWeight}</div>
               <div class="weight-range-scale-label" style="left: ${healthyEndPct}%; color: var(--success); font-weight: 600;">${maxWeight}</div>
               <div class="weight-range-scale-label" style="left: 100%; text-align: right; transform: translateX(-100%);">${rightLimit}</div>
             </div>
-
-            <!-- Personalized Health Advice -->
             <div style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted);">
               <strong>💡 คำแนะนำ:</strong> ${weightAdvice}
             </div>
@@ -2947,64 +3437,87 @@ function showPersonalProfile(empId, selectedGender = null) {
         </div>
       </div>
 
-      <!-- Comparative stats grid: final round 4 vs baseline round 1 -->
-      <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-        <span>🏆</span> สรุปความเปลี่ยนแปลงทั้งหมด (ค่าตั้งต้น ➔ ผลลัพธ์สุดท้าย)
-      </h4>
-      <div class="personal-stats-grid">
-        <!-- Stat 1: Weight change -->
-        <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary-light);">⚖️</div>
-          <div class="personal-stat-details">
-            <span class="personal-stat-label">น้ำหนักเปลี่ยนแปลง</span>
-            <span class="personal-stat-value">${weightChangeHtml}</span>
+      <!-- Interactive SVG Trend Chart -->
+      <div class="personal-insight-card tracker-trend-card" style="margin-bottom: 1.75rem;">
+        <div class="tracker-trend-header">
+          <div>
+            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+              <span>📈</span> กราฟแนวโน้มพัฒนาการร่างกายย้อนหลัง
+            </h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">เลือกดูแนวโน้มแต่ละค่าและช่วงเวลา เพื่อติดตามสุขภาพของตัวเอง</p>
+          </div>
+          <div class="tracker-trend-controls">
+            <div class="tracker-tab-group">
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'weight' ? 'active' : ''}" onclick="setTrendMetric('weight')">⚖️ น้ำหนัก</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'bmi' ? 'active' : ''}" onclick="setTrendMetric('bmi')">📊 BMI</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'bodyage' ? 'active' : ''}" onclick="setTrendMetric('bodyage')">🧬 อายุร่างกาย</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'muscle' ? 'active' : ''}" onclick="setTrendMetric('muscle')">💪 กล้ามเนื้อ%</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'fat' ? 'active' : ''}" onclick="setTrendMetric('fat')">📉 ไขมัน%</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'visceralFat' ? 'active' : ''}" onclick="setTrendMetric('visceralFat')">🫀 ไขมันช่องท้อง</button>
+            </div>
+            <div class="tracker-range-group">
+              <button type="button" class="tracker-pill ${currentTrendRange === 'all' ? 'active' : ''}" onclick="setTrendRange('all')">ทั้งหมด</button>
+              <button type="button" class="tracker-pill ${currentTrendRange === '90d' ? 'active' : ''}" onclick="setTrendRange('90d')">90 วัน</button>
+              <button type="button" class="tracker-pill ${currentTrendRange === '30d' ? 'active' : ''}" onclick="setTrendRange('30d')">30 วัน</button>
+            </div>
           </div>
         </div>
-        
-        <!-- Stat 2: Body Age change -->
-        <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--secondary-glow); color: var(--secondary-light);">🧠</div>
-          <div class="personal-stat-details">
-            <span class="personal-stat-label">อายุร่างกายเปลี่ยนแปลง</span>
-            <span class="personal-stat-value">${bodyageChangeHtml}</span>
+        ${trendChartSvg}
+      </div>
+
+      <!-- Badges & Community Pulse Row -->
+      <div class="personal-insights-container" style="margin-bottom: 1.75rem;">
+        <div class="personal-insight-card">
+          <div class="personal-insight-title">
+            <div class="personal-insight-title-main">
+              <span>🏅</span> เหรียญตราความสำเร็จของคุณ (${unlockedBadgesCount}/${badges.length})
+            </div>
           </div>
-        </div>
-        
-        <!-- Stat 3: BMI change -->
-        <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">📊</div>
-          <div class="personal-stat-details">
-            <span class="personal-stat-label">ดัชนีมวลกาย (BMI)</span>
-            <span class="personal-stat-value">${bmiChangeHtml}</span>
-          </div>
-        </div>
-        
-        <!-- Stat 4: Muscle change -->
-        <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary);">💪</div>
-          <div class="personal-stat-details">
-            <span class="personal-stat-label">มวลกล้ามเนื้อ</span>
-            <span class="personal-stat-value">${muscleChangeHtml}</span>
+          <div class="tracker-badges-grid">
+            ${badgesHtml}
           </div>
         </div>
 
-        <!-- Stat 5: Fat change -->
-        <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">📉</div>
-          <div class="personal-stat-details">
-            <span class="personal-stat-label">อัตราไขมัน</span>
-            <span class="personal-stat-value">${fatChangeHtml}</span>
+        <div class="personal-insight-card tracker-community-card">
+          <div class="personal-insight-title">
+            <div class="personal-insight-title-main">
+              <span>🤝</span> บอร์ดชุมชนคนรักสุขภาพชาว PFIG
+            </div>
+          </div>
+          <div class="tracker-community-stats">
+            <div class="tracker-comm-stat">
+              <span class="comm-val">${pulse ? pulse.totalTrackedEmployees : employees.length}</span>
+              <span class="comm-lbl">คนร่วมดูแลสุขภาพ</span>
+            </div>
+            <div class="tracker-comm-stat">
+              <span class="comm-val">${pulse ? pulse.activeThisMonth : stats.logsThisMonth}</span>
+              <span class="comm-lbl">อัปเดตเดือนนี้</span>
+            </div>
+            <div class="tracker-comm-stat">
+              <span class="comm-val">${pulse ? pulse.totalLogsCompanyWide : stats.totalLogs}</span>
+              <span class="comm-lbl">บันทึกสุขภาพรวม</span>
+            </div>
+          </div>
+          <div style="font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-main);">
+            🔥 Hall of Consistency (เพื่อนที่เช็คอินสม่ำเสมอ)
+          </div>
+          <div class="tracker-community-leaders">
+            ${leadersHtml}
           </div>
         </div>
       </div>
 
-      <!-- Four measurement rounds details -->
-      <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-        <span>📈</span> รายละเอียดการวัดทั้ง 4 รอบ
-      </h4>
-      <div class="personal-months-grid">
-        ${monthColumns.join('')}
+      <!-- Chronological History Timeline -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h4 style="font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); margin: 0;">
+          <span>🗂️</span> ประวัติการบันทึกข้อมูลร่างกายทั้งหมด (${logs.length} ครั้ง)
+        </h4>
+        ${canEditOwn ? `<button type="button" class="btn btn-primary btn-sm" onclick="openCheckinModal()">➕ เพิ่มบันทึกใหม่</button>` : ''}
       </div>
+      <div class="tracker-timeline-list">
+        ${timelineHtml}
+      </div>
+
       <!-- Health Reference Standards Guide -->
       <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
         <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
@@ -3049,25 +3562,7 @@ function showPersonalProfile(empId, selectedGender = null) {
               </div>
             </div>
           </div>
- 
-          <!-- Body Fat Card -->
-          <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
-                  <li><span style="color: var(--text-main);">6 - 13%:</span> ระดับนักกีฬา</li>
-                  <li><span style="color: var(--text-main);">14 - 17%:</span> หุ่นฟิต สมส่วน</li>
-                  <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">18 - 24%:</span> สุขภาพดีมาตรฐาน</li>
-                  <li><span style="color: var(--danger); font-weight: 600;">&ge; 25%:</span> สูงเกินเกณฑ์ (อ้วน)</li>
-                </ul>
-              </div>
-              <div>
-                <div style="font-size: 0.8rem; font-weight: 600; color: var(--pink-female); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem; margin-bottom: 0.4rem;">ผู้หญิง (Women)</div>
-                <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
-                  <li><span style="color: var(--text-main);">14 - 20%:</span> ระดับนักกีฬา</li>
-                  <li><span style="color: var(--text-main);">21 - 24%:</span> หุ่นฟิต สมส่วน</li>
-                  <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">25 - 31%:</span> สุขภาพดีมาตรฐาน</li>
-            </div>
-          </div>
- 
+
           <!-- Muscle Card -->
           <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
             <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary-light); display: flex; align-items: center; gap: 0.4rem;">
@@ -3096,7 +3591,7 @@ function showPersonalProfile(empId, selectedGender = null) {
       </div>
     </div>
   `;
-  
+
   elements.personalProfileDisplay.style.display = 'block';
 }
 

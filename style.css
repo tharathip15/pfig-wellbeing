@@ -2764,3 +2764,475 @@ body.auth-pending .app-container {
 .auth-gate-card p { color: var(--text-muted); line-height: 1.7; }
 .auth-gate-error { display: none; margin: 16px 0; color: var(--danger); font-size: 13px; }
 .auth-microsoft-button { width: 100%; margin-top: 20px; padding: 13px 18px; }
+
+/* --- Personal Health Tracker & Timeline Styles --- */
+.tracker-streak-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary-light);
+  background: var(--primary-glow);
+  border: 1px solid var(--primary);
+}
+
+.tracker-header-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.tracker-modal-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: var(--primary-glow);
+  border: 1px solid var(--primary);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.tracker-onboarding-card {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.tracker-onboarding-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.tracker-onboarding-badge {
+  display: inline-block;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: var(--primary-glow);
+  color: var(--primary-light);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.tracker-onboarding-header h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.tracker-onboarding-header p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.tracker-goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.tracker-goal-item {
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.tracker-goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+}
+
+.tracker-goal-title {
+  color: var(--text-main);
+}
+
+.tracker-goal-status {
+  color: var(--primary-light);
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+
+.tracker-goal-empty {
+  background: var(--bg-item);
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tracker-trend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tracker-trend-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.tracker-tab-group,
+.tracker-range-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  background: var(--bg-item);
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-item);
+}
+
+.tracker-tab,
+.tracker-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.38rem 0.7rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.tracker-tab.active,
+.tracker-pill.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.tracker-chart-svg-wrap {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.tracker-chart-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: var(--bg-item);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.tracker-badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+.tracker-badge-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  transition: transform 0.2s ease;
+}
+
+.tracker-badge-card.unlocked {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.tracker-badge-card.locked {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.tracker-badge-icon {
+  font-size: 1.65rem;
+  flex-shrink: 0;
+}
+
+.tracker-badge-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tracker-badge-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tracker-badge-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.tracker-badge-pill {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.tracker-community-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+.tracker-comm-stat {
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  border-radius: 10px;
+  padding: 0.7rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.tracker-comm-stat .comm-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--primary-light);
+}
+
+.tracker-comm-stat .comm-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tracker-community-leaders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tracker-community-leader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.tracker-leader-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tracker-leader-meta span {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.tracker-leader-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.tracker-streak-tag,
+.tracker-badge-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.tracker-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.tracker-timeline-card {
+  background: var(--bg-item);
+  border: 1px solid var(--border-item);
+  border-radius: 14px;
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tracker-timeline-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tracker-timeline-date-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tracker-timeline-date {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.tracker-timeline-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--secondary-light);
+}
+
+.tracker-log-delta {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.tracker-log-delta.good {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+.tracker-log-delta.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.tracker-log-delta.neutral {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.tracker-timeline-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tracker-timeline-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 0.6rem;
+}
+
+.tracker-metric-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tracker-metric-chip .chip-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tracker-metric-chip .chip-val {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tracker-timeline-note {
+  font-size: 0.82rem;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border-left: 3px solid var(--primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
+
+.tracker-timeline-photo img {
+  max-height: 180px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  object-fit: cover;
+}
+
+.tracker-celebration-card {
+  padding: 2rem 1.75rem;
+}
+
+.tracker-celebration-icon {
+  font-size: 3.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.tracker-celebration-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+
+.tracker-celebration-msg {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.tracker-celebration-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tracker-celebration-chip {
+  background: var(--primary-glow);
+  border: 1px solid var(--primary);
+  color: var(--primary-light);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}

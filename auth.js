@@ -45,6 +45,10 @@
   }
 
   async function beginSignIn({ prompt = "", silent = false } = {}) {
+    if (runtimeConfig.pfigSso?.enabled) {
+      global.location.assign("/api/pfig-sso?action=start");
+      return;
+    }
     const microsoft = runtimeConfig.microsoft || {};
     if (!microsoft.enabled || !microsoft.tenantId || !microsoft.clientId) {
       throw new Error("Microsoft sign-in is not configured for Wellbeing");
@@ -146,9 +150,15 @@
 
   async function initialize() {
     const loginButton = document.getElementById("btn-auth-login");
-    loginButton?.addEventListener("click", () => beginSignIn().catch(error => showGate(error.message)));
-
     await loadConfig();
+    const pfigEnabled = runtimeConfig.pfigSso?.enabled;
+    const microsoftEnabled = runtimeConfig.microsoft?.enabled;
+    if (loginButton && (pfigEnabled || microsoftEnabled)) {
+      loginButton.textContent = pfigEnabled ? "เข้าสู่ระบบผ่าน PFIG Portal" : "เข้าสู่ระบบด้วย Microsoft";
+      loginButton.disabled = false;
+      loginButton.addEventListener("click", () => beginSignIn().catch(error => showGate(error.message)));
+    }
+
     const callback = await processCallback();
     const session = callback.session || await readSession();
     if (session?.identity) {
@@ -158,12 +168,12 @@
     }
 
     const launchIntent = new URL(global.location.href).searchParams.get("pfig_sso") === "1";
-    if (!callback.handled && launchIntent) {
+    if (!callback.handled && launchIntent && (pfigEnabled || microsoftEnabled)) {
       await beginSignIn({ prompt: "none", silent: true });
       return null;
     }
     cleanAuthUrl();
-    showGate();
+    showGate(pfigEnabled || microsoftEnabled ? "" : "ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ กรุณาติดต่อผู้ดูแลระบบ");
     return null;
   }
 
