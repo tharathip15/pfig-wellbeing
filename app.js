@@ -344,6 +344,10 @@ async function loadData() {
     if (wellbeingRequiresOnboarding && !wellbeingSession?.identity?.canEdit) {
       renderSelfOnboardingCard();
     }
+
+    if (wellbeingSession?.identity?.canEdit) {
+      renderAdminEmployeeSelector(currentProfileEmpId);
+    }
   } catch (err) {
     console.error('Wellbeing API error:', err);
     showToast(err.message || 'Unable to load wellbeing data', 'error');
@@ -1104,7 +1108,7 @@ function renderTable(filteredEmployees) {
     const measurements = roundKeys.map(round => ({ data: emp.months[round], roundKey: round }));
     const hasPhotos = measurements.some(item => item.data && item.data.photo);
     const galleryBtn = hasPhotos ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>` : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
-    tdName.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;width:100%;"><div><div class="td-name">${emp.name}</div><div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div></div><div>${galleryBtn}</div></div>`;
+    tdName.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;width:100%;"><div><div class="td-name td-name-link" onclick="openEmployeeTrackerAsAdmin('${emp.id}')" title="เปิดสมุดบันทึกสุขภาพของ ${emp.name}">${emp.name}</div><div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div></div><div>${galleryBtn}</div></div>`;
     tr.appendChild(tdName);
     const tdAge = document.createElement('td');
     tdAge.innerHTML = `<div>จริง: ${emp.age} ปี</div><div class="td-subtitle">สูง: ${emp.height} ซม.</div>`;
@@ -1125,7 +1129,7 @@ function renderTable(filteredEmployees) {
     tdAgeDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.bodyageDiff < 0 ? 'metric-badge-improved' : comp.bodyageDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.bodyageDiff < 0 ? 'ลดลง ' + Math.abs(comp.bodyageDiff) : comp.bodyageDiff > 0 ? 'เพิ่ม ' + comp.bodyageDiff : 'คงที่'} ปี</span><div class="td-subtitle">เทียบกับครั้งที่ 1 ไปครั้งที่ ${roundLabelNumber}</div>` : '<span style="color:var(--text-muted);">-</span>';
     tr.appendChild(tdAgeDiff);
     const tdAction = document.createElement('td');
-    tdAction.innerHTML = `<div class="action-buttons"><button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูล">แก้ไข</button><button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button></div>`;
+    tdAction.innerHTML = `<div class="action-buttons"><button class="btn-icon btn-icon-tracker" onclick="openEmployeeTrackerAsAdmin('${emp.id}', true)" title="เปิดบันทึกข้อมูลร่างกายใหม่แทน ${emp.name}">บันทึกแทน</button><button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูลพื้นฐาน">แก้ไข</button><button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button></div>`;
     tr.appendChild(tdAction);
     elements.tableBody.appendChild(tr);
   });
@@ -1595,8 +1599,20 @@ function openModal(mode, id = null) {
       } else removePhoto(stage);
     });
   }
+  const trackerBtn = document.getElementById('btn-modal-open-tracker');
+  if (trackerBtn) {
+    trackerBtn.style.display = mode === 'edit' ? 'inline-flex' : 'none';
+  }
   elements.employeeModal.classList.add('active');
 }
+
+// Open Check-in Modal from Employee Edit Modal shortcut
+window.openCheckinFromEditModal = function() {
+  const empId = elements.formId.value;
+  if (!empId) return;
+  closeModal();
+  openEmployeeTrackerAsAdmin(empId, true);
+};
 
 // Close Modal
 function closeModal() {
@@ -1621,8 +1637,15 @@ async function saveForm() {
   };
   const editingId = elements.formId.value;
   const existingEmp = modalMode === 'edit' ? employees.find(e => e.id === editingId) : null;
-  const months = { m1: readMeasurement(1), m2: readMeasurement(2), m3: readMeasurement(3), m4: readMeasurement(4) };
-  const existingGender = existingEmp && existingEmp.months ? existingEmp.months.gender : null;
+  const existingMonths = (existingEmp && existingEmp.months) ? existingEmp.months : {};
+  const months = {
+    ...existingMonths,
+    m1: readMeasurement(1),
+    m2: readMeasurement(2),
+    m3: readMeasurement(3),
+    m4: readMeasurement(4)
+  };
+  const existingGender = existingMonths.gender;
   if (existingGender) months.gender = existingGender;
   showLoader(true);
   try {
@@ -2417,7 +2440,7 @@ window.closePhotoGallery = function() {
 };
 
 // --- View Switcher & PIN Verification Helpers ---
-function switchToPersonalView() {
+function switchToPersonalView(targetEmpId = null) {
   currentView = 'personal';
   elements.adminView.style.display = 'none';
   elements.personalView.style.display = 'block';
@@ -2442,6 +2465,18 @@ function switchToPersonalView() {
   const searchCard = document.getElementById('personal-search-card');
   if (searchCard) {
     searchCard.style.display = wellbeingSession?.identity?.canEdit ? 'block' : 'none';
+    if (wellbeingSession?.identity?.canEdit) {
+      renderAdminEmployeeSelector(targetEmpId);
+    }
+  }
+
+  if (targetEmpId) {
+    const targetEmp = employees.find(e => e.id === targetEmpId);
+    if (targetEmp) {
+      elements.personalSearchInput.value = targetEmp.name;
+      showPersonalProfile(targetEmp.id);
+      return;
+    }
   }
 
   const signedInEmployee = resolveSignedInEmployee(employees, wellbeingSession?.identity);
@@ -2452,6 +2487,42 @@ function switchToPersonalView() {
     renderSelfOnboardingCard();
   } else if (wellbeingSession?.identity?.canEdit && employees.length > 0) {
     showPersonalProfile(employees[0].id);
+  }
+}
+
+window.openEmployeeTrackerAsAdmin = function(empId, openCheckin = false) {
+  if (!empId) return;
+  switchToPersonalView(empId);
+  if (openCheckin) {
+    setTimeout(() => {
+      if (typeof window.openCheckinModal === 'function') {
+        window.openCheckinModal();
+      }
+    }, 120);
+  }
+};
+
+function renderAdminEmployeeSelector(selectedEmpId = null) {
+  const quickSelect = document.getElementById('personal-admin-quick-select');
+  if (!quickSelect) return;
+
+  const sorted = [...employees].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'));
+  quickSelect.innerHTML = `<option value="">-- เลือกพนักงานเพื่อดู/บันทึกข้อมูลแทน (${employees.length} คน) --</option>` +
+    sorted.map(emp => `<option value="${emp.id}" ${emp.id === selectedEmpId ? 'selected' : ''}>${emp.name} (${emp.department || 'ไม่ระบุ'})</option>`).join('');
+
+  if (!quickSelect.dataset) quickSelect.dataset = {};
+  if (!quickSelect.dataset.listenerBound) {
+    quickSelect.dataset.listenerBound = 'true';
+    quickSelect.addEventListener('change', (e) => {
+      const chosenId = e.target.value;
+      if (chosenId) {
+        const emp = employees.find(x => x.id === chosenId);
+        if (emp) {
+          if (elements.personalSearchInput) elements.personalSearchInput.value = emp.name;
+          showPersonalProfile(chosenId);
+        }
+      }
+    });
   }
 }
 
@@ -2791,8 +2862,14 @@ window.openCheckinModal = function(logId = null) {
   const logs = emp.months?.logs || [];
   const existingLog = logId ? logs.find(item => item.id === String(logId)) : null;
 
+  const isAdmin = Boolean(wellbeingSession?.identity?.canEdit);
+  const signedInOid = String(wellbeingSession?.identity?.oid || '').trim().toLowerCase();
+  const empOid = String(emp.entra_oid || '').trim().toLowerCase();
+  const isSelf = Boolean(signedInOid && empOid && signedInOid === empOid);
+  const isProxyMode = isAdmin && !isSelf;
+
   if (existingLog) {
-    if (titleEl) titleEl.textContent = 'แก้ไขบันทึกข้อมูลร่างกาย';
+    if (titleEl) titleEl.textContent = isProxyMode ? `แก้ไขบันทึก: ${emp.name}` : 'แก้ไขบันทึกข้อมูลร่างกาย';
     if (idInput) idInput.value = existingLog.id;
     if (dateInput) dateInput.value = existingLog.date || todayStr;
     if (weightInput) weightInput.value = existingLog.weight ?? '';
@@ -2809,7 +2886,7 @@ window.openCheckinModal = function(logId = null) {
       photoPreview.style.display = 'block';
     }
   } else {
-    if (titleEl) titleEl.textContent = 'บันทึกข้อมูลร่างกาย';
+    if (titleEl) titleEl.textContent = isProxyMode ? `บันทึกข้อมูลร่างกายแทน: ${emp.name}` : 'บันทึกข้อมูลร่างกาย';
     if (idInput) idInput.value = '';
     if (dateInput) dateInput.value = todayStr;
     if (weightInput) weightInput.value = '';
@@ -2819,6 +2896,16 @@ window.openCheckinModal = function(logId = null) {
     if (fatInput) fatInput.value = '';
     if (visceralInput) visceralInput.value = '';
     if (noteInput) noteInput.value = '';
+  }
+
+  const checkinProxyNote = document.getElementById('checkin-proxy-note');
+  if (checkinProxyNote) {
+    if (isProxyMode) {
+      checkinProxyNote.style.display = 'block';
+      checkinProxyNote.textContent = `กำลังบันทึกข้อมูลในนามผู้ดูแลให้กับคุณ ${emp.name} (${emp.department || 'ไม่ระบุ'})`;
+    } else {
+      checkinProxyNote.style.display = 'none';
+    }
   }
 
   const optionalSection = document.getElementById('checkin-optional-section');
@@ -3362,8 +3449,28 @@ function showPersonalProfile(empId, selectedGender = null) {
   const isMobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches;
   const collapsibleOpen = isMobileViewport ? '' : 'open';
 
+  const isAdmin = Boolean(wellbeingSession?.identity?.canEdit);
+  const signedInOid = String(wellbeingSession?.identity?.oid || '').trim().toLowerCase();
+  const empOid = String(emp.entra_oid || '').trim().toLowerCase();
+  const isSelf = Boolean(signedInOid && empOid && signedInOid === empOid);
+  const isProxyMode = isAdmin && !isSelf;
+
+  const adminProxyBannerHtml = isProxyMode ? `
+    <div class="admin-proxy-banner">
+      <div class="admin-proxy-info">
+        <span class="admin-proxy-tag">โหมดผู้ดูแลระบบ</span>
+        <span class="admin-proxy-text">คุณกำลังดูและบันทึกข้อมูลแทน: <strong>${emp.name}</strong> (${emp.department || 'ไม่ระบุ'})</span>
+      </div>
+      <div class="admin-proxy-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="switchToAdminView()">⬅ กลับหน้าแอดมิน</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openCheckinModal()">+ บันทึกข้อมูลใหม่แทน</button>
+      </div>
+    </div>
+  ` : '';
+
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
+      ${adminProxyBannerHtml}
       <!-- Profile Info Header + Quick Actions -->
       <div class="personal-profile-header">
         <div class="personal-profile-title-group">
@@ -3634,6 +3741,11 @@ function showPersonalProfile(empId, selectedGender = null) {
   `;
 
   elements.personalProfileDisplay.style.display = 'block';
+
+  const quickSelect = document.getElementById('personal-admin-quick-select');
+  if (quickSelect && quickSelect.value !== emp.id) {
+    quickSelect.value = emp.id;
+  }
 }
 
 // 3D Health Score Calculator calculation engine

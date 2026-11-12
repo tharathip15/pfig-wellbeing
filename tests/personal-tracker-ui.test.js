@@ -7,10 +7,13 @@ const vm = require("node:vm");
 const root = path.join(__dirname, "..");
 
 function makeElement() {
+  const children = [];
   return {
     style: {},
     value: "",
     className: "",
+    dataset: {},
+    children,
     classList: {
       add() {},
       remove() {},
@@ -20,7 +23,9 @@ function makeElement() {
       },
     },
     addEventListener() {},
-    appendChild() {},
+    appendChild(child) {
+      children.push(child);
+    },
     remove() {},
     querySelector() {
       return makeElement();
@@ -38,7 +43,13 @@ function makeElement() {
       this._innerHTML = value;
     },
     get innerHTML() {
-      return this._innerHTML || "";
+      if (this._innerHTML !== undefined && this._innerHTML !== "") {
+        return this._innerHTML;
+      }
+      if (children.length > 0) {
+        return children.map(c => c.innerHTML || c.textContent || "").join("");
+      }
+      return "";
     },
   };
 }
@@ -297,5 +308,230 @@ test("showPersonalProfile renders mobile sticky action bar and collapsible detai
   assert.match(profileHtml, /tracker-mobile-bar/);
   assert.match(profileHtml, /collapsible-card/);
 });
+
+test("admin proxy: renderTable renders clickable employee name and 'บันทึกแทน' tracker button", () => {
+  const app = loadAppWithTracker();
+
+  const employeesFixture = [
+    {
+      id: "emp-proxy-1",
+      name: "สมชาย รักสุขภาพ",
+      department: "Logistics",
+      age: 32,
+      height: 175,
+      months: { m1: { weight: 75, bodyage: 32 } },
+    },
+  ];
+
+  const tableBody = app.document.getElementById("employee-table-body");
+  const appendedRows = [];
+  tableBody.appendChild = (child) => {
+    appendedRows.push(child);
+  };
+
+  vm.runInContext(
+    `
+      employees = ${JSON.stringify(employeesFixture)};
+      pageSize = 'all';
+      renderTable(employees);
+    `,
+    app
+  );
+
+  assert.equal(appendedRows.length, 1);
+  const rowHtml = appendedRows[0].innerHTML || "";
+
+  // Verify clickable employee name
+  assert.match(rowHtml, /openEmployeeTrackerAsAdmin\('emp-proxy-1'\)/);
+  assert.match(rowHtml, /td-name-link/);
+
+  // Verify proxy check-in action button
+  assert.match(rowHtml, /btn-icon-tracker/);
+  assert.match(rowHtml, /openEmployeeTrackerAsAdmin\('emp-proxy-1',\s*true\)/);
+  assert.match(rowHtml, /บันทึกแทน/);
+});
+
+test("admin proxy: showPersonalProfile renders admin banner with back and record buttons when admin views an employee", () => {
+  const app = loadAppWithTracker();
+
+  const targetEmp = {
+    id: "emp-proxy-2",
+    name: "วิภา มุ่งมั่น",
+    department: "Sales",
+    age: 29,
+    height: 160,
+    entra_oid: "22222222-2222-4222-8222-222222222222",
+    months: {
+      m1: { weight: 60, bodyage: 30 },
+    },
+  };
+
+  vm.runInContext(
+    `
+      employees = [${JSON.stringify(targetEmp)}];
+      // Admin user signed in with different OID
+      wellbeingSession = { identity: { oid: "admin-oid-999", name: "Super Admin", canEdit: true } };
+      showPersonalProfile("emp-proxy-2");
+    `,
+    app
+  );
+
+  const profileHtml = app.elementsById.get("personal-profile-display").innerHTML;
+  assert.match(profileHtml, /admin-proxy-banner/);
+  assert.match(profileHtml, /โหมดผู้ดูแลระบบ/);
+  assert.match(profileHtml, /คุณกำลังดูและบันทึกข้อมูลแทน/);
+  assert.match(profileHtml, /วิภา มุ่งมั่น/);
+  assert.match(profileHtml, /switchToAdminView\(\)/);
+  assert.match(profileHtml, /openCheckinModal\(\)/);
+});
+
+test("admin proxy: openCheckinModal displays proxy employee name in title and banner note", () => {
+  const app = loadAppWithTracker();
+
+  const targetEmp = {
+    id: "emp-proxy-3",
+    name: "กิตติพงษ์ ฟิตเนส",
+    department: "Finance & Acc",
+    age: 38,
+    height: 172,
+    entra_oid: "33333333-3333-4333-8333-333333333333",
+    months: {
+      m1: { weight: 80, bodyage: 40 },
+    },
+  };
+
+  vm.runInContext(
+    `
+      employees = [${JSON.stringify(targetEmp)}];
+      currentProfileEmpId = "emp-proxy-3";
+      wellbeingSession = { identity: { oid: "admin-oid-999", name: "Admin HR", canEdit: true } };
+      openCheckinModal();
+    `,
+    app
+  );
+
+  const titleEl = app.elementsById.get("checkin-modal-title");
+  const noteEl = app.elementsById.get("checkin-proxy-note");
+
+  assert.match(titleEl.textContent, /บันทึกข้อมูลร่างกายแทน:\s*กิตติพงษ์ ฟิตเนส/);
+  assert.match(noteEl.textContent, /กำลังบันทึกข้อมูลในนามผู้ดูแลให้กับคุณ กิตติพงษ์ ฟิตเนส/);
+  assert.equal(noteEl.style.display, "block");
+});
+
+test("admin proxy: saveForm preserves existing logs and goals when saving basic employee data", async () => {
+  const app = loadAppWithTracker();
+
+  const existingLogs = [
+    { id: "log-1", date: "2026-01-10", weight: 70, bmi: 22.8 },
+    { id: "log-2", date: "2026-02-10", weight: 68.5, bmi: 22.3 },
+  ];
+  const existingGoals = { targetWeight: 65, targetFat: 18 };
+
+  const targetEmp = {
+    id: "emp-proxy-4",
+    name: "ชาตรี ตัวอย่าง",
+    department: "Corporate",
+    age: 40,
+    height: 175,
+    months: {
+      m1: { weight: 72, bodyage: 41 },
+      logs: existingLogs,
+      goals: existingGoals,
+    },
+  };
+
+  let capturedPayload = null;
+  app.wellbeingApiRequest = async (path, options = {}) => {
+    if (options && options.body) {
+      capturedPayload = JSON.parse(options.body);
+    }
+    return { ok: true, employees: [] };
+  };
+
+  // Mock form element values
+  app.document.getElementById("form-emp-id").value = "emp-proxy-4";
+  app.document.getElementById("form-name").value = "ชาตรี ตัวอย่าง (อัปเดตชื่อ)";
+  app.document.getElementById("form-department").value = "Corporate";
+  app.document.getElementById("form-entra-oid").value = "";
+  app.document.getElementById("form-age").value = "41";
+  app.document.getElementById("form-height").value = "175";
+  app.document.getElementById("form-m1-weight").value = "72";
+  app.document.getElementById("form-m1-bodyage").value = "41";
+  app.document.getElementById("form-m1-muscle").value = "";
+  app.document.getElementById("form-m1-fat").value = "";
+  app.document.getElementById("form-m1-photo-data").value = "";
+  app.document.getElementById("form-m2-weight").value = "";
+  app.document.getElementById("form-m2-bodyage").value = "";
+  app.document.getElementById("form-m2-muscle").value = "";
+  app.document.getElementById("form-m2-fat").value = "";
+  app.document.getElementById("form-m2-photo-data").value = "";
+  app.document.getElementById("form-m3-weight").value = "";
+  app.document.getElementById("form-m3-bodyage").value = "";
+  app.document.getElementById("form-m3-muscle").value = "";
+  app.document.getElementById("form-m3-fat").value = "";
+  app.document.getElementById("form-m3-photo-data").value = "";
+  app.document.getElementById("form-m4-weight").value = "";
+  app.document.getElementById("form-m4-bodyage").value = "";
+  app.document.getElementById("form-m4-muscle").value = "";
+  app.document.getElementById("form-m4-fat").value = "";
+  app.document.getElementById("form-m4-photo-data").value = "";
+
+  await vm.runInContext(
+    `
+      employees = [${JSON.stringify(targetEmp)}];
+      modalMode = 'edit';
+      saveForm();
+    `,
+    app
+  );
+
+  assert.ok(capturedPayload, "saveForm should have sent a payload");
+  assert.equal(capturedPayload.name, "ชาตรี ตัวอย่าง (อัปเดตชื่อ)");
+  assert.equal(capturedPayload.age, 41);
+  // Logs and goals must not be lost!
+  assert.deepEqual(capturedPayload.months.logs, existingLogs);
+  assert.deepEqual(capturedPayload.months.goals, existingGoals);
+});
+
+test("admin proxy: openEmployeeTrackerAsAdmin switches view and populates quick-select dropdown", () => {
+  const app = loadAppWithTracker();
+
+  const emps = [
+    { id: "e1", name: "กมล สุขภาพดี", department: "IT", age: 30, height: 170, months: { m1: { weight: 65, bodyage: 28 } } },
+    { id: "e2", name: "จิราพร วิ่งไว", department: "HR", age: 26, height: 158, months: { m1: { weight: 52, bodyage: 24 } } }
+  ];
+
+  let checkinModalOpened = false;
+  app.window.openCheckinModal = () => {
+    checkinModalOpened = true;
+  };
+
+  // Replace setTimeout to immediately execute
+  app.window.setTimeout = (fn) => {
+    fn();
+    return 1;
+  };
+
+  vm.runInContext(
+    `
+      employees = ${JSON.stringify(emps)};
+      wellbeingSession = { identity: { oid: "admin-master", name: "Admin Master", canEdit: true } };
+      openEmployeeTrackerAsAdmin("e2", true);
+    `,
+    app
+  );
+
+  const currentViewVal = vm.runInContext("currentView", app);
+  const currentProfileEmpIdVal = vm.runInContext("currentProfileEmpId", app);
+  assert.equal(currentViewVal, "personal");
+  assert.equal(currentProfileEmpIdVal, "e2");
+  assert.equal(checkinModalOpened, true);
+
+  const quickSelect = app.document.getElementById("personal-admin-quick-select");
+  assert.match(quickSelect.innerHTML, /จิราพร วิ่งไว/);
+  assert.match(quickSelect.innerHTML, /กมล สุขภาพดี/);
+});
+
+
 
 
