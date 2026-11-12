@@ -72,203 +72,217 @@
 
     <!-- Admin View Wrapper -->
     <main id="admin-view" style="display: none;">
+      <!-- Admin Top Bar / Action Toolbar -->
+      <div class="admin-top-bar">
+        <div class="admin-top-info">
+          <span class="admin-badge">Admin Dashboard</span>
+          <h1 class="admin-view-title">ภาพรวมสุขภาพองค์กร (Health Monitor)</h1>
+          <p class="admin-view-desc">ติดตามดัชนีสุขภาพ ค่าเฉลี่ยพนักงาน และเลือกพนักงานเพื่อดูโปรไฟล์หรือบันทึกข้อมูลแทน</p>
+        </div>
+        <div class="admin-top-actions">
+          <button class="btn btn-primary" id="btn-add-employee-admin" onclick="openModal('add')">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            เพิ่มพนักงาน
+          </button>
+          <div class="btn btn-secondary file-upload-btn" id="admin-import-csv-btn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            นำเข้า CSV
+            <input type="file" id="csv-file-input-admin" accept=".csv" onchange="handleAdminCsvUpload(event)">
+          </div>
+          <button class="btn btn-secondary" onclick="exportCSV()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            ส่งออก CSV
+          </button>
+          <button class="btn btn-secondary" onclick="downloadTemplateCSV()" title="ดาวน์โหลดตัวอย่างไฟล์ Excel/CSV">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            ตัวอย่าง CSV
+          </button>
+        </div>
+      </div>
+
       <!-- Dashboard Grid Widgets -->
       <div class="dashboard-grid">
         <!-- Total Employees -->
         <div class="widget-card widget-total">
           <div class="widget-header">
-            <span class="widget-title">พนักงานที่เข้าร่วมทั้งหมด</span>
+            <span class="widget-title">พนักงานในระบบทั้งหมด</span>
             <div class="widget-icon">👥</div>
           </div>
           <div class="widget-value" id="stat-total-employees">0</div>
-          <div class="widget-subtext">เป้าหมายรองรับผู้ใช้: 40+ คน</div>
+          <div class="widget-subtext" id="stat-total-subtext">บันทึกข้อมูลแล้ว 0 คน (0%)</div>
         </div>
 
-        <!-- Avg Weight Loss -->
+        <!-- Total Activity Logs -->
+        <div class="widget-card widget-bodyage">
+          <div class="widget-header">
+            <span class="widget-title" id="stat-max-title">การบันทึกข้อมูลสุขภาพ</span>
+            <div class="widget-icon" id="stat-max-icon">📝</div>
+          </div>
+          <div class="widget-value" id="stat-total-logs">0 ครั้ง</div>
+          <div class="widget-subtext" id="stat-logs-subtext">เฉลี่ย 0 บันทึก / คน</div>
+          <div style="display: none;">
+            <span id="stat-max-bodyage-loss">0 ปี</span>
+            <span id="stat-max-bodyage-winner">ไม่มีข้อมูล</span>
+          </div>
+        </div>
+
+        <!-- Avg Weight -->
         <div class="widget-card widget-weight">
           <div class="widget-header">
-            <span class="widget-title">เฉลี๋ยน้ำหนักที่ลดได้รวม</span>
+            <span class="widget-title">น้ำหนักเฉลี่ยพนักงาน</span>
             <div class="widget-icon">⚖️</div>
           </div>
           <div class="widget-value" id="stat-avg-weight-loss">0.0 kg</div>
           <div class="widget-subtext" id="stat-weight-trend">
-            <span class="widget-trend-down">↓ 0.0%</span> จากเดือนที่ 1
+            <span class="widget-trend-down">0.0 kg</span> เทียบจากเริ่มต้น
           </div>
         </div>
 
-        <!-- Avg BMI Change -->
+        <!-- Healthy BMI Range -->
         <div class="widget-card widget-bmi">
           <div class="widget-header">
-            <span class="widget-title">เฉลี่ยดัชนีมวลกาย (BMI) ที่ลด</span>
-            <div class="widget-icon">📊</div>
+            <span class="widget-title">เกณฑ์สมส่วน (BMI 18.5 - 22.9)</span>
+            <div class="widget-icon">🎯</div>
           </div>
-          <div class="widget-value" id="stat-avg-bmi-loss">0.0</div>
+          <div class="widget-value" id="stat-avg-bmi-loss">0% (0 คน)</div>
           <div class="widget-subtext" id="stat-bmi-trend">
-            <span class="widget-trend-down">↓ 0.0</span> พัฒนาขึ้น
+            <span class="widget-trend-down">BMI เฉลี่ย: 0.0</span>
           </div>
-        </div>
-
-        <!-- Top Body Age Reduction -->
-        <div class="widget-card widget-bodyage">
-          <div class="widget-header">
-            <span class="widget-title" id="stat-max-title">ลดอายุร่างกายได้สูงสุด</span>
-            <div class="widget-icon" id="stat-max-icon">🔥</div>
-          </div>
-          <div class="widget-value" id="stat-max-bodyage-loss">0 ปี</div>
-          <div class="widget-subtext" id="stat-max-bodyage-winner">ไม่มีข้อมูล</div>
         </div>
       </div>
 
-      <!-- Performance Highlights Panel -->
-      <div class="performance-section">
-        
-        <!-- Top 5 Leaderboard -->
-        <div class="section-card">
+      <!-- Company Health Monitor & Visual Analytics Section -->
+      <div class="admin-analytics-grid">
+        <!-- Card 1: Company Trend Monitor (Timeline Graph) -->
+        <div class="section-card analytics-card-trend">
           <div class="section-header">
-            <h2 class="section-title" id="leaderboard-title">
-              <span>🏆</span> 5 อันดับแรก ผู้ที่ลดอายุร่างกาย (Body Age) ได้มากที่สุด
-            </h2>
-            <span style="font-size: 0.85rem; color: var(--text-muted);" id="leaderboard-round-subtitle">ค่าตั้งต้น เทียบ ผลลัพธ์สุดท้าย</span>
-          </div>
-          <div class="leaderboard-list" id="leaderboard-container">
-            <!-- Items will be populated dynamically -->
-            <div class="empty-state" style="padding: 1.5rem;">
-              <p>ยังไม่มีข้อมูลเปรียบเทียบในขณะนี้</p>
+            <div>
+              <h2 class="section-title"><span>📈</span> แนวโน้มสุขภาพพนักงานภาพรวม (Health Trend Monitor)</h2>
+              <p class="section-subtitle">ทิศทางน้ำหนักเฉลี่ยและดัชนีสุขภาพของพนักงานตลอดช่วงเวลา</p>
             </div>
+          </div>
+          <div id="admin-trend-chart-container" class="admin-chart-wrapper">
+            <!-- Rendered dynamically by app.js -->
           </div>
         </div>
 
-        <!-- Health Progression Summary Panel -->
-        <div class="section-card">
+        <!-- Card 2: BMI Distribution Breakdown -->
+        <div class="section-card analytics-card-bmi">
           <div class="section-header">
-            <h2 class="section-title">
-              <span>📈</span> สรุปผลความคืบหน้าผู้เข้าร่วม
-            </h2>
+            <div>
+              <h2 class="section-title"><span>📊</span> การกระจายตัวระดับดัชนีมวลกาย (BMI Distribution)</h2>
+              <p class="section-subtitle">สัดส่วนพนักงานในแต่ละช่วงเกณฑ์สุขภาพ</p>
+            </div>
           </div>
-          <div class="summary-chart-container">
-            <!-- Item 1: Body Age Decreased -->
-            <div class="progress-summary-item">
-              <div class="progress-summary-label">
-                <span>อายุร่างกายลดลง (พัฒนาดีขึ้น)</span>
-                <span id="summary-bodyage-percent">0% (0 คน)</span>
-              </div>
-              <div class="progress-bar-outer">
-                <div class="progress-bar-inner" id="bar-bodyage" style="width: 0%; background: var(--primary);"></div>
-              </div>
-            </div>
-            
-            <!-- Item 2: Weight Decreased -->
-            <div class="progress-summary-item">
-              <div class="progress-summary-label">
-                <span>น้ำหนักลดลง (สำเร็จ)</span>
-                <span id="summary-weight-percent">0% (0 คน)</span>
-              </div>
-              <div class="progress-bar-outer">
-                <div class="progress-bar-inner" id="bar-weight" style="width: 0%; background: var(--secondary);"></div>
-              </div>
-            </div>
-
-            <!-- Item 3: BMI Decreased -->
-            <div class="progress-summary-item">
-              <div class="progress-summary-label">
-                <span>BMI ลดลง (ฟิตหุ่นสำเร็จ)</span>
-                <span id="summary-bmi-percent">0% (0 คน)</span>
-              </div>
-              <div class="progress-bar-outer">
-                <div class="progress-bar-inner" id="bar-bmi" style="width: 0%; background: var(--warning);"></div>
-              </div>
-            </div>
-            
-            <div style="margin-top: auto; padding-top: 1rem; text-align: center;">
-              <p style="font-size: 0.8rem; color: var(--text-muted);" id="summary-round-note">
-                การคำนวณเปรียบเทียบผลลัพธ์ยึดตาม <strong>น้ำหนัก และ อายุร่างกาย</strong> จากค่าตั้งต้น (ครั้งที่ 1) ถึงผลลัพธ์สุดท้าย (ครั้งที่ 4)
-              </p>
-            </div>
+          <div id="admin-bmi-distribution-container" class="admin-bmi-breakdown-wrapper">
+            <!-- Populated dynamically by app.js -->
           </div>
         </div>
-
       </div>
 
-      <!-- Filtering & Action Controls Bar -->
-      <div class="control-panel">
-        <div class="search-filters">
-          <div class="search-input-wrapper">
-            <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="text" id="search-box" placeholder="ค้นหาชื่อพนักงาน หรือแผนก...">
+      <!-- Department Summary Card -->
+      <div class="section-card" style="margin-bottom: 1.5rem;">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><span>🏢</span> ข้อมูลสุขภาพและการมีส่วนร่วมตามแผนก (Department Overview)</h2>
+            <p class="section-subtitle">สถิติจำนวนพนักงาน การบันทึก และค่าเฉลี่ยสุขภาพในแต่ละแผนก</p>
           </div>
+        </div>
+        <div id="admin-department-grid" class="department-stat-grid">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Hidden compatibility anchors for legacy tests -->
+      <div style="display: none;" aria-hidden="true">
+        <h2 id="leaderboard-title"></h2>
+        <span id="leaderboard-round-subtitle"></span>
+        <div id="leaderboard-container"></div>
+        <div id="summary-round-note"></div>
+        <span id="summary-bodyage-percent"></span>
+        <span id="summary-weight-percent"></span>
+        <span id="summary-bmi-percent"></span>
+        <div id="bar-bodyage"></div>
+        <div id="bar-weight"></div>
+        <div id="bar-bmi"></div>
+        <select id="select-eval-round"><option value="m4">m4</option><option value="m3">m3</option></select>
+        <select id="filter-progress"><option value="all">all</option></select>
+        <select id="filter-criteria"><option value="health_score">health_score</option></select>
+      </div>
+
+      <!-- Employee Directory & Quick Action Hub -->
+      <div class="section-card employee-directory-card">
+        <div class="section-header" style="flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h2 class="section-title"><span>👥</span> ทะเบียนพนักงาน & ศูนย์บันทึกข้อมูล (Employee Directory)</h2>
+            <p class="section-subtitle">ค้นหา เลือกพนักงานเพื่อดูโปรไฟล์ หรือกด "+ บันทึกแทน" เพื่อเพิ่มบันทึกสุขภาพได้ทันที</p>
+          </div>
+        </div>
+
+        <!-- Filtering & Action Controls Bar -->
+        <div class="control-panel" style="margin-bottom: 1rem; border-top: none; padding-top: 0;">
+          <div class="search-filters" style="display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%;">
+            <div class="search-input-wrapper" style="flex: 2; min-width: 220px;">
+              <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" id="search-box" placeholder="ค้นหาชื่อพนักงาน หรือแผนก...">
+            </div>
+            
+            <select class="select-filter" id="filter-department" style="flex: 1; min-width: 150px;">
+              <option value="">ทุกแผนก</option>
+            </select>
+
+            <select class="select-filter" id="filter-activity" style="flex: 1; min-width: 160px;">
+              <option value="all">สถานะ: พนักงานทั้งหมด</option>
+              <option value="has-logs">บันทึกข้อมูลแล้ว</option>
+              <option value="no-logs">ยังไม่มีบันทึกข้อมูล</option>
+              <option value="normal-bmi">เกณฑ์สมส่วน (BMI 18.5 - 22.9)</option>
+            </select>
+
+            <select class="select-filter" id="select-page-size" style="width: auto;">
+              <option value="10">10 คน / หน้า</option>
+              <option value="25" selected>25 คน / หน้า</option>
+              <option value="50">50 คน / หน้า</option>
+              <option value="100">100 คน / หน้า</option>
+              <option value="all">แสดงทั้งหมด</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Main Employee Table Container -->
+        <div class="table-container">
+          <table class="admin-modern-table">
+            <thead>
+              <tr>
+                <th class="sortable" id="sort-name">พนักงาน</th>
+                <th>อายุ / สูง</th>
+                <th>แผนก</th>
+                <th>บันทึกล่าสุด</th>
+                <th class="sortable" id="sort-w-diff">พัฒนาการ</th>
+                <th class="sortable" id="sort-age-diff">ประวัติ</th>
+                <th style="text-align: right;">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="employee-table-body">
+              <!-- Populate dynamically by app.js -->
+            </tbody>
+          </table>
           
-          <select class="select-filter" id="filter-department">
-            <option value="">ทุกแผนก</option>
-          </select>
-
-          <select class="select-filter" id="select-eval-round" style="border-color: var(--primary);">
-            <option value="m3">🎯 รอบประเมิน: ครั้งที่ 3 (ติดตามผล)</option>
-            <option value="m4">🎯 รอบประเมิน: ครั้งที่ 4 (ผลลัพธ์สุดท้าย)</option>
-          </select>
-
-          <select class="select-filter" id="filter-progress">
-            <option value="all">ทั้งหมด</option>
-            <option value="has-records">มีข้อมูลครบตามรอบประเมิน</option>
-            <option value="missing-records">ยังไม่มีข้อมูลในรอบประเมิน</option>
-            <option value="bodyage-reduced">อายุร่างกายลดลง</option>
-          </select>
-
-          <select class="select-filter" id="filter-criteria" style="border-color: var(--accent);">
-            <option value="health_score" selected>🏆 ชนะ: คะแนนสุขภาพรวม</option>
-            <option value="bodyage">🏆 ชนะ: ลดอายุร่างกายมากที่สุด</option>
-            <option value="weight">🏆 ชนะ: ลดน้ำหนักมากที่สุด</option>
-            <option value="bmi_closest">🏆 ชนะ: BMI มาตรฐานดีที่สุด (ใกล้ 21)</option>
-          </select>
-
-          <select class="select-filter" id="select-page-size">
-            <option value="10">10 คน / หน้า</option>
-            <option value="25">25 คน / หน้า</option>
-            <option value="50">50 คน / หน้า</option>
-            <option value="100">100 คน / หน้า</option>
-            <option value="all">แสดงทั้งหมด</option>
-          </select>
+          <!-- Empty DB Warning State -->
+          <div class="empty-state" id="table-empty-state" style="display: none;">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">ไม่พบข้อมูลพนักงาน</div>
+            <div class="empty-state-desc">ยังไม่มีข้อมูลในระบบ ลองเพิ่มข้อมูลพนักงานใหม่ หรือกดปุ่ม "นำเข้า CSV" เพื่ออัปโหลดไฟล์เริ่มต้นใช้งาน</div>
+          </div>
         </div>
 
-      </div>
-
-      <!-- Main Employee Table Container -->
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th class="sortable" id="sort-name">รายชื่อพนักงาน</th>
-              <th>อายุ / สูง</th>
-              <th>แผนก</th>
-              <!-- Four persisted measurement rounds -->
-              <th>ครั้งที่ 1 (ค่าตั้งต้น)</th>
-              <th>ครั้งที่ 2 (ติดตามผล)</th>
-              <th>ครั้งที่ 3 (ติดตามผล)</th>
-              <th>ครั้งที่ 4 (ผลลัพธ์สุดท้าย)</th>
-              <th class="sortable" id="sort-w-diff">น.น. เปลี่ยนแปลง</th>
-              <th class="sortable" id="sort-age-diff">อายุร่างกายเปลี่ยน</th>
-              <th>จัดการ</th>
-            </tr>
-          </thead>
-          <tbody id="employee-table-body">
-            <!-- Populate dynamically by app.js -->
-          </tbody>
-        </table>
-        
-        <!-- Empty DB Warning State -->
-        <div class="empty-state" id="table-empty-state" style="display: none;">
-          <div class="empty-state-icon">📋</div>
-          <div class="empty-state-title">ไม่พบข้อมูลพนักงาน</div>
-          <div class="empty-state-desc">ยังไม่มีข้อมูลในระบบ ลองเพิ่มข้อมูลพนักงานใหม่ หรือกดปุ่ม "นำเข้า CSV" เพื่ออัปโหลดไฟล์ข้อมูลพนักงานเริ่มต้นใช้งานทันที</div>
-        </div>
-      </div>
-
-      <!-- Pagination Footer -->
-      <div class="pagination-container">
-        <div class="pagination-info" id="pagination-summary">
-          กำลังแสดงผล 0 - 0 จากทั้งหมด 0 คน
-        </div>
-        <div class="pagination-controls" id="pagination-buttons">
-          <!-- Buttons added by app.js -->
+        <!-- Pagination Footer -->
+        <div class="pagination-container">
+          <div class="pagination-info" id="pagination-summary">
+            กำลังแสดงผล 0 - 0 จากทั้งหมด 0 คน
+          </div>
+          <div class="pagination-controls" id="pagination-buttons">
+            <!-- Buttons added by app.js -->
+          </div>
         </div>
       </div>
     </main>

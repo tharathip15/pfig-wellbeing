@@ -2,6 +2,7 @@
 let employees = [];
 let currentFilterDept = '';
 let currentFilterProgress = 'all';
+let currentFilterActivity = 'all';
 let currentSearchQuery = '';
 let currentSortField = 'name';
 let currentSortOrder = 'asc'; // 'asc' or 'desc'
@@ -462,6 +463,41 @@ function getComparison(emp, round = currentEvaluationRound) {
     latestWeight: target.weight, latestBmi: target.bmi || null, latestBodyage: target.bodyage, m1Weight: m1.weight, m1Bmi: m1.bmi || null, m1Bodyage: m1.bodyage
   };
 }
+
+// Helper: Extract complete health summary for employee (from health_logs or legacy rounds)
+function getEmployeeHealthSummary(emp) {
+  const tracker = getHealthTracker();
+  if (tracker && typeof tracker.calculateStreakAndStats === 'function') {
+    const stats = tracker.calculateStreakAndStats(emp);
+    if (stats.latestLog) {
+      return {
+        totalLogs: stats.totalLogs,
+        streakCount: stats.streakCount,
+        latestLog: stats.latestLog,
+        baselineLog: stats.baselineLog,
+        weightDiff: stats.latestVsBaseline.weightDiff,
+        bmiDiff: stats.latestVsBaseline.bmiDiff,
+        bodyageDiff: stats.latestVsBaseline.bodyageDiff,
+        hasProgress: stats.totalLogs > 1,
+      };
+    }
+  }
+  const comp = getComparison(emp);
+  const m1 = emp?.months?.m1;
+  const hasM1 = m1 && Number(m1.weight) > 0;
+  return {
+    totalLogs: comp.hasProgress ? 2 : (hasM1 ? 1 : 0),
+    streakCount: 0,
+    latestLog: comp.hasProgress
+      ? { weight: comp.latestWeight, bmi: comp.latestBmi, bodyage: comp.latestBodyage, date: null }
+      : (hasM1 ? { weight: m1.weight, bmi: m1.bmi || null, bodyage: m1.bodyage || null, date: null } : null),
+    baselineLog: hasM1 ? { weight: m1.weight, bmi: m1.bmi || null, bodyage: m1.bodyage || null, date: null } : null,
+    weightDiff: comp.hasProgress ? comp.weightDiff : 0,
+    bmiDiff: comp.hasProgress ? comp.bmiDiff : 0,
+    bodyageDiff: comp.hasProgress ? comp.bodyageDiff : 0,
+    hasProgress: comp.hasProgress,
+  };
+}
   
 
 // Helper: Calculate 3D Health Score (Combined Weight, Muscle, Fat Progress)
@@ -548,6 +584,16 @@ function setupEventListeners() {
     currentPage = 1;
     updateUI();
   });
+
+  // Activity Status Filter
+  const filterActivity = document.getElementById('filter-activity');
+  if (filterActivity) {
+    filterActivity.addEventListener('change', (e) => {
+      currentFilterActivity = e.target.value;
+      currentPage = 1;
+      updateUI();
+    });
+  }
 
   // Page Size selector
   elements.pageSizeSelect.addEventListener('change', (e) => {
@@ -819,10 +865,21 @@ function handleSort(field) {
 function getFilteredAndSortedEmployees() {
   let list = [...employees];
   if (currentSearchQuery) {
-    list = list.filter(emp => emp.name.toLowerCase().includes(currentSearchQuery) || emp.department.toLowerCase().includes(currentSearchQuery));
+    list = list.filter(emp => (emp.name || '').toLowerCase().includes(currentSearchQuery) || (emp.department || '').toLowerCase().includes(currentSearchQuery));
   }
   if (currentFilterDept) {
     list = list.filter(emp => emp.department === currentFilterDept);
+  }
+  if (currentFilterActivity === 'has-logs') {
+    list = list.filter(emp => getEmployeeHealthSummary(emp).totalLogs > 0);
+  } else if (currentFilterActivity === 'no-logs') {
+    list = list.filter(emp => getEmployeeHealthSummary(emp).totalLogs === 0);
+  } else if (currentFilterActivity === 'normal-bmi') {
+    list = list.filter(emp => {
+      const summary = getEmployeeHealthSummary(emp);
+      const bmi = summary.latestLog?.bmi;
+      return bmi && bmi >= 18.5 && bmi <= 22.9;
+    });
   }
   if (currentFilterProgress === 'has-records') {
     list = list.filter(emp => getComparison(emp, currentEvaluationRound).hasProgress);
@@ -837,20 +894,20 @@ function getFilteredAndSortedEmployees() {
   list.sort((a, b) => {
     let valA, valB;
     if (currentSortField === 'name') {
-      valA = a.name.toLowerCase();
-      valB = b.name.toLowerCase();
+      valA = (a.name || '').toLowerCase();
+      valB = (b.name || '').toLowerCase();
       if (valA < valB) return currentSortOrder === 'asc' ? -1 : 1;
       if (valA > valB) return currentSortOrder === 'asc' ? 1 : -1;
       return 0;
     }
-    const compA = getComparison(a, currentEvaluationRound);
-    const compB = getComparison(b, currentEvaluationRound);
+    const summaryA = getEmployeeHealthSummary(a);
+    const summaryB = getEmployeeHealthSummary(b);
     if (currentSortField === 'weightDiff') {
-      valA = compA.hasProgress ? compA.weightDiff : 999;
-      valB = compB.hasProgress ? compB.weightDiff : 999;
+      valA = summaryA.hasProgress ? summaryA.weightDiff : 999;
+      valB = summaryB.hasProgress ? summaryB.weightDiff : 999;
     } else if (currentSortField === 'bodyageDiff') {
-      valA = compA.hasProgress ? compA.bodyageDiff : 999;
-      valB = compB.hasProgress ? compB.bodyageDiff : 999;
+      valA = summaryA.hasProgress ? summaryA.bodyageDiff : 999;
+      valB = summaryB.hasProgress ? summaryB.bodyageDiff : 999;
     }
     return currentSortOrder === 'asc' ? valA - valB : valB - valA;
   });
@@ -868,13 +925,16 @@ function updateUI() {
   // Update Dashboard summary widgets
   calculateWidgets();
 
+  // Modern Admin Monitoring Charts
+  renderAdminTrendChart();
+  renderBmiDistribution();
+  renderDepartmentStats();
+
   // Render Table
   renderTable(filtered);
   
-  // Render Leaderboard
+  // Render Leaderboard & Progress bars (for legacy compatibility)
   renderLeaderboard();
-  
-  // Render Summary Progress bars
   renderProgressBars();
 }
 
@@ -908,35 +968,58 @@ function populateDepartmentFilter() {
 // Compute statistics widgets values
 function calculateWidgets() {
   const total = employees.length;
-  elements.totalEmployees.textContent = total;
+  elements.totalEmployees.textContent = `${total} คน`;
   
-  if (total === 0) {
-    elements.avgWeightLoss.textContent = '0.0 kg';
-    elements.weightTrend.innerHTML = '<span class="widget-trend-down">↓ 0%</span> ในผู้เข้าร่วม';
-    elements.avgBmiLoss.textContent = '0.0';
-    elements.bmiTrend.innerHTML = '<span class="widget-trend-down">↓ 0</span> พัฒนาขึ้น';
-    elements.maxBodyageLoss.textContent = '0 ปี';
-    elements.maxBodyageWinner.textContent = 'ไม่มีข้อมูล';
-    return;
-  }
-  
+  let totalLogsCompanyWide = 0;
+  let activeEmployeesCount = 0;
+  let latestWeightsSum = 0;
+  let latestWeightsCount = 0;
+  let baselineWeightsSum = 0;
+  let latestBmiSum = 0;
+  let latestBmiCount = 0;
+  let normalBmiCount = 0;
+  let totalBodyageSum = 0;
+  let totalBodyageCount = 0;
+
   let totalWeightLoss = 0;
   let totalBmiLoss = 0;
   let weightLossCount = 0;
   let bmiLossCount = 0;
-  
   let maxAgeLoss = 0;
   let maxAgeWinner = null;
-  
+
   employees.forEach(emp => {
+    const summary = getEmployeeHealthSummary(emp);
+    if (summary.totalLogs > 0) {
+      activeEmployeesCount++;
+      totalLogsCompanyWide += summary.totalLogs;
+    }
+    if (summary.latestLog && summary.latestLog.weight) {
+      latestWeightsSum += summary.latestLog.weight;
+      latestWeightsCount++;
+      if (summary.latestLog.bmi) {
+        latestBmiSum += summary.latestLog.bmi;
+        latestBmiCount++;
+        if (summary.latestLog.bmi >= 18.5 && summary.latestLog.bmi <= 22.9) {
+          normalBmiCount++;
+        }
+      }
+      if (summary.latestLog.bodyage) {
+        totalBodyageSum += summary.latestLog.bodyage;
+        totalBodyageCount++;
+      }
+      if (summary.baselineLog && summary.baselineLog.weight) {
+        baselineWeightsSum += summary.baselineLog.weight;
+      }
+    }
+
+    // Legacy comparison support
     const comp = getComparison(emp, currentEvaluationRound);
     if (comp.hasProgress) {
-      totalWeightLoss += comp.weightDiff; // Weight diff (negative value is weight loss)
+      totalWeightLoss += comp.weightDiff;
       totalBmiLoss += comp.bmiDiff;
       weightLossCount++;
       bmiLossCount++;
-      
-      // Top body age reduction (exclude 'Executive')
       if (emp.department !== 'Executive') {
         const reduction = -comp.bodyageDiff;
         if (reduction > maxAgeLoss) {
@@ -946,120 +1029,305 @@ function calculateWidgets() {
       }
     }
   });
-  
-  // Average Weight Loss
-  if (weightLossCount > 0) {
-    // Calculate average weight loss (average of differences, inversion so positive values represent loss)
-    const avgLossVal = -(totalWeightLoss / weightLossCount);
-    elements.avgWeightLoss.textContent = `${avgLossVal.toFixed(1)} kg`;
-    
-    // Average BMI Loss
-    const avgBmiLossVal = -(totalBmiLoss / bmiLossCount);
-    elements.avgBmiLoss.textContent = avgBmiLossVal.toFixed(2);
-    
-    // Success rate info
-    const weightProgressPercent = (employees.filter(emp => {
-      const c = getComparison(emp, currentEvaluationRound);
-      return c.hasProgress && c.weightDiff < 0;
-    }).length / total * 100).toFixed(0);
-    
-    elements.weightTrend.innerHTML = `<span class="widget-trend-down">↓ ลดได้เฉลี่ย</span> ในผู้ลดสำเร็จ ${weightProgressPercent}%`;
-    elements.bmiTrend.innerHTML = `<span class="widget-trend-down">↓ พัฒนาดีขึ้น</span> เฉลี่ยต่อคน`;
+
+  const totalSubtextEl = document.getElementById('stat-total-subtext');
+  if (totalSubtextEl) {
+    const activePct = total > 0 ? Math.round((activeEmployeesCount / total) * 100) : 0;
+    totalSubtextEl.textContent = `บันทึกข้อมูลแล้ว ${activeEmployeesCount} คน (${activePct}%)`;
+  }
+
+  const statTotalLogsEl = document.getElementById('stat-total-logs');
+  const statLogsSubtextEl = document.getElementById('stat-logs-subtext');
+  if (statTotalLogsEl) {
+    statTotalLogsEl.textContent = `${totalLogsCompanyWide} ครั้ง`;
+  }
+  if (statLogsSubtextEl) {
+    const avgLogs = activeEmployeesCount > 0 ? (totalLogsCompanyWide / activeEmployeesCount).toFixed(1) : '0';
+    statLogsSubtextEl.textContent = `เฉลี่ย ${avgLogs} บันทึก / คน`;
+  }
+
+  if (latestWeightsCount > 0) {
+    const avgCurrentWeight = (latestWeightsSum / latestWeightsCount).toFixed(1);
+    elements.avgWeightLoss.textContent = `${avgCurrentWeight} kg`;
+
+    const avgBaselineWeight = (baselineWeightsSum / (latestWeightsCount || 1));
+    const avgDiff = (latestWeightsSum / latestWeightsCount) - avgBaselineWeight;
+    const diffSign = avgDiff < 0 ? '↓ ' : (avgDiff > 0 ? '↑ ' : '');
+    elements.weightTrend.innerHTML = `<span class="${avgDiff <= 0 ? 'widget-trend-down' : 'widget-trend-up'}">${diffSign}${Math.abs(avgDiff).toFixed(1)} kg</span> เทียบจากบันทึกแรก`;
+
+    const normalPct = latestBmiCount > 0 ? Math.round((normalBmiCount / latestBmiCount) * 100) : 0;
+    elements.avgBmiLoss.textContent = `${normalPct}% (${normalBmiCount} คน)`;
+
+    const avgBmiVal = latestBmiCount > 0 ? (latestBmiSum / latestBmiCount).toFixed(1) : '0.0';
+    const avgBodyageVal = totalBodyageCount > 0 ? Math.round(totalBodyageSum / totalBodyageCount) : 0;
+    elements.bmiTrend.innerHTML = `<span class="widget-trend-down">BMI เฉลี่ย: ${avgBmiVal}</span> • อายุร่างกายเฉลี่ย: ${avgBodyageVal} ปี`;
   } else {
     elements.avgWeightLoss.textContent = '0.0 kg';
-    elements.avgBmiLoss.textContent = '0.0';
-    elements.weightTrend.innerHTML = '<span class="widget-trend-down">0.0%</span> ไม่มีข้อมูลการบันทึก';
-    elements.bmiTrend.innerHTML = 'ยังไม่มีข้อมูลการบันทึก';
+    elements.weightTrend.innerHTML = '<span class="widget-trend-down">0.0 kg</span> เทียบจากเริ่มต้น';
+    elements.avgBmiLoss.textContent = '0% (0 คน)';
+    elements.bmiTrend.innerHTML = '<span class="widget-trend-down">BMI เฉลี่ย: 0.0</span>';
   }
-  
-  // Top Winner Card Widget dynamically based on criteria
+
+  // Update legacy hidden card values for compatibility
   let topValue = '0';
   let topWinnerName = 'ไม่มีข้อมูลการบันทึก';
-  let widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
-  let widgetIcon = '🔥';
-  
-  if (currentWinningCriteria === 'health_score') {
-    widgetTitle = 'คะแนนสุขภาพสูงสุด';
-    widgetIcon = '🏆';
-    let maxScore = -999;
-    let bestScoreWinner = null;
-    employees.forEach(emp => {
-      const comp = getComparison(emp, currentEvaluationRound);
-      if (comp.hasProgress && emp.department !== 'Executive') {
-        const scoreData = calculateHealthScore(emp, currentEvaluationRound);
-        if (scoreData.totalScore > maxScore) {
-          maxScore = scoreData.totalScore;
-          bestScoreWinner = emp;
-        }
-      }
-    });
-    if (bestScoreWinner) {
-      topValue = `${maxScore.toFixed(1)} คะแนน`;
-      topWinnerName = `${bestScoreWinner.name} (${bestScoreWinner.department})`;
-    } else {
-      topValue = '-';
-    }
-  } else if (currentWinningCriteria === 'bodyage') {
-    widgetTitle = 'ลดอายุร่างกายได้สูงสุด';
-    widgetIcon = '🔥';
-    if (maxAgeLoss > 0 && maxAgeWinner) {
-      topValue = `${maxAgeLoss} ปี`;
-      topWinnerName = `${maxAgeWinner.name} (${maxAgeWinner.department})`;
-    } else {
-      topValue = '0 ปี';
-    }
-  } else if (currentWinningCriteria === 'weight') {
-    widgetTitle = 'ลดน้ำหนักตัวได้สูงสุด';
-    widgetIcon = '⚖️';
-    let maxWeightLoss = 0;
-    let maxWeightWinner = null;
-    employees.forEach(emp => {
-      const comp = getComparison(emp, currentEvaluationRound);
-      if (comp.hasProgress && emp.department !== 'Executive') {
-        const loss = -comp.weightDiff;
-        if (loss > maxWeightLoss) {
-          maxWeightLoss = loss;
-          maxWeightWinner = emp;
-        }
-      }
-    });
-    if (maxWeightLoss > 0 && maxWeightWinner) {
-      topValue = `-${maxWeightLoss.toFixed(1)} kg`;
-      topWinnerName = `${maxWeightWinner.name} (${maxWeightWinner.department})`;
-    } else {
-      topValue = '0.0 kg';
-    }
-  } else if (currentWinningCriteria === 'bmi_closest') {
-    widgetTitle = 'BMI มาตรฐานดีที่สุด';
-    widgetIcon = '🎯';
-    let minBmiDistance = 999;
-    let bestBmiWinner = null;
-    let bestBmiVal = 0;
-    employees.forEach(emp => {
-      const comp = getComparison(emp, currentEvaluationRound);
-      if (comp.hasProgress && emp.department !== 'Executive' && comp.latestBmi !== null) {
-        const distance = Math.abs(comp.latestBmi - 21);
-        if (distance < minBmiDistance) {
-          minBmiDistance = distance;
-          bestBmiWinner = emp;
-          bestBmiVal = comp.latestBmi;
-        }
-      }
-    });
-    if (bestBmiWinner) {
-      topValue = `${bestBmiVal.toFixed(2)}`;
-      topWinnerName = `${bestBmiWinner.name} (${bestBmiWinner.department}) • ห่างเป้า ${minBmiDistance.toFixed(2)}`;
-    } else {
-      topValue = '-';
-    }
+  if (maxAgeLoss > 0 && maxAgeWinner) {
+    topValue = `${maxAgeLoss} ปี`;
+    topWinnerName = `${maxAgeWinner.name} (${maxAgeWinner.department})`;
   }
-  
-  const titleEl = document.getElementById('stat-max-title');
-  const iconEl = document.getElementById('stat-max-icon');
-  if (titleEl) titleEl.textContent = widgetTitle;
-  if (iconEl) iconEl.textContent = widgetIcon;
-  elements.maxBodyageLoss.textContent = topValue;
-  elements.maxBodyageWinner.textContent = topWinnerName;
+  if (elements.maxBodyageLoss) elements.maxBodyageLoss.textContent = topValue;
+  if (elements.maxBodyageWinner) elements.maxBodyageWinner.textContent = topWinnerName;
+}
+
+// Render Company Health Trend SVG Monitor
+function renderAdminTrendChart() {
+  const container = document.getElementById('admin-trend-chart-container');
+  if (!container) return;
+
+  const dateMap = new Map();
+  const tracker = getHealthTracker();
+
+  employees.forEach(emp => {
+    let logs = [];
+    if (tracker && typeof tracker.normalizeEmployeeTimeline === 'function') {
+      logs = tracker.normalizeEmployeeTimeline(emp)?.months?.logs || [];
+    } else if (emp.months) {
+      ['m1', 'm2', 'm3', 'm4'].forEach(m => {
+        if (emp.months[m]?.weight) logs.push(emp.months[m]);
+      });
+    }
+
+    logs.forEach(l => {
+      const w = Number(l.weight);
+      if (!w || w <= 0) return;
+      const d = String(l.date || '').slice(0, 7) || '2026-01';
+      if (!dateMap.has(d)) {
+        dateMap.set(d, { totalWeight: 0, count: 0, totalBmi: 0, bmiCount: 0 });
+      }
+      const entry = dateMap.get(d);
+      entry.totalWeight += w;
+      entry.count++;
+      if (l.bmi) {
+        entry.totalBmi += Number(l.bmi);
+        entry.bmiCount++;
+      }
+    });
+  });
+
+  const sortedDates = [...dateMap.keys()].sort();
+  if (sortedDates.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">📊</div>
+        <p>ยังไม่มีบันทึกข้อมูลสุขภาพของพนักงานในระบบ</p>
+        <span style="font-size: 0.8rem;">เลือกพนักงานด้านล่างแล้วกด <strong>"+ บันทึกแทน"</strong> เพื่อเริ่มต้นเก็บข้อมูล</span>
+      </div>
+    `;
+    return;
+  }
+
+  const points = sortedDates.map(d => {
+    const item = dateMap.get(d);
+    return {
+      date: d,
+      avgWeight: Number((item.totalWeight / item.count).toFixed(1)),
+      avgBmi: item.bmiCount > 0 ? Number((item.totalBmi / item.bmiCount).toFixed(1)) : null,
+      count: item.count,
+    };
+  });
+
+  const svgWidth = 600;
+  const svgHeight = 200;
+  const padLeft = 45;
+  const padRight = 35;
+  const padTop = 30;
+  const padBottom = 40;
+
+  const weights = points.map(p => p.avgWeight);
+  const minW = Math.floor(Math.min(...weights) - 1.5);
+  const maxW = Math.ceil(Math.max(...weights) + 1.5);
+  const wRange = (maxW - minW) || 1;
+
+  const chartW = svgWidth - padLeft - padRight;
+  const chartH = svgHeight - padTop - padBottom;
+
+  const coords = points.map((p, idx) => {
+    const x = points.length === 1 ? padLeft + chartW / 2 : padLeft + (idx / (points.length - 1)) * chartW;
+    const y = padTop + chartH - ((p.avgWeight - minW) / wRange) * chartH;
+    return { x, y, ...p };
+  });
+
+  const pathD = coords.reduce((acc, pt, idx) => {
+    return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+  }, '');
+
+  const areaD = coords.length > 1
+    ? `${pathD} L ${coords[coords.length - 1].x} ${padTop + chartH} L ${coords[0].x} ${padTop + chartH} Z`
+    : '';
+
+  const dotsHtml = coords.map(pt => `
+    <g class="chart-point-group">
+      <circle cx="${pt.x}" cy="${pt.y}" r="5" fill="var(--primary)" stroke="var(--bg-card)" stroke-width="2"/>
+      <text x="${pt.x}" y="${pt.y - 10}" fill="var(--text-main)" font-size="11" font-weight="600" text-anchor="middle">${pt.avgWeight} kg</text>
+      <text x="${pt.x}" y="${padTop + chartH + 20}" fill="var(--text-muted)" font-size="10" text-anchor="middle">${pt.date}</text>
+    </g>
+  `).join('');
+
+  container.innerHTML = `
+    <div style="width: 100%; overflow-x: auto;">
+      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width: 100%; min-width: 320px; height: auto; display: block;">
+        <defs>
+          <linearGradient id="adminTrendGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        <line x1="${padLeft}" y1="${padTop}" x2="${svgWidth - padRight}" y2="${padTop}" stroke="var(--border-color)" stroke-dasharray="3,3" opacity="0.6"/>
+        <line x1="${padLeft}" y1="${padTop + chartH / 2}" x2="${svgWidth - padRight}" y2="${padTop + chartH / 2}" stroke="var(--border-color)" stroke-dasharray="3,3" opacity="0.6"/>
+        <line x1="${padLeft}" y1="${padTop + chartH}" x2="${svgWidth - padRight}" y2="${padTop + chartH}" stroke="var(--border-color)" opacity="0.8"/>
+        
+        <text x="${padLeft - 8}" y="${padTop + 4}" fill="var(--text-muted)" font-size="10" text-anchor="end">${maxW}kg</text>
+        <text x="${padLeft - 8}" y="${padTop + chartH + 4}" fill="var(--text-muted)" font-size="10" text-anchor="end">${minW}kg</text>
+
+        ${areaD ? `<path d="${areaD}" fill="url(#adminTrendGrad)"/>` : ''}
+        ${pathD ? `<path d="${pathD}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+        ${dotsHtml}
+      </svg>
+    </div>
+  `;
+}
+
+// Render BMI Distribution Breakdown
+function renderBmiDistribution() {
+  const container = document.getElementById('admin-bmi-distribution-container');
+  if (!container) return;
+
+  let totalWithBmi = 0;
+  const counts = {
+    underweight: 0,
+    normal: 0,
+    overweight: 0,
+    obese: 0,
+  };
+
+  employees.forEach(emp => {
+    const summary = getEmployeeHealthSummary(emp);
+    const bmi = summary.latestLog?.bmi;
+    if (bmi && Number(bmi) > 0) {
+      totalWithBmi++;
+      if (bmi < 18.5) counts.underweight++;
+      else if (bmi <= 22.9) counts.normal++;
+      else if (bmi <= 24.9) counts.overweight++;
+      else counts.obese++;
+    }
+  });
+
+  const tiers = [
+    { key: 'normal', label: 'สมส่วน (สุขภาพดี)', range: 'BMI 18.5 - 22.9', color: '#10b981', count: counts.normal },
+    { key: 'overweight', label: 'น้ำหนักเกิน (ท้วม)', range: 'BMI 23.0 - 24.9', color: '#f59e0b', count: counts.overweight },
+    { key: 'obese', label: 'ภาวะอ้วน', range: 'BMI ≥ 25.0', color: '#ef4444', count: counts.obese },
+    { key: 'underweight', label: 'น้ำหนักต่ำกว่าเกณฑ์', range: 'BMI < 18.5', color: '#38bdf8', count: counts.underweight },
+  ];
+
+  if (totalWithBmi === 0) {
+    container.innerHTML = `
+      <div style="padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+        ยังไม่มีข้อมูลดัชนีมวลกายในระบบ
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = tiers.map(t => {
+    const pct = totalWithBmi > 0 ? Math.round((t.count / totalWithBmi) * 100) : 0;
+    return `
+      <div class="bmi-tier-item">
+        <div class="bmi-tier-header">
+          <div class="bmi-tier-title">
+            <span class="bmi-tier-dot" style="background: ${t.color};"></span>
+            <span>${t.label}</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(${t.range})</span>
+          </div>
+          <div class="bmi-tier-count"><strong>${pct}%</strong> (${t.count} คน)</div>
+        </div>
+        <div class="bmi-tier-bar-bg">
+          <div class="bmi-tier-bar-fill" style="width: ${pct}%; background: ${t.color};"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Render Department Overview
+function renderDepartmentStats() {
+  const container = document.getElementById('admin-department-grid');
+  if (!container) return;
+
+  const deptMap = new Map();
+
+  employees.forEach(emp => {
+    const d = emp.department || 'ไม่ระบุแผนก';
+    if (!deptMap.has(d)) {
+      deptMap.set(d, { name: d, count: 0, recordedCount: 0, totalWeight: 0, weightCount: 0, totalBmi: 0, bmiCount: 0, normalBmiCount: 0 });
+    }
+    const dept = deptMap.get(d);
+    dept.count++;
+    const summary = getEmployeeHealthSummary(emp);
+    if (summary.totalLogs > 0) {
+      dept.recordedCount++;
+    }
+    if (summary.latestLog && summary.latestLog.weight) {
+      dept.totalWeight += summary.latestLog.weight;
+      dept.weightCount++;
+      if (summary.latestLog.bmi) {
+        dept.totalBmi += summary.latestLog.bmi;
+        dept.bmiCount++;
+        if (summary.latestLog.bmi >= 18.5 && summary.latestLog.bmi <= 22.9) {
+          dept.normalBmiCount++;
+        }
+      }
+    }
+  });
+
+  const depts = [...deptMap.values()].sort((a, b) => b.count - a.count);
+  if (depts.length === 0) {
+    container.innerHTML = `<div style="color:var(--text-muted); padding:1rem;">ยังไม่มีข้อมูลแผนก</div>`;
+    return;
+  }
+
+  container.innerHTML = depts.map(d => {
+    const avgW = d.weightCount > 0 ? (d.totalWeight / d.weightCount).toFixed(1) + ' kg' : '-';
+    const avgBmi = d.bmiCount > 0 ? (d.totalBmi / d.bmiCount).toFixed(1) : '-';
+    const normalPct = d.bmiCount > 0 ? Math.round((d.normalBmiCount / d.bmiCount) * 100) + '%' : '-';
+    const participationPct = Math.round((d.recordedCount / d.count) * 100);
+
+    return `
+      <div class="dept-card">
+        <div class="dept-card-name">
+          <span>${d.name}</span>
+          <span style="font-size: 0.78rem; font-weight: normal; color: var(--text-muted);">${d.count} คน</span>
+        </div>
+        <div class="dept-card-stats">
+          <div class="dept-card-stat-row">
+            <span>บันทึกแล้ว:</span>
+            <strong>${d.recordedCount}/${d.count} (${participationPct}%)</strong>
+          </div>
+          <div class="dept-card-stat-row">
+            <span>น.น. เฉลี่ย:</span>
+            <strong>${avgW}</strong>
+          </div>
+          <div class="dept-card-stat-row">
+            <span>BMI เฉลี่ย:</span>
+            <strong>${avgBmi}</strong>
+          </div>
+          <div class="dept-card-stat-row">
+            <span>เกณฑ์สมส่วน:</span>
+            <strong style="color: var(--primary-light);">${normalPct}</strong>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // Render Table Rows with Pagination
@@ -1086,51 +1354,94 @@ function renderTable(filteredEmployees) {
     elements.paginationSummary.textContent = `กำลังแสดงผล 1 - ${totalItems} จากทั้งหมด ${totalItems} คน`;
     elements.paginationButtons.innerHTML = '';
   }
+
   itemsToShow.forEach(emp => {
-    const comp = getComparison(emp);
+    const summary = getEmployeeHealthSummary(emp);
     const tr = document.createElement('tr');
+
+    // Col 1: Employee Name & Avatar & link
     const tdName = document.createElement('td');
-    const renderMeasurement = (measurement, roundKey) => {
-      if (!measurement || !measurement.weight) return '<span style="color:var(--text-muted);font-style:italic;">ยังไม่บันทึก</span>';
-      const muscle = measurement.muscle != null ? `${measurement.muscle}%` : '-';
-      const fat = measurement.fat != null ? `${measurement.fat}%` : '-';
-      let scoreBadgeHtml = '';
-      if (roundKey === 'm3' || roundKey === 'm4') {
-        const canScore = PfigHealthScore.hasCompleteMeasurement(emp, roundKey);
-        if (canScore) {
-          const s = PfigHealthScore.calculateHealthScore(emp, roundKey);
-          scoreBadgeHtml = `<div class="td-subtitle" style="margin-top:2px;"><span style="color:var(--primary-light);font-weight:600;">🎯 คะแนนสุขภาพ: ${s.totalScore.toFixed(1)}</span></div>`;
-        }
-      }
-      return `<div>⚖️ ${measurement.weight} kg</div><div class="td-subtitle">🧠 อายุร่างกาย: ${measurement.bodyage} ปี (BMI: ${measurement.bmi || '-'})</div><div class="td-subtitle">💪 กล้ามเนื้อ: ${muscle} | 📉 ไขมัน: ${fat}</div>${scoreBadgeHtml}`;
-    };
-    const roundKeys = ['m1', 'm2', 'm3', 'm4'];
-    const measurements = roundKeys.map(round => ({ data: emp.months[round], roundKey: round }));
-    const hasPhotos = measurements.some(item => item.data && item.data.photo);
-    const galleryBtn = hasPhotos ? `<button class="btn-gallery-trigger" onclick="openPhotoGallery('${emp.id}')" title="ดูรูปถ่ายเปรียบเทียบ">🖼️ รูปถ่าย</button>` : `<button class="btn-gallery-trigger btn-gallery-empty" onclick="openPhotoGallery('${emp.id}')" title="ไม่มีรูปถ่าย">🖼️ ไม่มีรูป</button>`;
-    tdName.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;width:100%;"><div><div class="td-name td-name-link" onclick="openEmployeeTrackerAsAdmin('${emp.id}')" title="เปิดสมุดบันทึกสุขภาพของ ${emp.name}">${emp.name}</div><div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div></div><div>${galleryBtn}</div></div>`;
+    const initials = (emp.name || 'พ').trim().slice(0, 2);
+    tdName.innerHTML = `
+      <div class="td-emp-flex">
+        <div class="td-avatar" title="${emp.name}">${initials}</div>
+        <div>
+          <div class="td-name td-name-link" onclick="openEmployeeTrackerAsAdmin('${emp.id}')" title="เปิดสมุดบันทึกสุขภาพของ ${emp.name}">${emp.name}</div>
+          <div class="td-subtitle">ส่วนสูง ${emp.height} ซม.</div>
+        </div>
+      </div>
+    `;
     tr.appendChild(tdName);
+
+    // Col 2: Age & Height
     const tdAge = document.createElement('td');
-    tdAge.innerHTML = `<div>จริง: ${emp.age} ปี</div><div class="td-subtitle">สูง: ${emp.height} ซม.</div>`;
+    tdAge.innerHTML = `<div>${emp.age || '-'} ปี</div><div class="td-subtitle">${emp.height || '-'} ซม.</div>`;
     tr.appendChild(tdAge);
+
+    // Col 3: Department
     const tdDept = document.createElement('td');
-    tdDept.textContent = emp.department;
+    tdDept.innerHTML = `<span class="badge-dept">${emp.department || 'ทั่วไป'}</span>`;
     tr.appendChild(tdDept);
-    measurements.forEach(item => {
-      const td = document.createElement('td');
-      td.innerHTML = renderMeasurement(item.data, item.roundKey);
-      tr.appendChild(td);
-    });
-    const roundLabelNumber = currentEvaluationRound === 'm3' ? '3' : '4';
-    const tdWDiff = document.createElement('td');
-    tdWDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.weightDiff < 0 ? 'metric-badge-improved' : comp.weightDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.weightDiff < 0 ? '↓ ' + Math.abs(comp.weightDiff) : comp.weightDiff > 0 ? '↑ ' + comp.weightDiff : '0.0'} kg</span><div class="td-subtitle">เทียบกับค่าตั้งต้น</div>` : '<span style="color:var(--text-muted);">-</span>';
-    tr.appendChild(tdWDiff);
-    const tdAgeDiff = document.createElement('td');
-    tdAgeDiff.innerHTML = comp.hasProgress ? `<span class="metric-badge ${comp.bodyageDiff < 0 ? 'metric-badge-improved' : comp.bodyageDiff > 0 ? 'metric-badge-worsened' : 'metric-badge-neutral'}">${comp.bodyageDiff < 0 ? 'ลดลง ' + Math.abs(comp.bodyageDiff) : comp.bodyageDiff > 0 ? 'เพิ่ม ' + comp.bodyageDiff : 'คงที่'} ปี</span><div class="td-subtitle">เทียบกับครั้งที่ 1 ไปครั้งที่ ${roundLabelNumber}</div>` : '<span style="color:var(--text-muted);">-</span>';
-    tr.appendChild(tdAgeDiff);
+
+    // Col 4: Latest health record
+    const tdLatest = document.createElement('td');
+    if (summary.latestLog && summary.latestLog.weight) {
+      const l = summary.latestLog;
+      const bmiText = l.bmi ? `BMI ${l.bmi}` : '-';
+      const ageText = l.bodyage ? `อายุร่างกาย: ${l.bodyage} ปี` : '';
+      const dateText = l.date ? l.date : 'ล่าสุด';
+      tdLatest.innerHTML = `
+        <div><strong>${l.weight} kg</strong> <span style="font-size:0.8rem; color:var(--text-muted);">(${bmiText})</span></div>
+        <div class="td-subtitle">${ageText ? ageText + ' • ' : ''}${dateText}</div>
+      `;
+    } else {
+      tdLatest.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem; font-style:italic;">ยังไม่มีข้อมูล</span>`;
+    }
+    tr.appendChild(tdLatest);
+
+    // Col 5: Progress diff
+    const tdDiff = document.createElement('td');
+    if (summary.hasProgress && summary.weightDiff !== null && summary.weightDiff !== undefined) {
+      const wDiff = summary.weightDiff;
+      const isLoss = wDiff < 0;
+      const isGain = wDiff > 0;
+      const badgeClass = isLoss ? 'metric-badge-improved' : (isGain ? 'metric-badge-worsened' : 'metric-badge-neutral');
+      const wText = isLoss ? `↓ ${Math.abs(wDiff)}` : (isGain ? `↑ ${wDiff}` : '0.0');
+      const aDiff = summary.bodyageDiff;
+      const aText = aDiff < 0 ? `ลด ${Math.abs(aDiff)} ปี` : (aDiff > 0 ? `เพิ่ม ${aDiff} ปี` : 'คงที่');
+      tdDiff.innerHTML = `
+        <span class="metric-badge ${badgeClass}">${wText} kg</span>
+        <div class="td-subtitle">อายุร่างกาย: ${aText}</div>
+      `;
+    } else {
+      tdDiff.innerHTML = `<span style="color:var(--text-muted);">-</span>`;
+    }
+    tr.appendChild(tdDiff);
+
+    // Col 6: History & Streak
+    const tdHistory = document.createElement('td');
+    const logCount = summary.totalLogs;
+    const streak = summary.streakCount;
+    const streakHtml = streak > 1 ? `<span class="badge-streak" title="เช็คอินต่อเนื่อง">🔥 ${streak} วีค</span>` : '';
+    tdHistory.innerHTML = `
+      <div>${logCount} บันทึก ${streakHtml}</div>
+      <div class="td-subtitle">${logCount > 0 ? 'ความต่อเนื่อง' : 'ยังไม่เคยบันทึก'}</div>
+    `;
+    tr.appendChild(tdHistory);
+
+    // Col 7: Actions
     const tdAction = document.createElement('td');
-    tdAction.innerHTML = `<div class="action-buttons"><button class="btn-icon btn-icon-tracker" onclick="openEmployeeTrackerAsAdmin('${emp.id}', true)" title="เปิดบันทึกข้อมูลร่างกายใหม่แทน ${emp.name}">บันทึกแทน</button><button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูลพื้นฐาน">แก้ไข</button><button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button></div>`;
+    tdAction.style.textAlign = 'right';
+    tdAction.innerHTML = `
+      <div class="action-buttons" style="justify-content: flex-end;">
+        <button class="btn-icon btn-icon-tracker" onclick="openEmployeeTrackerAsAdmin('${emp.id}', true)" title="เปิดบันทึกข้อมูลร่างกายใหม่แทน ${emp.name}">บันทึกแทน</button>
+        <button class="btn-icon btn-icon-view" onclick="openEmployeeTrackerAsAdmin('${emp.id}')" title="ดูโปรไฟล์สุขภาพของ ${emp.name}">ดูโปรไฟล์</button>
+        <button class="btn-icon btn-icon-edit" onclick="openModal('edit','${emp.id}')" title="แก้ไขข้อมูลพื้นฐาน">แก้ไข</button>
+        <button class="btn-icon btn-icon-delete" onclick="deleteEmployee('${emp.id}')" title="ลบข้อมูล">ลบ</button>
+      </div>
+    `;
     tr.appendChild(tdAction);
+
     elements.tableBody.appendChild(tr);
   });
 }
@@ -1759,8 +2070,15 @@ function handleCSVImport(event) {
   const reader = new FileReader();
   reader.onload = e => parseCSV(e.target.result);
   reader.readAsText(file, 'UTF-8');
-  elements.csvFileInput.value = '';
+  if (elements.csvFileInput) elements.csvFileInput.value = '';
+  const adminCsv = document.getElementById('csv-file-input-admin');
+  if (adminCsv) adminCsv.value = '';
 }
+
+window.exportCSV = exportCSV;
+window.downloadTemplateCSV = downloadTemplateCSV;
+window.handleCSVImport = handleCSVImport;
+window.handleAdminCsvUpload = handleCSVImport;
 
 async function parseCSV(text) {
   const lines = text.replace(/^\ufeff/, '').split(/\r\n|\n/);
