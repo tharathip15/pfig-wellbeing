@@ -213,3 +213,45 @@ test("PATCH /api/employees allows a signed-in employee to update their own recor
     global.fetch = originalFetch;
   }
 });
+
+test("GET lists only id/name/department of unlinked records for an unlinked employee, and PATCH claim links one", async () => {
+  const { createSession, SESSION_COOKIE_NAME } = await import("../api/_lib/session.js");
+  const { default: handler } = await import("../api/employees.js");
+  const oid = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const originalFetch = global.fetch;
+  const rows = [
+    { id: "old-1", name: "Old Person", department: "Sales", age: 30, height: 170, entra_oid: null, months: { m1: { weight: 70, bodyage: 30 } } },
+    { id: "old-2", name: "Linked Person", department: "IT", age: 31, height: 171, entra_oid: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", months: {} },
+  ];
+  let claimUrl = null;
+  global.fetch = async (url, options = {}) => {
+    const u = String(url);
+    if (options.method === "PATCH") {
+      claimUrl = u;
+      return new Response(JSON.stringify([{ ...rows[0], entra_oid: oid }]), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (u.includes("entra_oid=is.null&select=id,name")) return new Response(JSON.stringify([]), { status: 200 });
+    if (u.includes(`entra_oid=eq.${oid}`)) return new Response(JSON.stringify([]), { status: 200 });
+    return new Response(JSON.stringify(rows), { status: 200 });
+  };
+  const { token, payload } = createSession({ oid, tid: "55555555-5555-4555-8555-555555555555", name: "English Name", roles: [] });
+  try {
+    const getReply = createMockReply();
+    await handler({ method: "GET", headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` } }, getReply);
+    assert.deepEqual(getReply.body.unlinkedCandidates, [{ id: "old-1", name: "Old Person", department: "Sales" }]);
+    assert.deepEqual(getReply.body.employees, []);
+
+    const claimReply = createMockReply();
+    await handler({
+      method: "PATCH",
+      query: { id: "old-1", claim: "1" },
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "x-csrf-token": payload.csrf },
+      body: {},
+    }, claimReply);
+    assert.equal(claimReply.statusCode, 200);
+    assert.match(claimUrl, /id=eq\.old-1/);
+    assert.match(claimUrl, /entra_oid=is\.null/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

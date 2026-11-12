@@ -120,6 +120,13 @@ export function sanitizeEmployee(input, { partial = false } = {}) {
   return result;
 }
 
+export function claimUnlinkedEmployee(id, oid) {
+  return request(
+    `pfig_employees?id=eq.${encodeURIComponent(id)}&entra_oid=is.null&select=${selectFields}`,
+    { method: "PATCH", body: JSON.stringify({ entra_oid: optionalUuid(oid) }) },
+  );
+}
+
 export function insertEmployee(employee) {
   return request("pfig_employees", { method: "POST", body: JSON.stringify(sanitizeEmployee(employee)) });
 }

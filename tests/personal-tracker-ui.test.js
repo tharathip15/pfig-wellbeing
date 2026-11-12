@@ -244,3 +244,58 @@ test("forms use aligned controls and concise Thai labels without emoji clutter",
   }
 });
 
+test("renderSelfOnboardingCard displays unlinked candidates box when unlinked records exist", () => {
+  const app = loadAppWithTracker();
+
+  vm.runInContext(
+    `
+      wellbeingSession = { identity: { oid: "88888888-8888-4888-8888-888888888888", name: "Somchai SSO", canEdit: false } };
+      wellbeingUnlinkedCandidates = [
+        { id: "old-10", name: "สมชาย ใจดี", department: "Sales" },
+        { id: "old-11", name: "สมชาย รักสงบ", department: "IT" }
+      ];
+      renderSelfOnboardingCard();
+    `,
+    app
+  );
+
+  const html = app.elementsById.get("personal-profile-display").innerHTML;
+  assert.match(html, /tracker-claim-box/);
+  assert.match(html, /เคยมีข้อมูลในระบบเดิมแล้วใช่ไหม/);
+  assert.match(html, /claim-employee-select/);
+  assert.match(html, /สมชาย ใจดี \(Sales\)/);
+  assert.match(html, /สมชาย รักสงบ \(IT\)/);
+  assert.match(html, /handleClaimExistingRecord/);
+});
+
+test("showPersonalProfile renders mobile sticky action bar and collapsible details", () => {
+  const app = loadAppWithTracker();
+
+  const employeeFixture = {
+    id: "emp-mobile-1",
+    name: "Araya Mobile",
+    department: "Finance",
+    age: 28,
+    height: 165,
+    entra_oid: "77777777-7777-4777-8777-777777777777",
+    months: {
+      gender: "female",
+      m1: { weight: 55, bodyage: 26 },
+    },
+  };
+
+  vm.runInContext(
+    `
+      employees = [${JSON.stringify(employeeFixture)}];
+      wellbeingSession = { identity: { oid: "77777777-7777-4777-8777-777777777777", name: "Araya Mobile", canEdit: false } };
+      showPersonalProfile("emp-mobile-1");
+    `,
+    app
+  );
+
+  const profileHtml = app.elementsById.get("personal-profile-display").innerHTML;
+  assert.match(profileHtml, /tracker-mobile-bar/);
+  assert.match(profileHtml, /collapsible-card/);
+});
+
+

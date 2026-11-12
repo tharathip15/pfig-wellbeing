@@ -3,6 +3,7 @@ import { getPersonalHealthRanking } from "./_lib/health-ranking.js";
 import { requireAdmin, requireCsrf, requireSession } from "./_lib/session.js";
 import { prepareCompanySession } from "../server/pfig-sso/index.mjs";
 import {
+  claimUnlinkedEmployee,
   deleteEmployee,
   insertEmployee,
   listEmployeesForAdmin,
@@ -30,7 +31,14 @@ export default async function handler(request, response) {
         ? getPersonalHealthRanking(allEmployees, personalEmployees[0].id, "auto")
         : null;
       const communityPulse = buildCommunityPulse(allEmployees);
+      // Only names/departments of records nobody has claimed yet, so staff can reconnect their old history.
+      const unlinkedCandidates = !session.canEdit && personalEmployees.length === 0
+        ? allEmployees
+            .filter(emp => !emp.entra_oid)
+            .map(emp => ({ id: emp.id, name: emp.name, department: emp.department }))
+        : [];
       return sendJson(response, 200, {
+        unlinkedCandidates,
         ok: true,
         mode: session.canEdit ? "admin" : "personal",
         employees,
@@ -60,6 +68,18 @@ export default async function handler(request, response) {
 
     if (method === "PATCH") {
       const employee = await readJsonBody(request);
+      if (!session.canEdit && String(request.query?.claim || "") === "1") {
+        const personalEmployees = await listOrClaimEmployeeForIdentity({ oid: session.oid, name: session.name });
+        if (personalEmployees.length > 0) {
+          return sendJson(response, 409, { ok: false, error: "This account is already linked to a profile" });
+        }
+        const claimed = await claimUnlinkedEmployee(id, session.oid);
+        if (claimed.length === 0) {
+          return sendJson(response, 409, { ok: false, error: "This record is already linked to another account" });
+        }
+        console.info("Wellbeing record claimed", { employeeId: id, oid: session.oid });
+        return sendJson(response, 200, { ok: true, employees: claimed.map(emp => normalizeEmployeeTimeline(emp)) });
+      }
       if (!session.canEdit) {
         const personalEmployees = await listOrClaimEmployeeForIdentity({ oid: session.oid, name: session.name });
         const ownsRecord = personalEmployees.some(emp => String(emp.id) === id);

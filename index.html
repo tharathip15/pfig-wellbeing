@@ -737,11 +737,11 @@
             </div>
           </div>
 
-          <div class="checkin-optional-section">
-            <div class="checkin-optional-header">
+          <details class="checkin-optional-section" id="checkin-optional-section">
+            <summary class="checkin-optional-header">
               <span class="checkin-optional-title">องค์ประกอบร่างกายเพิ่มเติม</span>
-              <span class="checkin-optional-sub">กรอกเฉพาะค่าที่มีข้อมูล</span>
-            </div>
+              <span class="checkin-optional-sub">กรอกเฉพาะค่าที่มี (ไม่บังคับ)</span>
+            </summary>
             <div class="form-grid" style="margin-bottom: 0;">
               <div class="form-group">
                 <label class="form-label" for="checkin-bodyage">อายุร่างกาย (ปี)</label>
@@ -776,7 +776,7 @@
                 </div>
               </div>
             </div>
-          </div>
+          </details>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeCheckinModal()">ยกเลิก</button>

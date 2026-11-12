@@ -12,6 +12,7 @@ let wellbeingDataMode = 'personal';
 let wellbeingPersonalHealthRanking = null;
 let wellbeingCommunityPulse = null;
 let wellbeingRequiresOnboarding = false;
+let wellbeingUnlinkedCandidates = [];
 let currentTrendMetric = 'weight';
 let currentTrendRange = 'all';
 
@@ -314,6 +315,7 @@ async function loadData() {
     wellbeingPersonalHealthRanking = result.personalHealthRanking || null;
     wellbeingCommunityPulse = result.communityPulse || null;
     wellbeingRequiresOnboarding = Boolean(result.requiresOnboarding || result.requiresIdentityLink);
+    wellbeingUnlinkedCandidates = Array.isArray(result.unlinkedCandidates) ? result.unlinkedCandidates : [];
     employees = data.map(item => {
       const baseEmp = {
         id: item.id,
@@ -2567,6 +2569,21 @@ window.setProfileGender = async function(gender) {
 function renderSelfOnboardingCard() {
   const defaultName = wellbeingSession?.identity?.name || '';
   const todayStr = new Date().toISOString().slice(0, 10);
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const claimHtml = wellbeingUnlinkedCandidates.length > 0 ? `
+    <div class="tracker-claim-box">
+      <strong>เคยมีข้อมูลในระบบเดิมแล้วใช่ไหม?</strong>
+      <p>เลือกชื่อของคุณเพื่อดึงประวัติเดิมกลับมา (เลือกได้เฉพาะรายชื่อที่ยังไม่มีใครผูกบัญชี)</p>
+      <div class="tracker-claim-row">
+        <select class="form-control" id="claim-employee-select">
+          <option value="">-- เลือกชื่อของคุณ --</option>
+          ${wellbeingUnlinkedCandidates.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} (${escapeHtml(c.department)})</option>`).join('')}
+        </select>
+        <button type="button" class="btn btn-secondary" onclick="handleClaimExistingRecord()">ใช้ข้อมูลนี้</button>
+      </div>
+    </div>
+    <div class="tracker-claim-divider">หรือสร้างสมุดใหม่</div>
+  ` : '';
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card tracker-onboarding-card animate-fade">
       <div class="tracker-onboarding-header">
@@ -2574,9 +2591,10 @@ function renderSelfOnboardingCard() {
         <h3>สร้างสมุดบันทึกสุขภาพส่วนตัวของคุณ</h3>
         <p>กรอกข้อมูลพื้นฐานครั้งแรกเพื่อเริ่มบันทึกน้ำหนักและองค์ประกอบร่างกายของคุณตามรอบที่สะดวก</p>
       </div>
+      ${claimHtml}
       <form id="onboarding-form" onsubmit="event.preventDefault(); handleSelfOnboardingSubmit();">
         <div class="form-grid">
-          <div class="form-group">
+          <div class="form-group form-group-full">
             <label class="form-label" for="onboard-name">ชื่อ - นามสกุล *</label>
             <input type="text" class="form-control" id="onboard-name" value="${defaultName}" placeholder="ชื่อ-นามสกุลของคุณ" required>
           </div>
@@ -2630,6 +2648,29 @@ function renderSelfOnboardingCard() {
   elements.personalProfileDisplay.style.display = 'block';
 }
 window.renderSelfOnboardingCard = renderSelfOnboardingCard;
+
+window.handleClaimExistingRecord = async function() {
+  const select = document.getElementById('claim-employee-select');
+  const id = select?.value;
+  if (!id) {
+    showToast('กรุณาเลือกชื่อของคุณก่อน', 'error');
+    return;
+  }
+  const label = select.options[select.selectedIndex]?.text || '';
+  if (typeof confirm === 'function' && !confirm(`ยืนยันว่า "${label}" คือคุณ? เมื่อยืนยันแล้วจะผูกกับบัญชีนี้ทันที`)) return;
+  showLoader(true);
+  try {
+    await wellbeingApiRequest(`/api/employees?id=${encodeURIComponent(id)}&claim=1`, { method: 'PATCH', body: JSON.stringify({}) });
+    showToast('ดึงข้อมูลเดิมกลับมาเรียบร้อยแล้ว', 'success');
+    await loadData();
+    switchToPersonalView();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'ไม่สามารถผูกข้อมูลได้', 'error');
+  } finally {
+    showLoader(false);
+  }
+};
 
 window.handleSelfOnboardingSubmit = async function() {
   const name = document.getElementById('onboard-name')?.value?.trim();
@@ -2778,6 +2819,11 @@ window.openCheckinModal = function(logId = null) {
     if (fatInput) fatInput.value = '';
     if (visceralInput) visceralInput.value = '';
     if (noteInput) noteInput.value = '';
+  }
+
+  const optionalSection = document.getElementById('checkin-optional-section');
+  if (optionalSection) {
+    optionalSection.open = Boolean(existingLog && (existingLog.bodyage || existingLog.muscle || existingLog.fat || existingLog.visceralFat || existingLog.note || existingLog.photo));
   }
 
   window.updateCheckinBmiPreview();
@@ -3313,6 +3359,8 @@ function showPersonalProfile(empId, selectedGender = null) {
 
   const trendChartSvg = renderTrendChartSvg(logs, currentTrendMetric, currentTrendRange);
   const avatarInitials = String(emp.name || 'P').trim().slice(0, 2).toUpperCase();
+  const isMobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches;
+  const collapsibleOpen = isMobileViewport ? '' : 'open';
 
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
@@ -3453,23 +3501,23 @@ function showPersonalProfile(empId, selectedGender = null) {
 
       <!-- Badges & Community Pulse Row -->
       <div class="personal-insights-container" style="margin-bottom: 1.75rem;">
-        <div class="personal-insight-card">
-          <div class="personal-insight-title">
+        <details class="personal-insight-card collapsible-card" ${collapsibleOpen}>
+          <summary class="personal-insight-title">
             <div class="personal-insight-title-main">
               เหรียญตราความสำเร็จ (${unlockedBadgesCount}/${badges.length})
             </div>
-          </div>
+          </summary>
           <div class="tracker-badges-grid">
             ${badgesHtml}
           </div>
-        </div>
+        </details>
 
-        <div class="personal-insight-card tracker-community-card">
-          <div class="personal-insight-title">
+        <details class="personal-insight-card tracker-community-card collapsible-card" ${collapsibleOpen}>
+          <summary class="personal-insight-title">
             <div class="personal-insight-title-main">
               บอร์ดชุมชนคนรักสุขภาพชาว PFIG
             </div>
-          </div>
+          </summary>
           <div class="tracker-community-stats">
             <div class="tracker-comm-stat">
               <span class="comm-val">${pulse ? pulse.totalTrackedEmployees : employees.length}</span>
@@ -3490,7 +3538,7 @@ function showPersonalProfile(empId, selectedGender = null) {
           <div class="tracker-community-leaders">
             ${leadersHtml}
           </div>
-        </div>
+        </details>
       </div>
 
       <!-- Chronological History Timeline -->
@@ -3505,10 +3553,10 @@ function showPersonalProfile(empId, selectedGender = null) {
       </div>
 
       <!-- Health Reference Standards Guide -->
-      <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
-        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text-main);">
+      <details class="personal-reference-guide collapsible-card animate-fade" ${collapsibleOpen} style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <summary class="collapsible-summary">
           ตารางเกณฑ์มาตรฐานสุขภาพสำหรับอ้างอิง
-        </h4>
+        </summary>
         <div class="reference-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem;">
           <!-- BMI Card -->
           <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
@@ -3574,8 +3622,15 @@ function showPersonalProfile(empId, selectedGender = null) {
             </div>
           </div>
         </div>
-      </div>
+      </details>
     </div>
+
+    ${canEditOwn ? `
+      <div class="tracker-mobile-bar">
+        <button type="button" class="btn btn-secondary" onclick="openGoalModal()">ตั้งเป้าหมาย</button>
+        <button type="button" class="btn btn-primary" onclick="openCheckinModal()">+ บันทึกข้อมูลร่างกาย</button>
+      </div>
+    ` : ''}
   `;
 
   elements.personalProfileDisplay.style.display = 'block';
