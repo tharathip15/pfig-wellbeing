@@ -715,26 +715,23 @@ function setupEventListeners() {
   }
 
   // Personal Search Autocomplete suggestions
-  elements.personalSearchInput.addEventListener('input', (e) => {
-    const val = e.target.value.trim().toLowerCase();
-    if (!val) {
-      elements.personalSuggestions.innerHTML = '';
-      elements.personalSuggestions.style.display = 'none';
-      return;
-    }
-
-    const matches = employees.filter(emp => 
-      emp.name.toLowerCase().includes(val)
-    );
+  const renderPersonalSuggestions = (query = '') => {
+    const val = String(query || '').trim().toLowerCase();
+    const matches = val
+      ? employees.filter(emp => 
+          (emp.name || '').toLowerCase().includes(val) || 
+          (emp.department || '').toLowerCase().includes(val)
+        )
+      : [...employees].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'));
 
     if (matches.length > 0) {
       elements.personalSuggestions.innerHTML = '';
-      matches.forEach(emp => {
+      matches.slice(0, 20).forEach(emp => {
         const div = document.createElement('div');
         div.className = 'suggestion-item';
         div.innerHTML = `
           <span class="suggestion-name">${emp.name}</span>
-          <span class="suggestion-dept">${emp.department}</span>
+          <span class="suggestion-dept">${emp.department || 'ทั่วไป'}</span>
         `;
         div.addEventListener('click', () => {
           elements.personalSearchInput.value = emp.name;
@@ -752,6 +749,14 @@ function setupEventListeners() {
       `;
       elements.personalSuggestions.style.display = 'block';
     }
+  };
+
+  elements.personalSearchInput.addEventListener('input', (e) => {
+    renderPersonalSuggestions(e.target.value);
+  });
+
+  elements.personalSearchInput.addEventListener('focus', () => {
+    renderPersonalSuggestions(elements.personalSearchInput.value);
   });
 
   // Click outside suggestions list to close it

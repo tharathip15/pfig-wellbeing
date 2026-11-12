@@ -527,9 +527,8 @@ test("admin proxy: openEmployeeTrackerAsAdmin switches view and populates quick-
   assert.equal(currentProfileEmpIdVal, "e2");
   assert.equal(checkinModalOpened, true);
 
-  const quickSelect = app.document.getElementById("personal-admin-quick-select");
-  assert.match(quickSelect.innerHTML, /จิราพร วิ่งไว/);
-  assert.match(quickSelect.innerHTML, /กมล สุขภาพดี/);
+  const searchInput = app.document.getElementById("personal-search-input");
+  assert.equal(searchInput.value, "จิราพร วิ่งไว");
 });
 
 test("admin switcher button and search card are hidden for non-admin employees and visible for admins", () => {

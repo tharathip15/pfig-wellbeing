@@ -292,18 +292,13 @@
       <!-- Personal Search Card (shown only for Admin quick switch) -->
       <div class="personal-search-card" id="personal-search-card" style="display: none;">
         <div class="personal-search-header">
-          <h2>ค้นหาหรือเลือกพนักงาน</h2>
-          <p>เลือกรายชื่อหรือค้นหาเพื่อเปิดดูประวัติและบันทึกข้อมูลสุขภาพแทนพนักงาน</p>
+          <h2>ค้นหารายชื่อพนักงาน</h2>
+          <p>พิมพ์ชื่อเพื่อเปิดดูประวัติและบันทึกข้อมูลสุขภาพแทนพนักงาน</p>
         </div>
-        <div class="personal-search-box-wrapper" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-          <div class="search-input-container" style="flex: 1; min-width: 220px;">
+        <div class="personal-search-box-wrapper">
+          <div class="search-input-container">
             <svg class="personal-search-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <input type="text" id="personal-search-input" placeholder="พิมพ์ชื่อเพื่อค้นหา... (เช่น John)" autocomplete="off">
-          </div>
-          <div class="personal-search-select-container" style="min-width: 240px; flex: 1;">
-            <select id="personal-admin-quick-select" class="form-select" style="width: 100%; height: 42px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-item); color: var(--text-main); font-size: 0.9rem; padding: 0 0.75rem;">
-              <option value="">-- เลือกพนักงานเพื่อบันทึกข้อมูลแทน --</option>
-            </select>
           </div>
           <div id="personal-suggestions" class="search-suggestions-list" style="display: none;"></div>
         </div>
