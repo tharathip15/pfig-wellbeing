@@ -350,7 +350,7 @@
 
       const diffRemaining = parseFloat(Math.abs(cur - targetVal).toFixed(1));
       const remainingText = achieved
-        ? "🎉 พิชิตเป้าหมายสำเร็จแล้ว!"
+        ? "ถึงเป้าหมายแล้ว"
         : `อีก ${diffRemaining} ${unit} จะถึงเป้าหมาย (${targetVal} ${unit})`;
 
       items.push({
@@ -371,10 +371,10 @@
     const curW = latest?.weight;
     const targetW = goals.targetWeight;
     const wDir = startW && targetW ? (targetW <= startW ? "down" : "up") : "closest";
-    computeProgress("targetWeight", "เป้าหมายน้ำหนัก", "kg", "⚖️", startW, curW, targetW, wDir);
-    computeProgress("targetFat", "เป้าหมายไขมัน", "%", "📉", baseline?.fat, latest?.fat, goals.targetFat, "down");
-    computeProgress("targetMuscle", "เป้าหมายกล้ามเนื้อ", "%", "💪", baseline?.muscle, latest?.muscle, goals.targetMuscle, "up");
-    computeProgress("targetBodyage", "เป้าหมายอายุร่างกาย", "ปี", "🧬", baseline?.bodyage, latest?.bodyage, goals.targetBodyage, "down");
+    computeProgress("targetWeight", "เป้าหมายน้ำหนัก", "kg", "W", startW, curW, targetW, wDir);
+    computeProgress("targetFat", "เป้าหมายไขมัน", "%", "F", baseline?.fat, latest?.fat, goals.targetFat, "down");
+    computeProgress("targetMuscle", "เป้าหมายกล้ามเนื้อ", "%", "M", baseline?.muscle, latest?.muscle, goals.targetMuscle, "up");
+    computeProgress("targetBodyage", "เป้าหมายอายุร่างกาย", "ปี", "A", baseline?.bodyage, latest?.bodyage, goals.targetBodyage, "down");
 
     return {
       hasGoals: items.length > 0,
@@ -400,42 +400,42 @@
     return [
       {
         id: "first_step",
-        icon: "🌱",
+        icon: "01",
         title: "ก้าวแรกเพื่อตัวเอง",
         desc: "เริ่มต้นบันทึกข้อมูลสุขภาพครั้งแรกสำเร็จ",
         unlocked: stats.totalLogs >= 1,
       },
       {
         id: "streak_3",
-        icon: "🔥",
+        icon: "3x",
         title: "ฟิตต่อเนื่อง x3",
         desc: "เช็คอินอัปเดตข้อมูลร่างกายต่อเนื่องครบ 3 ครั้ง",
         unlocked: stats.streakCount >= 3,
       },
       {
         id: "streak_7",
-        icon: "⚡",
+        icon: "7x",
         title: "สายวินัยตัวจริง x7",
         desc: "เช็คอินอัปเดตข้อมูลร่างกายต่อเนื่องครบ 7 ครั้ง",
         unlocked: stats.streakCount >= 7,
       },
       {
         id: "time_traveler",
-        icon: "🧬",
+        icon: "BA",
         title: "โกงอายุสำเร็จ",
         desc: "อายุร่างกายน้อยกว่าหรือเท่ากับอายุจริงของคุณ",
         unlocked: Boolean(latestWithBodyage && realAge > 0 && latestWithBodyage.bodyage <= realAge),
       },
       {
         id: "golden_bmi",
-        icon: "⚖️",
+        icon: "BMI",
         title: "สมดุลทองคำ (BMI ปกติ)",
         desc: "ค่า BMI ล่าสุดอยู่ในเกณฑ์สมส่วนมาตรฐาน (18.5 - 22.9)",
         unlocked: Boolean(latest && latest.bmi >= 18.5 && latest.bmi <= 22.9),
       },
       {
         id: "muscle_up",
-        icon: "💪",
+        icon: "+M",
         title: "สายสตรองกล้ามเนื้อพุ่ง",
         desc: "มวลกล้ามเนื้อเพิ่มขึ้นจากจุดเริ่มต้นอย่างน้อย +0.5%",
         unlocked: Boolean(
@@ -447,7 +447,7 @@
       },
       {
         id: "fat_burner",
-        icon: "🔥",
+        icon: "-F",
         title: "นักเผาผลาญไขมัน",
         desc: "ลดอัตราไขมันในร่างกายลงจากจุดเริ่มต้นอย่างน้อย -1.0%",
         unlocked: Boolean(
@@ -459,7 +459,7 @@
       },
       {
         id: "goal_crusher",
-        icon: "🏆",
+        icon: "100",
         title: "ผู้พิชิตเป้าหมาย",
         desc: "ทำสำเร็จตามเป้าหมายส่วนตัวที่ตั้งไว้",
         unlocked: goals.anyAchieved,
@@ -469,56 +469,56 @@
 
   function generateCelebrationFeedback(emp, newLog, previousLog) {
     const highlights = [];
-    let title = "🎉 บันทึกข้อมูลร่างกายสำเร็จแล้ว!";
-    let message = "ทุกครั้งที่มาวัดและจดบันทึก คือการดูแลตัวเองที่ยอดเยี่ยมที่สุด สู้ต่อไปนะ!";
+    let title = "บันทึกข้อมูลร่างกายเรียบร้อย";
+    let message = "ข้อมูลล่าสุดถูกเพิ่มลงในสมุดบันทึกสุขภาพของคุณแล้ว";
 
     if (previousLog && Number(newLog?.weight) > 0 && Number(previousLog?.weight) > 0) {
       const wDiff = parseFloat((newLog.weight - previousLog.weight).toFixed(1));
       if (wDiff < 0) {
         const lost = Math.abs(wDiff);
-        highlights.push(`⚖️ น้ำหนักลดลง -${lost} kg จากครั้งก่อน`);
-        title = `🌟 ว้าว! น้ำหนักลดลง ${lost} kg จากครั้งก่อน!`;
+        highlights.push(`น้ำหนักลดลง -${lost} kg จากครั้งก่อน`);
+        title = `น้ำหนักลดลง ${lost} kg จากครั้งก่อน`;
         message = lost >= 1
-          ? "เบาตัวขึ้นเยอะเลย! วินัยของคุณกำลังออกดอกออกผลอย่างชัดเจน!"
-          : "ค่อยๆ ลดแบบสุขภาพดี รักษามาตรฐานนี้ไว้เลย!";
+          ? "เห็นการเปลี่ยนแปลงชัดเจน รักษาความสม่ำเสมอนี้ต่อไป"
+          : "ค่อยๆ ปรับลดลงอย่างต่อเนื่องตามจังหวะร่างกาย";
       } else if (wDiff === 0) {
-        highlights.push("⚖️ น้ำหนักคงที่เป๊ะจากครั้งก่อน");
-        title = "✨ รักษาสมดุลร่างกายได้นิ่งมาก!";
-        message = "ความสม่ำเสมอคือกุญแจสำคัญของการมีสุขภาพดีระยะยาว!";
+        highlights.push("น้ำหนักคงที่เท่ากับครั้งก่อน");
+        title = "รักษาระดับน้ำหนักได้คงที่";
+        message = "การรักษาน้ำหนักให้นิ่งและสม่ำเสมอช่วยให้คุมสุขภาพระยะยาวได้ดี";
       } else {
-        highlights.push(`⚖️ น้ำหนักเปลี่ยนแปลง +${wDiff} kg จากครั้งก่อน`);
-        title = "💪 เช็คอินวันนี้เรียบร้อย! รู้ทันร่างกายคือชัยชนะ";
-        message = "น้ำหนักขยับขึ้นลงตามน้ำและอาหารในแต่ละวันได้เป็นเรื่องปกติ ดื่มน้ำเยอะๆ พักผ่อนให้พอ แล้วลุยต่อ!";
+        highlights.push(`น้ำหนักเปลี่ยนแปลง +${wDiff} kg จากครั้งก่อน`);
+        title = "บันทึกข้อมูลวันนี้เรียบร้อย";
+        message = "น้ำหนักอาจขยับขึ้นลงตามปริมาณน้ำและอาหารในแต่ละวัน ติดตามต่อเนื่องเพื่อดูแนวโน้มระยะยาว";
       }
     } else if (Number(newLog?.weight) > 0) {
-      highlights.push(`⚖️ น้ำหนักเริ่มต้น ${newLog.weight} kg`);
+      highlights.push(`น้ำหนักเริ่มต้น ${newLog.weight} kg`);
     }
 
     if (Number(newLog?.bodyage) > 0) {
       if (previousLog && Number(previousLog?.bodyage) > 0) {
         const ageDiff = newLog.bodyage - previousLog.bodyage;
         if (ageDiff < 0) {
-          highlights.push(`🧬 อายุร่างกายเด็กลง ${Math.abs(ageDiff)} ปี (${previousLog.bodyage} ➔ ${newLog.bodyage} ปี)`);
-          title = `🧬 สุดยอด! อายุร่างกายเด็กลง ${Math.abs(ageDiff)} ปี!`;
+          highlights.push(`อายุร่างกายลดลง ${Math.abs(ageDiff)} ปี (${previousLog.bodyage} → ${newLog.bodyage} ปี)`);
+          title = `อายุร่างกายลดลง ${Math.abs(ageDiff)} ปี`;
         } else {
-          highlights.push(`🧬 อายุร่างกาย ${newLog.bodyage} ปี`);
+          highlights.push(`อายุร่างกาย ${newLog.bodyage} ปี`);
         }
       } else {
-        highlights.push(`🧬 อายุร่างกาย ${newLog.bodyage} ปี`);
+        highlights.push(`อายุร่างกาย ${newLog.bodyage} ปี`);
       }
     }
 
     if (Number(newLog?.muscle) > 0 && previousLog && Number(previousLog?.muscle) > 0) {
       const mDiff = parseFloat((newLog.muscle - previousLog.muscle).toFixed(1));
       if (mDiff > 0) {
-        highlights.push(`💪 กล้ามเนื้อเพิ่มขึ้น +${mDiff}%`);
+        highlights.push(`กล้ามเนื้อเพิ่มขึ้น +${mDiff}%`);
       }
     }
 
     if (Number(newLog?.fat) > 0 && previousLog && Number(previousLog?.fat) > 0) {
       const fDiff = parseFloat((newLog.fat - previousLog.fat).toFixed(1));
       if (fDiff < 0) {
-        highlights.push(`📉 ไขมันลดลง ${fDiff}%`);
+        highlights.push(`ไขมันลดลง ${fDiff}%`);
       }
     }
 

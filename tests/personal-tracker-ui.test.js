@@ -212,3 +212,35 @@ test("renderSelfOnboardingCard renders self-registration form for new signed-in 
   assert.match(html, /Newcomer PFIG/);
   assert.match(html, /onboarding-form/);
 });
+
+test("forms use aligned controls and concise Thai labels without emoji clutter", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(root, "style.css"), "utf8");
+  const app = loadAppWithTracker();
+
+  // Check CSS form alignment rules prevent uneven input boxes when labels vary in length
+  assert.match(css, /\.form-control\s*\{[^}]*min-height:\s*42px/m);
+  assert.match(css, /\.form-control\s*\{[^}]*width:\s*100%/m);
+  assert.match(css, /\.checkin-optional-section/);
+
+  // Check-in modal optional body metrics should not use narrow 4-col .month-record-grid
+  const checkinModalMatch = html.match(/id="checkin-modal"[\s\S]*?<\/form>/);
+  assert.ok(checkinModalMatch, "checkin-modal form should exist");
+  assert.doesNotMatch(checkinModalMatch[0], /class="month-record-grid"/);
+
+  // Form labels in check-in and onboarding forms should not start with decorative emojis
+  const labelMatches = [...checkinModalMatch[0].matchAll(/<label[^>]*>([\s\S]*?)<\/label>/g)].map(m => m[1].trim());
+  assert.ok(labelMatches.length >= 8);
+  for (const labelText of labelMatches) {
+    assert.doesNotMatch(labelText, /^[📅⚖️📊🏷️🧬💪📉🫀💬📸🎯📏🎂👤🏢⚧️]/u, `Label "${labelText}" should not start with an emoji`);
+  }
+
+  vm.runInContext(`renderSelfOnboardingCard();`, app);
+  const onboardHtml = app.elementsById.get("personal-profile-display").innerHTML;
+  const onboardLabels = [...onboardHtml.matchAll(/<label[^>]*>([\s\S]*?)<\/label>/g)].map(m => m[1].trim());
+  assert.ok(onboardLabels.length >= 6);
+  for (const labelText of onboardLabels) {
+    assert.doesNotMatch(labelText, /^[📅⚖️📊🏷️🧬💪📉🫀💬📸🎯📏🎂👤🏢⚧️]/u, `Onboarding label "${labelText}" should not start with an emoji`);
+  }
+});
+

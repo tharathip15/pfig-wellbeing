@@ -2421,7 +2421,7 @@ function switchToPersonalView() {
   elements.personalView.style.display = 'block';
   
   // Hide Admin actions in header
-  elements.btnToggleView.textContent = '📊 แผงควบคุมระบบ (Admin)';
+  elements.btnToggleView.textContent = 'แผงควบคุมผู้ดูแล';
   elements.btnToggleView.className = 'btn btn-secondary';
   
   elements.btnExportCsv.style.display = 'none';
@@ -2506,7 +2506,7 @@ function switchToAdminView() {
   elements.adminView.style.display = 'block';
   
   // Restore Admin actions in header
-  elements.btnToggleView.textContent = '👤 ข้อมูลส่วนตัวพนักงาน';
+  elements.btnToggleView.textContent = 'สมุดบันทึกส่วนตัว';
   elements.btnToggleView.className = 'btn btn-accent';
   
   elements.btnExportCsv.style.display = 'inline-flex';
@@ -2570,18 +2570,18 @@ function renderSelfOnboardingCard() {
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card tracker-onboarding-card animate-fade">
       <div class="tracker-onboarding-header">
-        <div class="tracker-onboarding-badge">🌱 ยินดีต้อนรับสู่สมุดบันทึกสุขภาพ PFIG</div>
+        <div class="tracker-onboarding-badge">PFIG Well Being</div>
         <h3>สร้างสมุดบันทึกสุขภาพส่วนตัวของคุณ</h3>
-        <p>มาเริ่มต้นจดบันทึกน้ำหนักและข้อมูลร่างกายเพื่อตัวคุณเองกัน! กรอกข้อมูลพื้นฐานเพียงครั้งเดียว แล้วเริ่มบันทึกผลวัดรายวัน รายสัปดาห์ หรือรายเดือนได้ทันที</p>
+        <p>กรอกข้อมูลพื้นฐานครั้งแรกเพื่อเริ่มบันทึกน้ำหนักและองค์ประกอบร่างกายของคุณตามรอบที่สะดวก</p>
       </div>
       <form id="onboarding-form" onsubmit="event.preventDefault(); handleSelfOnboardingSubmit();">
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label" for="onboard-name">👤 ชื่อ - นามสกุล *</label>
+            <label class="form-label" for="onboard-name">ชื่อ - นามสกุล *</label>
             <input type="text" class="form-control" id="onboard-name" value="${defaultName}" placeholder="ชื่อ-นามสกุลของคุณ" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-dept">🏢 แผนก / ฝ่าย *</label>
+            <label class="form-label" for="onboard-dept">แผนก / ฝ่าย *</label>
             <select class="form-control" id="onboard-dept" required>
               <option value="Corporate">Corporate</option>
               <option value="Finance & Acc">Finance & Acc</option>
@@ -2591,37 +2591,37 @@ function renderSelfOnboardingCard() {
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-age">🎂 อายุจริง (ปี) *</label>
+            <label class="form-label" for="onboard-age">อายุจริง (ปี) *</label>
             <input type="number" class="form-control" id="onboard-age" min="15" max="100" placeholder="เช่น 29" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-height">📏 ส่วนสูง (cm) *</label>
+            <label class="form-label" for="onboard-height">ส่วนสูง (cm) *</label>
             <input type="number" class="form-control" id="onboard-height" min="100" max="250" placeholder="เช่น 168" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-gender">⚧️ เพศ *</label>
+            <label class="form-label" for="onboard-gender">เพศ *</label>
             <select class="form-control" id="onboard-gender" required>
-              <option value="male">ชาย (Men)</option>
-              <option value="female">หญิง (Women)</option>
+              <option value="male">ชาย</option>
+              <option value="female">หญิง</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-weight">⚖️ น้ำหนักเริ่มต้นวันนี้ (kg) *</label>
+            <label class="form-label" for="onboard-weight">น้ำหนักเริ่มต้น (kg) *</label>
             <input type="number" class="form-control" id="onboard-weight" step="0.1" min="25" max="250" placeholder="เช่น 65.0" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-bodyage">🧬 อายุร่างกายวันนี้ (ปี - ถ้ามี)</label>
-            <input type="number" class="form-control" id="onboard-bodyage" min="10" max="120" placeholder="ไม่บังคับ">
+            <label class="form-label" for="onboard-bodyage">อายุร่างกาย (ปี) <span class="form-label-hint">ไม่บังคับ</span></label>
+            <input type="number" class="form-control" id="onboard-bodyage" min="10" max="120" placeholder="ระบุถ้ามีข้อมูล">
           </div>
           <div class="form-group">
-            <label class="form-label" for="onboard-target-weight">🎯 น้ำหนักเป้าหมายที่อยากไปให้ถึง (kg - ถ้ามี)</label>
+            <label class="form-label" for="onboard-target-weight">น้ำหนักเป้าหมาย (kg) <span class="form-label-hint">ไม่บังคับ</span></label>
             <input type="number" class="form-control" id="onboard-target-weight" step="0.1" min="25" max="220" placeholder="เช่น 60.0">
           </div>
         </div>
         <input type="hidden" id="onboard-date" value="${todayStr}">
-        <div style="margin-top: 1.5rem; text-align: center;">
-          <button type="submit" class="btn btn-primary" style="padding: 0.85rem 2.2rem; font-size: 1rem;">
-            🚀 เริ่มต้นสมุดบันทึกสุขภาพของฉัน
+        <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
+          <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.75rem;">
+            สร้างสมุดบันทึกสุขภาพ
           </button>
         </div>
       </form>
@@ -2651,14 +2651,14 @@ window.handleSelfOnboardingSubmit = async function() {
   const firstLog = {
     id: `log-${dateStr}-init`,
     date: dateStr,
-    label: 'บันทึกเริ่มต้นวันแรก 🌱',
+    label: 'บันทึกเริ่มต้นวันแรก',
     weight,
     bmi,
     bodyage: isNaN(bodyage) ? null : Math.round(bodyage),
     muscle: null,
     fat: null,
     visceralFat: null,
-    note: 'เริ่มต้นสมุดบันทึกสุขภาพส่วนตัว!',
+    note: 'เริ่มต้นสมุดบันทึกสุขภาพส่วนตัว',
     photo: null,
   };
 
@@ -2686,7 +2686,7 @@ window.handleSelfOnboardingSubmit = async function() {
       method: 'POST',
       body: JSON.stringify({ name, department, age, height, months })
     });
-    showToast('🎉 สร้างสมุดบันทึกสุขภาพส่วนตัวสำเร็จ!', 'success');
+    showToast('สร้างสมุดบันทึกสุขภาพส่วนตัวเรียบร้อยแล้ว', 'success');
     await loadData();
     switchToPersonalView();
   } catch (err) {
@@ -2720,7 +2720,7 @@ window.updateCheckinBmiPreview = function() {
     return;
   }
   const bmi = calcBMI(weightVal, emp.height);
-  previewEl.value = bmi ? `${bmi} (${bmi < 18.5 ? 'บาง' : bmi <= 22.9 ? 'สมส่วน 🌱' : 'เกินเกณฑ์'})` : '';
+  previewEl.value = bmi ? `${bmi} (${bmi < 18.5 ? 'ต่ำกว่าเกณฑ์' : bmi <= 22.9 ? 'สมส่วน' : 'เกินเกณฑ์'})` : '';
 };
 
 window.openCheckinModal = function(logId = null) {
@@ -2751,7 +2751,7 @@ window.openCheckinModal = function(logId = null) {
   const existingLog = logId ? logs.find(item => item.id === String(logId)) : null;
 
   if (existingLog) {
-    if (titleEl) titleEl.textContent = '✏️ แก้ไขบันทึกข้อมูลร่างกาย';
+    if (titleEl) titleEl.textContent = 'แก้ไขบันทึกข้อมูลร่างกาย';
     if (idInput) idInput.value = existingLog.id;
     if (dateInput) dateInput.value = existingLog.date || todayStr;
     if (weightInput) weightInput.value = existingLog.weight ?? '';
@@ -2768,7 +2768,7 @@ window.openCheckinModal = function(logId = null) {
       photoPreview.style.display = 'block';
     }
   } else {
-    if (titleEl) titleEl.textContent = '📝 บันทึกข้อมูลร่างกายวันนี้';
+    if (titleEl) titleEl.textContent = 'บันทึกข้อมูลร่างกาย';
     if (idInput) idInput.value = '';
     if (dateInput) dateInput.value = todayStr;
     if (weightInput) weightInput.value = '';
@@ -3171,16 +3171,16 @@ function showPersonalProfile(empId, selectedGender = null) {
   const currentPct = Math.min(100, Math.max(0, ((latestWeight - leftLimit) / rangeWidth) * 100));
   const currentPinEdgeClass = currentPct <= 15 ? 'is-edge-left' : currentPct >= 85 ? 'is-edge-right' : '';
 
-  let weightAdvice = 'กดปุ่ม "+ บันทึกข้อมูลร่างกาย" เพื่อดูคำแนะนำสุขภาพเฉพาะตัวคุณ!';
+  let weightAdvice = 'กดปุ่ม "บันทึกข้อมูลร่างกาย" เพื่อดูคำแนะนำตามเกณฑ์ส่วนสูงของคุณ';
   if (latestLog && latestLog.bmi) {
     if (latestLog.bmi < 18.5) {
       const neededGain = parseFloat((minWeight - latestWeight).toFixed(1));
-      weightAdvice = `น้ำหนักปัจจุบันต่ำกว่าเกณฑ์มาตรฐาน แนะนำให้เพิ่มมวลกล้ามเนื้อและน้ำหนักอีกประมาณ <strong>+${neededGain} kg</strong> เพื่อเข้าสู่โซนสุขภาพดี (${minWeight} - ${maxWeight} kg)`;
+      weightAdvice = `น้ำหนักปัจจุบันต่ำกว่าเกณฑ์ แนะนำให้เพิ่มมวลกล้ามเนื้อและน้ำหนักอีกประมาณ <strong>+${neededGain} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
     } else if (latestLog.bmi > 22.9) {
       const neededLoss = parseFloat((latestWeight - maxWeight).toFixed(1));
-      weightAdvice = `อีกเพียง <strong>-${neededLoss} kg</strong> คุณจะเข้าสู่โซนน้ำหนักสมส่วนมาตรฐาน (${minWeight} - ${maxWeight} kg) ค่อยๆ สะสมวินัยไปด้วยกันนะ!`;
+      weightAdvice = `ลดลงอีกประมาณ <strong>-${neededLoss} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
     } else {
-      weightAdvice = `ยอดเยี่ยมมาก! น้ำหนักปัจจุบันของคุณ (${latestWeight} kg) อยู่ในโซนสมส่วนมาตรฐานแล้ว มุ่งเน้นรักษามวลกล้ามเนื้อและสุขภาพที่แข็งแรงต่อไปได้เลย 🌱`;
+      weightAdvice = `น้ำหนักปัจจุบัน (${latestWeight} kg) อยู่ในเกณฑ์สมส่วนแล้ว แนะนำให้รักษามวลกล้ามเนื้อและความสม่ำเสมอต่อไป`;
     }
   }
 
@@ -3189,7 +3189,7 @@ function showPersonalProfile(empId, selectedGender = null) {
     ? goalProgress.items.map(g => `
         <div class="tracker-goal-item">
           <div class="tracker-goal-header">
-            <span class="tracker-goal-title">${g.icon} ${g.label}: <strong>${g.targetVal} ${g.unit}</strong></span>
+            <span class="tracker-goal-title">${g.label}: <strong>${g.targetVal} ${g.unit}</strong></span>
             <span class="tracker-goal-status">${g.remainingText}</span>
           </div>
           <div class="personal-score-bar-bg">
@@ -3199,8 +3199,8 @@ function showPersonalProfile(empId, selectedGender = null) {
       `).join('')
     : `
       <div class="tracker-goal-empty">
-        <p>ยังไม่ได้ตั้งเป้าหมายส่วนตัว ลองตั้งเป้าน้ำหนัก %ไขมัน หรืออายุร่างกายที่อยากพิชิต เพื่อดูหลอดพลังความก้าวหน้าของคุณกัน!</p>
-        ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">🎯 ตั้งเป้าหมายแรกของฉัน</button>` : ''}
+        <p>ยังไม่ได้กำหนดเป้าหมายส่วนตัว สามารถตั้งเป้าน้ำหนัก อัตราไขมัน หรืออายุร่างกายเพื่อดูความคืบหน้าได้</p>
+        ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">ตั้งเป้าหมายส่วนตัว</button>` : ''}
       </div>
     `;
 
@@ -3212,7 +3212,7 @@ function showPersonalProfile(empId, selectedGender = null) {
         <div class="tracker-badge-title">${b.title}</div>
         <div class="tracker-badge-desc">${b.desc}</div>
       </div>
-      <div class="tracker-badge-pill">${b.unlocked ? 'ปลดล็อกแล้ว ✨' : 'ล็อกอยู่ 🔒'}</div>
+      <div class="tracker-badge-pill">${b.unlocked ? 'สำเร็จแล้ว' : 'ยังไม่ปลดล็อก'}</div>
     </div>
   `).join('');
 
@@ -3220,18 +3220,18 @@ function showPersonalProfile(empId, selectedGender = null) {
   const leadersHtml = pulse && Array.isArray(pulse.consistencyLeaders) && pulse.consistencyLeaders.length > 0
     ? pulse.consistencyLeaders.map((leader, idx) => `
         <div class="tracker-community-leader">
-          <span class="tracker-leader-rank">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</span>
+          <span class="tracker-leader-rank" style="font-weight: 600; color: var(--text-muted); min-width: 24px;">#${idx + 1}</span>
           <div class="tracker-leader-meta">
             <strong>${leader.name}</strong>
             <span>${leader.department}</span>
           </div>
           <div class="tracker-leader-tags">
-            <span class="tracker-streak-tag">🔥 ต่อเนื่อง ${leader.streakCount} ครั้ง</span>
-            <span class="tracker-badge-tag">🏅 ${leader.unlockedBadges} เหรียญ</span>
+            <span class="tracker-streak-tag">ต่อเนื่อง ${leader.streakCount} ครั้ง</span>
+            <span class="tracker-badge-tag">${leader.unlockedBadges} เหรียญ</span>
           </div>
         </div>
       `).join('')
-    : `<div style="color: var(--text-muted); font-size: 0.85rem;">มาร่วมเช็คอินสะสมความสม่ำเสมอครบ 3 ครั้งขึ้นไป เพื่อขึ้นบอร์ดคนรักสุขภาพกัน!</div>`;
+    : `<div style="color: var(--text-muted); font-size: 0.85rem;">บันทึกข้อมูลครบ 3 ครั้งขึ้นไปเพื่อแสดงรายชื่อผู้มีความสม่ำเสมอ</div>`;
 
   // Render Timeline History Cards (Newest first)
   const reversedLogs = [...logs].reverse();
@@ -3244,7 +3244,7 @@ function showPersonalProfile(empId, selectedGender = null) {
           : null;
         const wDeltaBadge = wDelta !== null
           ? `<span class="tracker-log-delta ${wDelta < 0 ? 'good' : wDelta > 0 ? 'warn' : 'neutral'}">${wDelta > 0 ? `+${wDelta}` : wDelta} kg</span>`
-          : `<span class="tracker-log-delta neutral">จุดเริ่มต้น</span>`;
+          : `<span class="tracker-log-delta neutral">ค่าเริ่มต้น</span>`;
 
         const bmiStatus = logItem.bmi ? getBmiStatus(logItem.bmi) : { text: '', color: '' };
         const fatStatus = logItem.fat && gender ? getFatStatus(logItem.fat, gender) : { text: '', color: '' };
@@ -3254,82 +3254,83 @@ function showPersonalProfile(empId, selectedGender = null) {
           <div class="tracker-timeline-card">
             <div class="tracker-timeline-top">
               <div class="tracker-timeline-date-group">
-                <span class="tracker-timeline-date">📅 ${logItem.date}</span>
+                <span class="tracker-timeline-date">${logItem.date}</span>
                 ${logItem.label ? `<span class="tracker-timeline-label">${logItem.label}</span>` : ''}
                 ${wDeltaBadge}
               </div>
               ${canEditOwn ? `
                 <div class="tracker-timeline-actions">
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="openCheckinModal('${logItem.id}')">✏️ แก้ไข</button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="handleDeleteLog('${logItem.id}')">🗑️</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openCheckinModal('${logItem.id}')">แก้ไข</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="handleDeleteLog('${logItem.id}')">ลบ</button>
                 </div>
               ` : ''}
             </div>
             <div class="tracker-timeline-metrics">
               <div class="tracker-metric-chip">
-                <span class="chip-label">⚖️ น้ำหนัก</span>
+                <span class="chip-label">น้ำหนัก</span>
                 <span class="chip-val">${logItem.weight != null ? `${logItem.weight} kg` : '-'}</span>
               </div>
               <div class="tracker-metric-chip">
-                <span class="chip-label">📊 BMI</span>
+                <span class="chip-label">BMI</span>
                 <span class="chip-val" style="color: ${bmiStatus.color || 'var(--text-main)'};">
                   ${logItem.bmi != null ? logItem.bmi : '-'}
                   ${bmiStatus.text ? `<small>(${bmiStatus.text})</small>` : ''}
                 </span>
               </div>
               <div class="tracker-metric-chip">
-                <span class="chip-label">🧬 อายุร่างกาย</span>
+                <span class="chip-label">อายุร่างกาย</span>
                 <span class="chip-val">${logItem.bodyage != null ? `${logItem.bodyage} ปี` : '-'}</span>
               </div>
               <div class="tracker-metric-chip">
-                <span class="chip-label">💪 กล้ามเนื้อ</span>
+                <span class="chip-label">กล้ามเนื้อ</span>
                 <span class="chip-val" style="color: ${muscleStatus.color || 'var(--text-main)'};">
                   ${logItem.muscle != null ? `${logItem.muscle}%` : '-'}
                 </span>
               </div>
               <div class="tracker-metric-chip">
-                <span class="chip-label">📉 ไขมัน</span>
+                <span class="chip-label">อัตราไขมัน</span>
                 <span class="chip-val" style="color: ${fatStatus.color || 'var(--text-main)'};">
                   ${logItem.fat != null ? `${logItem.fat}%` : '-'}
                 </span>
               </div>
               ${logItem.visceralFat != null ? `
                 <div class="tracker-metric-chip">
-                  <span class="chip-label">🫀 ไขมันช่องท้อง</span>
+                  <span class="chip-label">ไขมันช่องท้อง</span>
                   <span class="chip-val">${logItem.visceralFat}</span>
                 </div>
               ` : ''}
             </div>
-            ${logItem.note ? `<div class="tracker-timeline-note">💬 "${logItem.note}"</div>` : ''}
+            ${logItem.note ? `<div class="tracker-timeline-note">${logItem.note}</div>` : ''}
             ${logItem.photo ? `<div class="tracker-timeline-photo"><img src="${logItem.photo}" alt="รูปความคืบหน้า ${logItem.date}"></div>` : ''}
           </div>
         `;
       }).join('')
     : `
       <div class="empty-state" style="padding: 2rem;">
-        <p>ยังไม่มีประวัติการบันทึก กดปุ่ม <strong>"+ บันทึกข้อมูลร่างกาย"</strong> ด้านบนเพื่อเริ่มบันทึกครั้งแรกกันเลย!</p>
+        <p>ยังไม่มีประวัติการบันทึก กดปุ่ม <strong>"บันทึกข้อมูลร่างกาย"</strong> ด้านบนเพื่อเริ่มบันทึกครั้งแรก</p>
       </div>
     `;
 
   const trendChartSvg = renderTrendChartSvg(logs, currentTrendMetric, currentTrendRange);
+  const avatarInitials = String(emp.name || 'P').trim().slice(0, 2).toUpperCase();
 
   elements.personalProfileDisplay.innerHTML = `
     <div class="personal-profile-card">
       <!-- Profile Info Header + Quick Actions -->
       <div class="personal-profile-header">
         <div class="personal-profile-title-group">
-          <div class="personal-avatar">👤</div>
+          <div class="personal-avatar">${avatarInitials}</div>
           <div class="personal-name">
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;">
               <h3>${emp.name}</h3>
-              <span class="tracker-streak-banner">🔥 เช็คอินต่อเนื่อง ${stats.streakCount} ครั้ง • สะสม ${stats.totalLogs} บันทึก</span>
+              <span class="tracker-streak-banner"><span class="tracker-streak-dot"></span>ต่อเนื่อง ${stats.streakCount} ครั้ง • สะสม ${stats.totalLogs} บันทึก</span>
             </div>
-            <div class="personal-meta-info" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.4rem;">
-              <span class="personal-meta-badge personal-meta-badge-dept">🏢 แผนก: ${emp.department}</span>
-              <span class="personal-meta-badge">🎂 อายุจริง: ${emp.age} ปี</span>
-              <span class="personal-meta-badge">📏 ส่วนสูง: ${emp.height} ซม.</span>
+            <div class="personal-meta-info" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.45rem;">
+              <span class="personal-meta-badge personal-meta-badge-dept">แผนก ${emp.department}</span>
+              <span class="personal-meta-badge">อายุ ${emp.age} ปี</span>
+              <span class="personal-meta-badge">ส่วนสูง ${emp.height} ซม.</span>
               <span class="personal-meta-badge" style="background: var(--bg-item); border: 1px solid var(--border-item); display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border-radius: 20px;">
-                ⚧️ เพศ:
+                เพศ
                 <button onclick="setProfileGender('male')" style="background: ${gender === 'male' ? 'var(--primary)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'male' ? 'var(--primary-light)' : 'var(--border-color)'}; color: ${gender === 'male' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'male' ? '600' : 'normal'};">ชาย</button>
                 <button onclick="setProfileGender('female')" style="background: ${gender === 'female' ? 'var(--pink-female)' : 'var(--bg-btn-secondary)'}; border: 1px solid ${gender === 'female' ? 'var(--pink-female)' : 'var(--border-color)'}; color: ${gender === 'female' ? '#fff' : 'var(--text-muted)'}; padding: 1px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: ${gender === 'female' ? '600' : 'normal'};">หญิง</button>
               </span>
@@ -3338,8 +3339,8 @@ function showPersonalProfile(empId, selectedGender = null) {
         </div>
         ${canEditOwn ? `
           <div class="tracker-header-cta">
-            <button type="button" class="btn btn-secondary" onclick="openGoalModal()">🎯 ตั้งเป้าหมายของฉัน</button>
-            <button type="button" class="btn btn-primary" onclick="openCheckinModal()">➕ บันทึกข้อมูลร่างกาย</button>
+            <button type="button" class="btn btn-secondary" onclick="openGoalModal()">ตั้งเป้าหมาย</button>
+            <button type="button" class="btn btn-primary" onclick="openCheckinModal()">+ บันทึกข้อมูลร่างกาย</button>
           </div>
         ` : ''}
       </div>
@@ -3347,53 +3348,38 @@ function showPersonalProfile(empId, selectedGender = null) {
       <!-- Latest Snapshot & Deltas Summary -->
       <div class="personal-stats-grid" style="margin-bottom: 1.75rem;">
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary-light);">⚖️</div>
           <div class="personal-stat-details">
-            <span class="personal-stat-label">น้ำหนักล่าสุด (เทียบเริ่มต้น)</span>
-            <span class="personal-stat-value">
-              <strong>${latestLog?.weight != null ? `${latestLog.weight} kg` : '-'}</strong>
-              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.weightDiff, 'kg', false)}</div>
-            </span>
+            <span class="personal-stat-label">น้ำหนักล่าสุด</span>
+            <span class="personal-stat-value">${latestLog?.weight != null ? `${latestLog.weight} kg` : '-'}</span>
+            <div style="font-size: 0.78rem;">${formatDelta(stats.latestVsBaseline?.weightDiff, 'kg', false)} เทียบเริ่มต้น</div>
           </div>
         </div>
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--secondary-glow); color: var(--secondary-light);">🧬</div>
           <div class="personal-stat-details">
-            <span class="personal-stat-label">อายุร่างกายล่าสุด (เทียบเริ่มต้น)</span>
-            <span class="personal-stat-value">
-              <strong>${latestLog?.bodyage != null ? `${latestLog.bodyage} ปี` : '-'}</strong>
-              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.bodyageDiff, 'ปี', false)}</div>
-            </span>
+            <span class="personal-stat-label">อายุร่างกายล่าสุด</span>
+            <span class="personal-stat-value">${latestLog?.bodyage != null ? `${latestLog.bodyage} ปี` : '-'}</span>
+            <div style="font-size: 0.78rem;">${formatDelta(stats.latestVsBaseline?.bodyageDiff, 'ปี', false)} เทียบเริ่มต้น</div>
           </div>
         </div>
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">📊</div>
           <div class="personal-stat-details">
-            <span class="personal-stat-label">ดัชนีมวลกาย (BMI ล่าสุด)</span>
-            <span class="personal-stat-value">
-              <strong>${latestLog?.bmi != null ? latestLog.bmi : '-'}</strong>
-              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.bmiDiff, '', false)}</div>
-            </span>
+            <span class="personal-stat-label">ดัชนีมวลกาย (BMI)</span>
+            <span class="personal-stat-value">${latestLog?.bmi != null ? latestLog.bmi : '-'}</span>
+            <div style="font-size: 0.78rem;">${formatDelta(stats.latestVsBaseline?.bmiDiff, '', false)} เทียบเริ่มต้น</div>
           </div>
         </div>
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: var(--primary-glow); color: var(--primary);">💪</div>
           <div class="personal-stat-details">
-            <span class="personal-stat-label">กล้ามเนื้อล่าสุด</span>
-            <span class="personal-stat-value">
-              <strong>${latestLog?.muscle != null ? `${latestLog.muscle}%` : '-'}</strong>
-              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.muscleDiff, '%', true)}</div>
-            </span>
+            <span class="personal-stat-label">มวลกล้ามเนื้อ</span>
+            <span class="personal-stat-value">${latestLog?.muscle != null ? `${latestLog.muscle}%` : '-'}</span>
+            <div style="font-size: 0.78rem;">${formatDelta(stats.latestVsBaseline?.muscleDiff, '%', true)} เทียบเริ่มต้น</div>
           </div>
         </div>
         <div class="personal-stat-card">
-          <div class="personal-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">📉</div>
           <div class="personal-stat-details">
-            <span class="personal-stat-label">อัตราไขมันล่าสุด</span>
-            <span class="personal-stat-value">
-              <strong>${latestLog?.fat != null ? `${latestLog.fat}%` : '-'}</strong>
-              <div style="font-size: 0.8rem;">${formatDelta(stats.latestVsBaseline?.fatDiff, '%', false)}</div>
-            </span>
+            <span class="personal-stat-label">อัตราไขมัน</span>
+            <span class="personal-stat-value">${latestLog?.fat != null ? `${latestLog.fat}%` : '-'}</span>
+            <div style="font-size: 0.78rem;">${formatDelta(stats.latestVsBaseline?.fatDiff, '%', false)} เทียบเริ่มต้น</div>
           </div>
         </div>
       </div>
@@ -3403,9 +3389,9 @@ function showPersonalProfile(empId, selectedGender = null) {
         <div class="personal-insight-card tracker-goals-card">
           <div class="personal-insight-title">
             <div class="personal-insight-title-main">
-              <span>🎯</span> เป้าหมายสุขภาพส่วนตัวของคุณ
+              เป้าหมายสุขภาพส่วนตัว
             </div>
-            ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">⚙️ แก้ไขเป้าหมาย</button>` : ''}
+            ${canEditOwn ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openGoalModal()">แก้ไขเป้าหมาย</button>` : ''}
           </div>
           <div class="tracker-goals-list">
             ${goalsListHtml}
@@ -3414,11 +3400,11 @@ function showPersonalProfile(empId, selectedGender = null) {
 
         <div class="personal-insight-card">
           <div class="personal-insight-title">
-            <span>⚖️</span> ขอบเขตน้ำหนักที่เหมาะสมสำหรับส่วนสูง ${emp.height} ซม.
+            ช่วงน้ำหนักที่เหมาะสมสำหรับส่วนสูง ${emp.height} ซม.
           </div>
           <div class="weight-range-visualizer">
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
-              <span>น้ำหนักเหมาะสม (BMI 18.5 - 22.9): <strong>${minWeight} - ${maxWeight} kg</strong></span>
+              <span>เกณฑ์สมส่วน (BMI 18.5 - 22.9): <strong>${minWeight} - ${maxWeight} kg</strong></span>
             </div>
             <div class="weight-range-bar-wrapper">
               <div class="weight-range-bar"></div>
@@ -3431,7 +3417,7 @@ function showPersonalProfile(empId, selectedGender = null) {
               <div class="weight-range-scale-label" style="left: 100%; text-align: right; transform: translateX(-100%);">${rightLimit}</div>
             </div>
             <div style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted);">
-              <strong>💡 คำแนะนำ:</strong> ${weightAdvice}
+              <strong>คำแนะนำ:</strong> ${weightAdvice}
             </div>
           </div>
         </div>
@@ -3441,19 +3427,19 @@ function showPersonalProfile(empId, selectedGender = null) {
       <div class="personal-insight-card tracker-trend-card" style="margin-bottom: 1.75rem;">
         <div class="tracker-trend-header">
           <div>
-            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-              <span>📈</span> กราฟแนวโน้มพัฒนาการร่างกายย้อนหลัง
+            <h4 style="font-size: 1rem; font-weight: 600; color: var(--text-main);">
+              กราฟแนวโน้มพัฒนาการร่างกาย
             </h4>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">เลือกดูแนวโน้มแต่ละค่าและช่วงเวลา เพื่อติดตามสุขภาพของตัวเอง</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">เลือกตัวชี้วัดและช่วงเวลาเพื่อดูการเปลี่ยนแปลงย้อนหลัง</p>
           </div>
           <div class="tracker-trend-controls">
             <div class="tracker-tab-group">
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'weight' ? 'active' : ''}" onclick="setTrendMetric('weight')">⚖️ น้ำหนัก</button>
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'bmi' ? 'active' : ''}" onclick="setTrendMetric('bmi')">📊 BMI</button>
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'bodyage' ? 'active' : ''}" onclick="setTrendMetric('bodyage')">🧬 อายุร่างกาย</button>
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'muscle' ? 'active' : ''}" onclick="setTrendMetric('muscle')">💪 กล้ามเนื้อ%</button>
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'fat' ? 'active' : ''}" onclick="setTrendMetric('fat')">📉 ไขมัน%</button>
-              <button type="button" class="tracker-tab ${currentTrendMetric === 'visceralFat' ? 'active' : ''}" onclick="setTrendMetric('visceralFat')">🫀 ไขมันช่องท้อง</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'weight' ? 'active' : ''}" onclick="setTrendMetric('weight')">น้ำหนัก</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'bmi' ? 'active' : ''}" onclick="setTrendMetric('bmi')">BMI</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'bodyage' ? 'active' : ''}" onclick="setTrendMetric('bodyage')">อายุร่างกาย</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'muscle' ? 'active' : ''}" onclick="setTrendMetric('muscle')">กล้ามเนื้อ %</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'fat' ? 'active' : ''}" onclick="setTrendMetric('fat')">ไขมัน %</button>
+              <button type="button" class="tracker-tab ${currentTrendMetric === 'visceralFat' ? 'active' : ''}" onclick="setTrendMetric('visceralFat')">ไขมันช่องท้อง</button>
             </div>
             <div class="tracker-range-group">
               <button type="button" class="tracker-pill ${currentTrendRange === 'all' ? 'active' : ''}" onclick="setTrendRange('all')">ทั้งหมด</button>
@@ -3470,7 +3456,7 @@ function showPersonalProfile(empId, selectedGender = null) {
         <div class="personal-insight-card">
           <div class="personal-insight-title">
             <div class="personal-insight-title-main">
-              <span>🏅</span> เหรียญตราความสำเร็จของคุณ (${unlockedBadgesCount}/${badges.length})
+              เหรียญตราความสำเร็จ (${unlockedBadgesCount}/${badges.length})
             </div>
           </div>
           <div class="tracker-badges-grid">
@@ -3481,13 +3467,13 @@ function showPersonalProfile(empId, selectedGender = null) {
         <div class="personal-insight-card tracker-community-card">
           <div class="personal-insight-title">
             <div class="personal-insight-title-main">
-              <span>🤝</span> บอร์ดชุมชนคนรักสุขภาพชาว PFIG
+              บอร์ดชุมชนคนรักสุขภาพชาว PFIG
             </div>
           </div>
           <div class="tracker-community-stats">
             <div class="tracker-comm-stat">
               <span class="comm-val">${pulse ? pulse.totalTrackedEmployees : employees.length}</span>
-              <span class="comm-lbl">คนร่วมดูแลสุขภาพ</span>
+              <span class="comm-lbl">ผู้ร่วมบันทึก</span>
             </div>
             <div class="tracker-comm-stat">
               <span class="comm-val">${pulse ? pulse.activeThisMonth : stats.logsThisMonth}</span>
@@ -3495,11 +3481,11 @@ function showPersonalProfile(empId, selectedGender = null) {
             </div>
             <div class="tracker-comm-stat">
               <span class="comm-val">${pulse ? pulse.totalLogsCompanyWide : stats.totalLogs}</span>
-              <span class="comm-lbl">บันทึกสุขภาพรวม</span>
+              <span class="comm-lbl">บันทึกสะสมรวม</span>
             </div>
           </div>
-          <div style="font-size: 0.85rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--text-main);">
-            🔥 Hall of Consistency (เพื่อนที่เช็คอินสม่ำเสมอ)
+          <div style="font-size: 0.82rem; font-weight: 600; margin: 0.85rem 0 0.5rem; color: var(--text-muted);">
+            ผู้ที่บันทึกสม่ำเสมอสูงสุด
           </div>
           <div class="tracker-community-leaders">
             ${leadersHtml}
@@ -3509,10 +3495,10 @@ function showPersonalProfile(empId, selectedGender = null) {
 
       <!-- Chronological History Timeline -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <h4 style="font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); margin: 0;">
-          <span>🗂️</span> ประวัติการบันทึกข้อมูลร่างกายทั้งหมด (${logs.length} ครั้ง)
+        <h4 style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin: 0;">
+          ประวัติการบันทึกข้อมูลร่างกาย (${logs.length} ครั้ง)
         </h4>
-        ${canEditOwn ? `<button type="button" class="btn btn-primary btn-sm" onclick="openCheckinModal()">➕ เพิ่มบันทึกใหม่</button>` : ''}
+        ${canEditOwn ? `<button type="button" class="btn btn-primary btn-sm" onclick="openCheckinModal()">+ เพิ่มบันทึกใหม่</button>` : ''}
       </div>
       <div class="tracker-timeline-list">
         ${timelineHtml}
@@ -3520,14 +3506,14 @@ function showPersonalProfile(empId, selectedGender = null) {
 
       <!-- Health Reference Standards Guide -->
       <div class="personal-reference-guide animate-fade" style="margin-top: 2.5rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
-        <h4 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main);">
-          <span>📋</span> ตารางเกณฑ์ค่ามาตรฐานสุขภาพสำหรับเปรียบเทียบแนวทาง
+        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--text-main);">
+          ตารางเกณฑ์มาตรฐานสุขภาพสำหรับอ้างอิง
         </h4>
         <div class="reference-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem;">
           <!-- BMI Card -->
           <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
-            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--secondary-light); display: flex; align-items: center; gap: 0.4rem;">
-              <span>📊</span> ดัชนีมวลกาย (BMI) - เกณฑ์เอเชีย
+            <div style="font-weight: 600; font-size: 0.92rem; margin-bottom: 0.75rem; color: var(--text-main);">
+              ดัชนีมวลกาย (BMI) - เกณฑ์เอเชีย
             </div>
             <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem;">
               <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem; color: var(--text-muted); font-weight: 600; gap: 0.5rem;">
@@ -3537,36 +3523,36 @@ function showPersonalProfile(empId, selectedGender = null) {
               </div>
               <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">น้อยกว่า 18.5</span>
-                <span style="flex: 2; color: var(--text-muted);">น้ำหนักน้อยกว่าเกณฑ์ / ผอม</span>
+                <span style="flex: 2; color: var(--text-muted);">น้ำหนักน้อยกว่าเกณฑ์</span>
                 <span style="flex: 1.5; text-align: right; color: var(--warning);">บางเกินไป</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 0.3rem 0.4rem; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center; background: rgba(16, 185, 129, 0.05); margin: 0 -0.4rem; border-radius: 6px;">
                 <span style="flex: 1.2; min-width: 80px; font-weight: 600; color: var(--primary-light);">18.5 - 22.9</span>
                 <span style="flex: 2; font-weight: 600; color: var(--primary-light);">สมส่วน / น้ำหนักปกติ</span>
-                <span style="flex: 1.5; text-align: right; color: var(--success); font-weight: 600;">สุขภาพดี 🌱</span>
+                <span style="flex: 1.5; text-align: right; color: var(--success); font-weight: 600;">สุขภาพดี</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">23.0 - 24.9</span>
                 <span style="flex: 2; color: var(--text-muted);">น้ำหนักเกินเกณฑ์มาตรฐาน</span>
-                <span style="flex: 1.5; text-align: right; color: var(--warning);">น้ำหนักเกิน / เริ่มท้วม</span>
+                <span style="flex: 1.5; text-align: right; color: var(--warning);">น้ำหนักเกิน</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px dashed var(--border-color); gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">25.0 - 29.9</span>
-                <span style="flex: 2; color: var(--text-muted);">โรคอ้วน ระดับ 1</span>
+                <span style="flex: 2; color: var(--text-muted);">ภาวะอ้วน ระดับ 1</span>
                 <span style="flex: 1.5; text-align: right; color: var(--danger);">อ้วนระดับ 1</span>
               </div>
               <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; gap: 0.5rem; align-items: center;">
                 <span style="flex: 1.2; min-width: 80px;">30.0 ขึ้นไป</span>
-                <span style="flex: 2; color: var(--text-muted);">โรคอ้วน ระดับ 2</span>
-                <span style="flex: 1.5; text-align: right; color: var(--danger); font-weight: 600;">อ้วนระดับ 2 ⚠️</span>
+                <span style="flex: 2; color: var(--text-muted);">ภาวะอ้วน ระดับ 2</span>
+                <span style="flex: 1.5; text-align: right; color: var(--danger); font-weight: 600;">อ้วนระดับ 2</span>
               </div>
             </div>
           </div>
 
           <!-- Muscle Card -->
           <div class="reference-card" style="background: var(--bg-item); border: 1px solid var(--border-item); border-radius: 12px; padding: 1.25rem;">
-            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary-light); display: flex; align-items: center; gap: 0.4rem;">
-              <span>💪</span> มวลกล้ามเนื้อในร่างกาย (Muscle %)
+            <div style="font-weight: 600; font-size: 0.92rem; margin-bottom: 0.75rem; color: var(--text-main);">
+              มวลกล้ามเนื้อในร่างกาย (Muscle %)
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
               <div>
@@ -3574,7 +3560,7 @@ function showPersonalProfile(empId, selectedGender = null) {
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 33%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">33 - 40%:</span> มาตรฐานปกติ</li>
-                  <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 40%:</span> มวลกล้ามเนื้อสูง/ฟิต</li>
+                  <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 40%:</span> มวลกล้ามเนื้อสูง</li>
                 </ul>
               </div>
               <div>
@@ -3582,7 +3568,7 @@ function showPersonalProfile(empId, selectedGender = null) {
                 <ul style="list-style: none; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted); padding: 0; margin: 0;">
                   <li><span style="color: var(--danger); font-weight: 600;">&lt; 27%:</span> มวลกล้ามเนื้อต่ำ</li>
                   <li style="color: var(--primary-light); font-weight: 600;"><span style="color: var(--primary-light);">27 - 35%:</span> มาตรฐานปกติ</li>
-                  <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 35%:</span> มวลกล้ามเนื้อสูง/ฟิต</li>
+                  <li><span style="color: var(--secondary-light); font-weight: 600;">&gt; 35%:</span> มวลกล้ามเนื้อสูง</li>
                 </ul>
               </div>
             </div>
