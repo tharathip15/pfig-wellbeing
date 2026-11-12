@@ -3207,9 +3207,9 @@ function showPersonalProfile(empId, selectedGender = null) {
   const maxWeight = parseFloat((22.9 * heightM * heightM).toFixed(1));
   const targetWeight = parseFloat((21.0 * heightM * heightM).toFixed(1));
   const latestWeight = latestLog?.weight || baselineLog?.weight || 0;
-  const leftLimit = parseFloat((minWeight - 5).toFixed(1));
-  const rightLimit = parseFloat((maxWeight + 5).toFixed(1));
-  const rangeWidth = rightLimit - leftLimit;
+  const leftLimit = parseFloat(Math.min(minWeight - 5, latestWeight > 0 ? latestWeight - 3 : minWeight - 5).toFixed(1));
+  const rightLimit = parseFloat(Math.max(maxWeight + 5, latestWeight > 0 ? latestWeight + 4 : maxWeight + 5).toFixed(1));
+  const rangeWidth = Math.max(1, rightLimit - leftLimit);
   const healthyStartPct = ((minWeight - leftLimit) / rangeWidth) * 100;
   const healthyEndPct = ((maxWeight - leftLimit) / rangeWidth) * 100;
   const healthyWidthPct = healthyEndPct - healthyStartPct;
@@ -3221,10 +3221,10 @@ function showPersonalProfile(empId, selectedGender = null) {
   if (latestLog && latestLog.bmi) {
     if (latestLog.bmi < 18.5) {
       const neededGain = parseFloat((minWeight - latestWeight).toFixed(1));
-      weightAdvice = `น้ำหนักปัจจุบันต่ำกว่าเกณฑ์ แนะนำให้เพิ่มมวลกล้ามเนื้อและน้ำหนักอีกประมาณ <strong>+${neededGain} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
+      weightAdvice = `น้ำหนักปัจจุบันต่ำกว่าเกณฑ์ แนะนำให้เพิ่มมวลกล้ามเนื้อและน้ำหนักอีกประมาณ <strong>${neededGain} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
     } else if (latestLog.bmi > 22.9) {
       const neededLoss = parseFloat((latestWeight - maxWeight).toFixed(1));
-      weightAdvice = `ลดลงอีกประมาณ <strong>-${neededLoss} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
+      weightAdvice = `ลดลงอีกประมาณ <strong>${neededLoss} kg</strong> เพื่อเข้าสู่ช่วงน้ำหนักเหมาะสม (${minWeight} - ${maxWeight} kg)`;
     } else {
       weightAdvice = `น้ำหนักปัจจุบัน (${latestWeight} kg) อยู่ในเกณฑ์สมส่วนแล้ว แนะนำให้รักษามวลกล้ามเนื้อและความสม่ำเสมอต่อไป`;
     }
