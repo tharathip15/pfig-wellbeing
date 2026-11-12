@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import {companySession} from '../../server/pfig-sso/native.mjs';
+export {companySession};
 
 export const SESSION_COOKIE_NAME = "pfig_wellbeing_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
@@ -67,7 +68,7 @@ export function createSession(identity) {
     email,
     roles,
     canEdit: Boolean(identity.canEdit) || hasAdminRole(roles) || hasAdminEmail(email),
-    csrf: crypto.randomBytes(24).toString("base64url"),
+    csrf: identity.csrf || crypto.randomBytes(24).toString("base64url"),
     iat: now,
     exp: now + SESSION_TTL_SECONDS,
   };
@@ -106,10 +107,19 @@ function parseCookies(request) {
 
 export function getSession(request) {
   const cookieSession = parseSessionToken(parseCookies(request)[SESSION_COOKIE_NAME]);
+  const pfig = companySession(request);
   if (cookieSession && cookieSession.canEdit) {
+    if (pfig) {
+      return {
+        ...cookieSession,
+        oid: pfig.oid || cookieSession.oid,
+        name: pfig.name || cookieSession.name,
+        email: pfig.email || cookieSession.email,
+        csrf: pfig.csrf || cookieSession.csrf,
+      };
+    }
     return cookieSession;
   }
-  const pfig = companySession(request);
   if (pfig) {
     const roles = Array.isArray(pfig.roles) ? pfig.roles : [];
     const email = String(pfig.email || "");

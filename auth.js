@@ -180,10 +180,23 @@
   async function apiFetch(url, options = {}) {
     const method = String(options.method || "GET").toUpperCase();
     const headers = new Headers(options.headers || {});
-    if (!["GET", "HEAD", "OPTIONS"].includes(method) && currentSession?.csrfToken) {
-      headers.set("X-CSRF-Token", currentSession.csrfToken);
+    const isMutation = !["GET", "HEAD", "OPTIONS"].includes(method);
+    if (isMutation) {
+      if (!currentSession?.csrfToken) {
+        await readSession();
+      }
+      if (currentSession?.csrfToken) {
+        headers.set("X-CSRF-Token", currentSession.csrfToken);
+      }
     }
-    const response = await fetch(url, { ...options, method, headers, credentials: "same-origin" });
+    let response = await fetch(url, { ...options, method, headers, credentials: "same-origin" });
+    if (response.status === 403 && isMutation) {
+      const refreshed = await readSession();
+      if (refreshed?.csrfToken && refreshed.csrfToken !== headers.get("X-CSRF-Token")) {
+        headers.set("X-CSRF-Token", refreshed.csrfToken);
+        response = await fetch(url, { ...options, method, headers, credentials: "same-origin" });
+      }
+    }
     if (response.status === 401) {
       currentSession = null;
       showGate("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");

@@ -1,5 +1,5 @@
 import { readJsonBody, sendJson } from "./_lib/http.js";
-import { createSession, getSession, sessionCookie } from "./_lib/session.js";
+import { companySession, createSession, getSession, sessionCookie } from "./_lib/session.js";
 import { prepareCompanySession } from "../server/pfig-sso/index.mjs";
 
 const VALID_ADMIN_PINS = [
@@ -25,15 +25,18 @@ export default async function handler(request, response) {
       return sendJson(response, 401, { ok: false, error: "รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง" });
     }
 
+    const pfig = companySession(request);
     const existingSession = getSession(request);
     const existingRoles = Array.isArray(existingSession?.roles) ? existingSession.roles : [];
+    const csrfToken = pfig?.csrf || existingSession?.csrf;
     const identity = {
-      oid: existingSession?.oid || "admin-verified",
-      tid: existingSession?.tid || "pfig-wellbeing",
-      name: existingSession?.name || "ผู้ดูแลระบบ (Admin)",
-      email: existingSession?.email || "admin@pfig.co.th",
+      oid: existingSession?.oid || pfig?.oid || "admin-verified",
+      tid: existingSession?.tid || pfig?.tid || "pfig-wellbeing",
+      name: existingSession?.name || pfig?.name || "ผู้ดูแลระบบ (Admin)",
+      email: existingSession?.email || pfig?.email || "admin@pfig.co.th",
       roles: Array.from(new Set([...existingRoles, "PFIG.Wellbeing.Admin"])),
       canEdit: true,
+      ...(csrfToken ? { csrf: csrfToken } : {}),
     };
 
     const { token, payload } = createSession(identity);

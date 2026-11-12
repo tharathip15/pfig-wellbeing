@@ -186,3 +186,54 @@ test("session creation succeeds even when WELLBEING_SESSION_SECRET is unset (fal
     process.env.WELLBEING_SESSION_SECRET = originalSecret;
   }
 });
+
+test("createSession preserves provided CSRF token to synchronize with PFIG SSO", async () => {
+  const sessionModule = await sessionModulePromise;
+  const customCsrf = "custom_pfig_sso_csrf_token_value_12345";
+  const { payload, token } = sessionModule.createSession({
+    oid: "test-user-oid",
+    tid: "test-tenant-id",
+    name: "PFIG Member",
+    email: "member@pfig.co.th",
+    roles: [],
+    csrf: customCsrf,
+  });
+
+  assert.equal(payload.csrf, customCsrf);
+  const parsed = sessionModule.parseSessionToken(token);
+  assert.equal(parsed.csrf, customCsrf);
+});
+
+test("getSession prioritizes PFIG SSO CSRF token over local cookie CSRF token", async () => {
+  const sessionModule = await sessionModulePromise;
+  const { SESSION_COOKIE_NAME, createSession, getSession } = sessionModule;
+
+  // Local cookie session with admin rights and local CSRF token
+  const localSession = createSession({
+    oid: "local-admin-oid",
+    tid: "local-tenant-id",
+    name: "Admin User",
+    email: "admin@pfig.co.th",
+    roles: ["PFIG.Wellbeing.Admin"],
+    canEdit: true,
+    csrf: "local-random-csrf-token",
+  });
+
+  const mockReq = {
+    headers: {
+      cookie: `${SESSION_COOKIE_NAME}=${localSession.token}`,
+    },
+  };
+
+  const session = getSession(mockReq);
+  // Without pfig on request, it returns localSession
+  assert.equal(session.csrf, "local-random-csrf-token");
+});
+
+test("auth.js apiFetch adds X-CSRF-Token on mutations and retries on 403", () => {
+  const authSource = readFileSync(path.join(__dirname, "..", "auth.js"), "utf8");
+  assert.match(authSource, /headers\.set\("X-CSRF-Token", currentSession\.csrfToken\)/);
+  assert.match(authSource, /if \(response\.status === 403 && isMutation\)/);
+  assert.match(authSource, /const refreshed = await readSession\(\)/);
+});
+
