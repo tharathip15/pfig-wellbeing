@@ -1387,12 +1387,14 @@ function renderTable(filteredEmployees) {
     const tdLatest = document.createElement('td');
     if (summary.latestLog && summary.latestLog.weight) {
       const l = summary.latestLog;
+      const b = summary.baselineLog;
       const bmiText = l.bmi ? `BMI ${l.bmi}` : '-';
       const ageText = l.bodyage ? `อายุร่างกาย: ${l.bodyage} ปี` : '';
       const dateText = l.date ? l.date : 'ล่าสุด';
+      const hasMultiple = summary.totalLogs > 1 && b && b.weight;
       tdLatest.innerHTML = `
         <div><strong>${l.weight} kg</strong> <span style="font-size:0.8rem; color:var(--text-muted);">(${bmiText})</span></div>
-        <div class="td-subtitle">${ageText ? ageText + ' • ' : ''}${dateText}</div>
+        <div class="td-subtitle">${hasMultiple ? `เริ่มต้น (ฐาน): ${b.weight} kg • ` : 'ค่าเริ่มต้น (ฐาน) • '}${dateText}</div>
       `;
     } else {
       tdLatest.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem; font-style:italic;">ยังไม่มีข้อมูล</span>`;
