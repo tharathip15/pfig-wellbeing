@@ -532,6 +532,48 @@ test("admin proxy: openEmployeeTrackerAsAdmin switches view and populates quick-
   assert.match(quickSelect.innerHTML, /กมล สุขภาพดี/);
 });
 
+test("admin switcher button and search card are hidden for non-admin employees and visible for admins", () => {
+  const app = loadAppWithTracker();
+  const emps = [
+    {
+      id: "user-1",
+      name: "สมชาย รักสุขภาพ",
+      department: "Sales",
+      age: 30,
+      height: 172,
+      months: { m1: { weight: 68, bodyage: 30 } },
+    },
+  ];
+
+  // Case 1: Non-admin session
+  vm.runInContext(
+    `
+      employees = ${JSON.stringify(emps)};
+      wellbeingSession = { identity: { oid: "user-1", name: "สมชาย รักสุขภาพ", canEdit: false } };
+      switchToPersonalView();
+    `,
+    app
+  );
+
+  const toggleBtn = app.document.getElementById("btn-toggle-view");
+  const searchCard = app.document.getElementById("personal-search-card");
+  assert.equal(toggleBtn.style.display, "none", "Admin toggle button must be hidden for non-admin");
+  assert.equal(searchCard.style.display, "none", "Employee search card must be hidden for non-admin");
+
+  // Case 2: Admin session
+  vm.runInContext(
+    `
+      wellbeingSession = { identity: { oid: "admin-oid", name: "Admin", canEdit: true } };
+      switchToPersonalView();
+    `,
+    app
+  );
+
+  assert.equal(toggleBtn.style.display, "inline-flex", "Admin toggle button must be visible for admin");
+  assert.equal(searchCard.style.display, "block", "Employee search card must be visible for admin");
+});
+
+
 
 
 

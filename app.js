@@ -692,6 +692,28 @@ function setupEventListeners() {
     }
   });
 
+  // Secret admin unlock trigger: triple-click logo opens PIN prompt even when admin button is hidden
+  let logoTapCount = 0;
+  let logoTapTimer = null;
+  const logoGroup = document.querySelector('.logo-group');
+  if (logoGroup) {
+    logoGroup.addEventListener('click', () => {
+      logoTapCount++;
+      clearTimeout(logoTapTimer);
+      if (logoTapCount >= 3) {
+        logoTapCount = 0;
+        elements.btnToggleView.style.display = 'inline-flex';
+        if (wellbeingSession?.identity?.canEdit) {
+          switchToAdminView();
+        } else {
+          openPinModal();
+        }
+      } else {
+        logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1500);
+      }
+    });
+  }
+
   // Personal Search Autocomplete suggestions
   elements.personalSearchInput.addEventListener('input', (e) => {
     const val = e.target.value.trim().toLowerCase();
@@ -2766,8 +2788,13 @@ function switchToPersonalView(targetEmpId = null) {
   elements.personalView.style.display = 'block';
   
   // Hide Admin actions in header
+  const isAdmin = Boolean(wellbeingSession?.identity?.canEdit);
+  const adminIntent = typeof window !== 'undefined' && window.location && typeof URLSearchParams !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('admin') === '1'
+    : false;
   elements.btnToggleView.textContent = 'แผงควบคุมผู้ดูแล';
   elements.btnToggleView.className = 'btn btn-secondary';
+  elements.btnToggleView.style.display = (isAdmin || adminIntent) ? 'inline-flex' : 'none';
   
   elements.btnExportCsv.style.display = 'none';
   elements.btnDownloadTemplate.style.display = 'none';
@@ -2952,6 +2979,7 @@ function switchToAdminView() {
   // Restore Admin actions in header
   elements.btnToggleView.textContent = 'สมุดบันทึกส่วนตัว';
   elements.btnToggleView.className = 'btn btn-accent';
+  elements.btnToggleView.style.display = 'inline-flex';
   
   elements.btnExportCsv.style.display = 'inline-flex';
   elements.btnDownloadTemplate.style.display = 'inline-flex';
