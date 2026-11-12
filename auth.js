@@ -201,6 +201,7 @@
     apiFetch,
     beginSignIn,
     getSession: () => currentSession,
+    setSession: (session) => { currentSession = session; },
     hideGate,
     initialize,
     logout,

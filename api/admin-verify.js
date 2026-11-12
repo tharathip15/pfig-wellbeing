@@ -1,5 +1,6 @@
 import { readJsonBody, sendJson } from "./_lib/http.js";
-import { createSession, getSession, sessionCookie, sign } from "./_lib/session.js";
+import { createSession, getSession, sessionCookie } from "./_lib/session.js";
+import { prepareCompanySession } from "../server/pfig-sso/index.mjs";
 
 const VALID_ADMIN_PINS = [
   String(process.env.WELLBEING_ADMIN_PIN || "1504").trim(),
@@ -7,12 +8,13 @@ const VALID_ADMIN_PINS = [
 ];
 
 export default async function handler(request, response) {
+  if (process.env.PFIG_SSO_ENABLED === "1" && !(await prepareCompanySession(request, response))) return;
   if (request.method !== "POST") {
     return sendJson(response, 405, { ok: false, error: "Method not allowed" });
   }
 
   try {
-    const body = await readJsonBody(request, 8 * 1024) || {};
+    const body = (await readJsonBody(request, 8 * 1024)) || {};
     const pin = String(body.pin || "").trim();
 
     if (!pin) {
@@ -24,12 +26,13 @@ export default async function handler(request, response) {
     }
 
     const existingSession = getSession(request);
+    const existingRoles = Array.isArray(existingSession?.roles) ? existingSession.roles : [];
     const identity = {
       oid: existingSession?.oid || "admin-verified",
       tid: existingSession?.tid || "pfig-wellbeing",
       name: existingSession?.name || "ผู้ดูแลระบบ (Admin)",
       email: existingSession?.email || "admin@pfig.co.th",
-      roles: ["PFIG.Wellbeing.Admin"],
+      roles: Array.from(new Set([...existingRoles, "PFIG.Wellbeing.Admin"])),
       canEdit: true,
     };
 
@@ -50,6 +53,9 @@ export default async function handler(request, response) {
     });
   } catch (error) {
     console.error("Admin PIN verification failed:", error);
-    return sendJson(response, 500, { ok: false, error: "เกิดข้อผิดพลาดในการตรวจสอบรหัส PIN" });
+    return sendJson(response, 500, {
+      ok: false,
+      error: error?.message || "เกิดข้อผิดพลาดในการตรวจสอบรหัส PIN",
+    });
   }
 }

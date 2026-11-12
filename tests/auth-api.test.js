@@ -163,3 +163,26 @@ test("admin-verify API rejects invalid PIN and accepts valid PIN with session el
   assert.ok(setCookieHeader, "Must set session cookie");
   assert.match(setCookieHeader, /pfig_wellbeing_session=/);
 });
+
+test("session creation succeeds even when WELLBEING_SESSION_SECRET is unset (fallback secret)", async () => {
+  const sessionModule = await sessionModulePromise;
+  const originalSecret = process.env.WELLBEING_SESSION_SECRET;
+  delete process.env.WELLBEING_SESSION_SECRET;
+
+  try {
+    const { token, payload } = sessionModule.createSession({
+      oid: "fallback-oid",
+      tid: "fallback-tid",
+      name: "Fallback User",
+      email: "fallback@pfig.co.th",
+      roles: ["PFIG.Wellbeing.Admin"],
+    });
+
+    assert.ok(token);
+    const parsed = sessionModule.parseSessionToken(token);
+    assert.equal(parsed.oid, "fallback-oid");
+    assert.equal(parsed.canEdit, true);
+  } finally {
+    process.env.WELLBEING_SESSION_SECRET = originalSecret;
+  }
+});

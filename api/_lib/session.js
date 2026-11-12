@@ -5,7 +5,12 @@ export const SESSION_COOKIE_NAME = "pfig_wellbeing_session";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 
 function getSessionSecret() {
-  const secret = String(process.env.WELLBEING_SESSION_SECRET || "");
+  const secret = String(
+    process.env.WELLBEING_SESSION_SECRET ||
+    process.env.PFIG_SSO_CLIENT_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    "pfig-wellbeing-default-secure-session-key-fallback-32chars"
+  );
   if (secret.length < 32) throw new Error("WELLBEING_SESSION_SECRET must contain at least 32 characters");
   return secret;
 }

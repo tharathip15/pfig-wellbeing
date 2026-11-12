@@ -2582,8 +2582,12 @@ window.handleAdminPinSubmit = async function() {
       if (wellbeingSession?.identity) {
         wellbeingSession.identity.canEdit = true;
         if (res.identity?.roles) wellbeingSession.identity.roles = res.identity.roles;
+        if (res.csrfToken) wellbeingSession.csrfToken = res.csrfToken;
       } else {
         wellbeingSession = { identity: res.identity, csrfToken: res.csrfToken };
+      }
+      if (window.PfigWellbeingAuth?.setSession) {
+        window.PfigWellbeingAuth.setSession(wellbeingSession);
       }
       closePinModal();
       await loadData();
