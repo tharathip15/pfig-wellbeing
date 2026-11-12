@@ -10,7 +10,7 @@ function getSessionSecret() {
   return secret;
 }
 
-function sign(value) {
+export function sign(value) {
   return crypto.createHmac("sha256", getSessionSecret()).update(value).digest("base64url");
 }
 
@@ -28,10 +28,18 @@ function configuredAdminRoles() {
 }
 
 function configuredAdminEmails() {
-  return String(process.env.WELLBEING_ADMIN_EMAILS || "")
-    .split(",")
-    .map(value => value.trim().toLowerCase())
-    .filter(Boolean);
+  if (typeof process.env.WELLBEING_ADMIN_EMAILS === "string") {
+    return process.env.WELLBEING_ADMIN_EMAILS
+      .split(",")
+      .map(value => value.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return [
+    "kulthara.w@pfig.co.th",
+    "induthaitharathip@gmail.com",
+    "tharathip15@gmail.com",
+    "admin@pfig.co.th",
+  ];
 }
 
 export function hasAdminRole(roles) {
@@ -53,7 +61,7 @@ export function createSession(identity) {
     name: String(identity.name || "Microsoft User"),
     email,
     roles,
-    canEdit: hasAdminRole(roles) || hasAdminEmail(email),
+    canEdit: Boolean(identity.canEdit) || hasAdminRole(roles) || hasAdminEmail(email),
     csrf: crypto.randomBytes(24).toString("base64url"),
     iat: now,
     exp: now + SESSION_TTL_SECONDS,
@@ -92,8 +100,18 @@ function parseCookies(request) {
 }
 
 export function getSession(request) {
-  if(companySession(request))return companySession(request);
-  return parseSessionToken(parseCookies(request)[SESSION_COOKIE_NAME]);
+  const cookieSession = parseSessionToken(parseCookies(request)[SESSION_COOKIE_NAME]);
+  if (cookieSession && cookieSession.canEdit) {
+    return cookieSession;
+  }
+  const pfig = companySession(request);
+  if (pfig) {
+    const roles = Array.isArray(pfig.roles) ? pfig.roles : [];
+    const email = String(pfig.email || "");
+    const canEdit = Boolean(pfig.canEdit || hasAdminRole(roles) || hasAdminEmail(email));
+    return { ...pfig, canEdit, roles: canEdit && !roles.includes("PFIG.Wellbeing.Admin") ? [...roles, "PFIG.Wellbeing.Admin"] : roles };
+  }
+  return cookieSession;
 }
 
 export function requireSession(request, response) {

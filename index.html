@@ -573,17 +573,38 @@
     </div>
   </div>
 
-  <!-- Admin Microsoft Sign-in Modal -->
+  <!-- Admin Microsoft Sign-in & PIN Verification Modal -->
   <div class="modal-overlay" id="pin-modal">
-    <div class="modal-content" style="max-width: 380px;">
+    <div class="modal-content" style="max-width: 400px;">
       <div class="modal-header">
         <h3 class="modal-title">🔐 สิทธิ์ผู้ดูแลระบบ (Admin)</h3>
         <button class="modal-close" id="btn-close-pin-modal">&times;</button>
       </div>
       <div class="modal-body" style="text-align: center;">
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">ระบบจะตรวจสิทธิ์ PFIG.Wellbeing.Admin จากบัญชี Microsoft ของคุณ</p>
-        <div id="pin-error-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 1rem; display: none;"></div>
-        <button type="button" class="btn btn-primary" id="btn-submit-pin" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;">ตรวจสิทธิ์ด้วย Microsoft</button>
+        <div id="pin-current-account-info" style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg-item); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: left; display: none;"></div>
+
+        <form id="admin-pin-form" onsubmit="event.preventDefault(); handleAdminPinSubmit();" style="margin-bottom: 1rem;">
+          <label for="admin-pin-input" style="display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem;">
+            กรอกรหัส PIN ผู้ดูแลระบบ
+          </label>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+            ระบุรหัส PIN 4 หลักเพื่อปลดล็อกเข้าสู่แผงควบคุมผู้ดูแล
+          </p>
+          <div style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.85rem;">
+            <input type="password" id="admin-pin-input" maxlength="8" placeholder="••••" class="form-control" style="max-width: 180px; text-align: center; font-size: 1.3rem; letter-spacing: 0.3em; height: 44px;" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary" id="btn-submit-pin-code" style="width: 100%; padding: 0.75rem;">ปลดล็อกด้วย PIN</button>
+        </form>
+
+        <div style="position: relative; margin: 1.25rem 0 1rem; text-align: center;">
+          <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;">
+          <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg-modal); padding: 0 0.75rem; font-size: 0.75rem; color: var(--text-muted);">หรือ</span>
+        </div>
+
+        <button type="button" class="btn btn-secondary" id="btn-submit-pin" style="width: 100%; padding: 0.7rem; font-size: 0.85rem;">
+          ตรวจสิทธิ์ด้วย Microsoft / Portal SSO
+        </button>
+        <div id="pin-error-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 0.85rem; display: none;"></div>
       </div>
     </div>
   </div>

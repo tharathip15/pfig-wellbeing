@@ -2531,12 +2531,24 @@ function openPinModal() {
     switchToAdminView();
     return;
   }
-  elements.pinDigits.forEach(input => input.value = '');
-  elements.pinErrorMsg.style.display = 'none';
+  const accountInfo = document.getElementById('pin-current-account-info');
+  if (accountInfo) {
+    const ident = wellbeingSession?.identity;
+    if (ident) {
+      accountInfo.style.display = 'block';
+      accountInfo.innerHTML = `บัญชีที่เข้าสู่ระบบ: <strong>${ident.name || ident.email || 'ผู้ใช้'}</strong><br><span style="color: var(--warning); font-size: 0.78rem;">⚠️ ยังไม่พบสิทธิ์ PFIG.Wellbeing.Admin ในบัญชีนี้</span>`;
+    } else {
+      accountInfo.style.display = 'none';
+    }
+  }
+
+  const pinInput = document.getElementById('admin-pin-input');
+  if (pinInput) pinInput.value = '';
+  if (elements.pinErrorMsg) elements.pinErrorMsg.style.display = 'none';
   elements.pinModal.classList.add('active');
   
   setTimeout(() => {
-    if (elements.pin1) elements.pin1.focus();
+    if (pinInput) pinInput.focus();
   }, 100);
 }
 
@@ -2544,29 +2556,64 @@ function closePinModal() {
   elements.pinModal.classList.remove('active');
 }
 
+window.handleAdminPinSubmit = async function() {
+  const pinInput = document.getElementById('admin-pin-input');
+  const pin = (pinInput?.value || '').trim();
+  const errorEl = document.getElementById('pin-error-msg');
+
+  if (!pin) {
+    if (errorEl) {
+      errorEl.textContent = 'กรุณากรอกรหัส PIN';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (errorEl) errorEl.style.display = 'none';
+  showLoader(true);
+
+  try {
+    const res = await wellbeingApiRequest('/api/admin-verify', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+
+    if (res.ok && res.canEdit) {
+      if (wellbeingSession?.identity) {
+        wellbeingSession.identity.canEdit = true;
+        if (res.identity?.roles) wellbeingSession.identity.roles = res.identity.roles;
+      } else {
+        wellbeingSession = { identity: res.identity, csrfToken: res.csrfToken };
+      }
+      closePinModal();
+      await loadData();
+      updateUI();
+      switchToAdminView();
+      showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ 🔓', 'success');
+    } else {
+      throw new Error(res.error || 'รหัส PIN ไม่ถูกต้อง');
+    }
+  } catch (err) {
+    console.error('Admin PIN verification failed:', err);
+    if (errorEl) {
+      errorEl.textContent = err.message || 'รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
+      errorEl.style.display = 'block';
+    }
+    if (pinInput) {
+      pinInput.value = '';
+      pinInput.focus();
+    }
+  } finally {
+    showLoader(false);
+  }
+};
+
 function handlePinVerification() {
   elements.pinErrorMsg.style.display = 'none';
   window.PfigWellbeingAuth.beginSignIn({ prompt: 'select_account' }).catch(error => {
-    elements.pinErrorMsg.textContent = error.message || 'Microsoft sign-in failed';
+    elements.pinErrorMsg.textContent = error.message || 'การเข้าสู่ระบบตรวจสิทธิ์ไม่สำเร็จ';
     elements.pinErrorMsg.style.display = 'block';
   });
-}
-
-// Legacy PIN implementation retained temporarily for migration reference; it is never called.
-function handleLegacyPinVerification() {
-  let pin = '';
-  elements.pinDigits.forEach(input => pin += input.value);
-  
-  if (pin === ADMIN_PIN) {
-    closePinModal();
-    switchToAdminView();
-    showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ 🔓', 'success');
-  } else {
-    elements.pinErrorMsg.style.display = 'block';
-    elements.pinDigits.forEach(input => input.value = '');
-    if (elements.pin1) elements.pin1.focus();
-    showToast('รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่', 'error');
-  }
 }
 
 function switchToAdminView() {

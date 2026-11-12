@@ -107,3 +107,59 @@ test("GitHub Pages redirects to the Vercel app before SSO initialization", () =>
   assert.match(indexSource, /location\.replace\("https:\/\/pfig-wellbeing\.vercel\.app\/"\)/);
   assert.ok(redirectPosition < authPosition);
 });
+
+test("admin-verify API rejects invalid PIN and accepts valid PIN with session elevation", async () => {
+  const adminVerifyModule = await import("../api/admin-verify.js");
+  const handler = adminVerifyModule.default;
+
+  // Test 1: Reject invalid PIN
+  let resStatus = null;
+  let resJson = null;
+  const mockReqWrong = {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: { pin: "9999" },
+  };
+  const mockResWrong = {
+    status(code) {
+      resStatus = code;
+      return this;
+    },
+    json(data) {
+      resJson = data;
+      return this;
+    },
+    setHeader() {},
+  };
+  await handler(mockReqWrong, mockResWrong);
+  assert.equal(resStatus, 401);
+  assert.equal(resJson.ok, false);
+
+  // Test 2: Accept PIN 1504 and issue admin session
+  let setCookieHeader = null;
+  const mockReqValid = {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: { pin: "1504" },
+  };
+  const mockResValid = {
+    status(code) {
+      resStatus = code;
+      return this;
+    },
+    json(data) {
+      resJson = data;
+      return this;
+    },
+    setHeader(key, val) {
+      if (key === "Set-Cookie") setCookieHeader = val;
+    },
+  };
+  await handler(mockReqValid, mockResValid);
+  assert.equal(resStatus, 200);
+  assert.equal(resJson.ok, true);
+  assert.equal(resJson.canEdit, true);
+  assert.equal(resJson.identity.canEdit, true);
+  assert.ok(setCookieHeader, "Must set session cookie");
+  assert.match(setCookieHeader, /pfig_wellbeing_session=/);
+});
