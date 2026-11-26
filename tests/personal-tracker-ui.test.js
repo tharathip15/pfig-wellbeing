@@ -105,94 +105,6 @@ function loadAppWithTracker() {
   return sandbox;
 }
 
-test("personal overview defaults to three highlighted series and offers the other three", () => {
-  const app = loadAppWithTracker();
-  assert.equal(vm.runInContext("currentTrendMetric", app), "overview");
-  const html = app.renderTrendChartSvg([
-    { date: "2026-11-01", weight: 80, bmi: 25, bodyage: 40, muscle: 30, fat: 24, visceralFat: 10 },
-    { date: "2026-11-11", weight: 76, bmi: 24, bodyage: 39, muscle: 31, fat: 22, visceralFat: 9 },
-  ], "overview", "all");
-  for (const key of ["weight", "muscle", "fat"]) {
-    assert.match(html, new RegExp(`data-series="${key}"`));
-  }
-  for (const key of ["bmi", "bodyage", "visceralFat"]) {
-    assert.match(html, new RegExp(`id="trend-visible-${key}"`));
-    assert.doesNotMatch(html, new RegExp(`data-series="${key}"`));
-  }
-  assert.match(html, /การเปลี่ยนแปลงจากครั้งแรกในช่วงที่เลือก/);
-  assert.match(html, /type="checkbox"/);
-  assert.match(html, /<table/);
-  assert.match(html, /76 <small>kg<\/small>/);
-  assert.match(html, /value="1" selected/);
-  assert.match(html, />0%<\/text>/);
-  assert.doesNotMatch(html, /NaN|Infinity/);
-});
-
-test("overview values report only the chosen check-in, including same-day records and missing values", () => {
-  const app = loadAppWithTracker();
-  const logs = [
-    { date: "2026-11-01", weight: 80, fat: 22 },
-    { date: "2026-11-01", weight: 79 },
-    { date: "2026-11-02" },
-  ];
-  const model = app.buildOverviewTrend(logs, "all", ["weight", "fat"]);
-  assert.deepEqual(Array.from(model.selectable), [0, 1]);
-  assert.match(app.renderOverviewValues(model, 0), /80 <small>kg<\/small>/);
-  assert.match(app.renderOverviewValues(model, 1), /79 <small>kg<\/small>/);
-  assert.match(app.renderOverviewValues(model, 1), /ไม่บันทึก/);
-  const html = app.renderOverviewTrend(logs, "all", ["weight", "fat"], model);
-  assert.match(html, /ครั้งที่ 1/);
-  assert.match(html, /ครั้งที่ 2/);
-  assert.match(html, /value="1" selected/);
-});
-
-test("overview normalizes units, uses elapsed dates and leaves gaps for missing values", () => {
-  const app = loadAppWithTracker();
-  const model = app.buildOverviewTrend([
-    { date: "2026-11-11", weight: 72, fat: 18 },
-    { date: "2026-11-01", weight: 80, fat: 20 },
-    { date: "2026-11-02", weight: 79, fat: null },
-  ], "all", ["weight", "fat"]);
-  assert.equal(model.series[0].points[2].change, -10);
-  const fat = model.series.find(item => item.key === "fat");
-  assert.equal(fat.points[2].change, -10);
-  assert.equal(fat.points[1], null);
-  assert.equal(model.series[0].points[1].timeRatio, 0.1);
-  assert.equal(fat.baseline.date, "2026-11-01");
-  const html = app.renderOverviewTrend(model.logs, "all", ["fat"]);
-  const pathData = html.match(/data-series="fat"><path d="([^"]*)"/)[1];
-  assert.equal((pathData.match(/M/g) || []).length, 2);
-  assert.doesNotMatch(pathData, /L/);
-});
-
-test("overview ranges share one latest date and never invent missing measurements", () => {
-  const app = loadAppWithTracker();
-  const logs = [
-    { date: "2026-07-01", weight: 80, fat: 25 },
-    { date: "2026-11-01", weight: 78, fat: "" },
-    { date: "2026-11-11", weight: 77, fat: 0 },
-    { date: "invalid", weight: 50, fat: 10 },
-  ];
-  const model = app.buildOverviewTrend(logs, "30d", ["weight", "fat"]);
-  assert.equal(model.logs.length, 2);
-  assert.equal(model.series[0].baseline.value, 78);
-  const fat = model.series.find(item => item.key === "fat");
-  assert.equal(fat.baseline, null);
-  assert.equal(fat.points.every(point => point === null), true);
-});
-
-test("overview handles a single check-in, hidden series, and no measurements", () => {
-  const app = loadAppWithTracker();
-  const single = [{ date: "2026-11-01", weight: 80 }];
-  const html = app.renderOverviewTrend(single, "all", ["weight"]);
-  assert.match(html, /data-change="0"/);
-  assert.doesNotMatch(html, /NaN|Infinity/);
-  const hidden = app.renderOverviewTrend(single, "all", []);
-  assert.match(hidden, /showAllTrendMetrics/);
-  assert.doesNotMatch(hidden, /data-series=/);
-  assert.match(app.renderOverviewTrend([], "all", ["weight"]), /ยังไม่มีข้อมูล/);
-});
-
 test("index.html includes health-tracker.js and new check-in, goal, onboarding, and celebration modals without duplicate IDs", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   assert.match(html, /<script src="health-tracker\.js"><\/script>/);
@@ -279,6 +191,11 @@ test("showPersonalProfile renders converted m1..m4 history timeline, trend chart
   // Interactive SVG Trend Chart
   assert.match(profileHtml, /tracker-trend-card/);
   assert.match(profileHtml, /<svg/);
+  assert.match(profileHtml, /<option value="weight" selected>น้ำหนัก<\/option>/);
+  assert.doesNotMatch(profileHtml, /<option value="overview"|class="tracker-overview/);
+  assert.match(profileHtml, /aria-label="กราฟแนวโน้ม น้ำหนัก \(kg\)"/);
+  app.window.setTrendMetric("fat");
+  assert.match(app.elementsById.get("personal-profile-display").innerHTML, /aria-label="กราฟแนวโน้ม ไขมัน \(%\)"/);
 
   // Personal Goals section
   assert.match(profileHtml, /tracker-goals-card/);

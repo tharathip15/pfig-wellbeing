@@ -14,20 +14,16 @@ let wellbeingPersonalHealthRanking = null;
 let wellbeingCommunityPulse = null;
 let wellbeingRequiresOnboarding = false;
 let wellbeingUnlinkedCandidates = [];
-let currentTrendMetric = 'overview';
+let currentTrendMetric = 'weight';
 let currentTrendRange = 'all';
 const trendMetricConfigs = {
-  weight: { label: 'น้ำหนัก', unit: 'kg', color: 'var(--trend-weight)', dash: '' },
-  bmi: { label: 'BMI', unit: '', color: 'var(--trend-bmi)', dash: '8 4' },
-  bodyage: { label: 'อายุร่างกาย', unit: 'ปี', color: 'var(--trend-bodyage)', dash: '3 4' },
-  muscle: { label: 'กล้ามเนื้อ', unit: '%', color: 'var(--trend-muscle)', dash: '12 4 3 4' },
-  fat: { label: 'ไขมัน', unit: '%', color: 'var(--trend-fat)', dash: '12 5' },
-  visceralFat: { label: 'ไขมันช่องท้อง', unit: '', color: 'var(--trend-visceral-fat)', dash: '2 3 8 3' },
+  weight: { label: 'น้ำหนัก', unit: 'kg', color: 'var(--trend-weight)' },
+  bmi: { label: 'BMI', unit: '', color: 'var(--trend-bmi)' },
+  bodyage: { label: 'อายุร่างกาย', unit: 'ปี', color: 'var(--trend-bodyage)' },
+  muscle: { label: 'กล้ามเนื้อ', unit: '%', color: 'var(--trend-muscle)' },
+  fat: { label: 'ไขมัน', unit: '%', color: 'var(--trend-fat)' },
+  visceralFat: { label: 'ไขมันช่องท้อง', unit: '', color: 'var(--trend-visceral-fat)' },
 };
-const primaryTrendMetrics = ['weight', 'fat', 'muscle'];
-let visibleTrendMetrics = [...primaryTrendMetrics];
-let currentTrendEntry = null;
-let trendMoreMetricsOpen = false;
 
 function getHealthTracker() {
   return (typeof window !== 'undefined' && window.PfigHealthTracker)
@@ -3517,6 +3513,7 @@ window.handleSaveGoals = async function() {
 };
 
 window.setTrendMetric = function(metricKey) {
+  if (!Object.hasOwn(trendMetricConfigs, metricKey)) return;
   currentTrendMetric = metricKey;
   if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
   document.getElementById('tracker-trend-metric')?.focus?.({ preventScroll: true });
@@ -3524,190 +3521,11 @@ window.setTrendMetric = function(metricKey) {
 
 window.setTrendRange = function(rangeKey) {
   currentTrendRange = rangeKey;
-  currentTrendEntry = null;
   if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
   document.getElementById(`tracker-range-${rangeKey}`)?.focus?.({ preventScroll: true });
 };
 
-window.toggleTrendMetric = function(key, visible) {
-  if (!Object.hasOwn(trendMetricConfigs, key)) return;
-  trendMoreMetricsOpen = Boolean(document.getElementById('tracker-more-metrics')?.open);
-  visibleTrendMetrics = visible
-    ? [...new Set([...visibleTrendMetrics, key])]
-    : visibleTrendMetrics.filter(item => item !== key);
-  if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
-  document.getElementById(`trend-visible-${key}`)?.focus?.({ preventScroll: true });
-};
-
-window.showAllTrendMetrics = function() {
-  visibleTrendMetrics = Object.keys(trendMetricConfigs);
-  if (currentProfileEmpId) showPersonalProfile(currentProfileEmpId);
-  document.getElementById('tracker-more-metrics')?.querySelector('summary')?.focus?.({ preventScroll: true });
-};
-
-function buildOverviewTrend(logs, rangeKey, selectedKeys) {
-  let filtered = (logs || []).filter(item => {
-    const date = item?.date;
-    const ms = Date.parse(date);
-    return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
-      && Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === date;
-  }).sort((a, b) => a.date.localeCompare(b.date));
-  const lastMs = filtered.length ? Date.parse(filtered[filtered.length - 1].date) : 0;
-  const days = rangeKey === '30d' ? 30 : rangeKey === '90d' ? 90 : null;
-  if (days !== null) filtered = filtered.filter(item => lastMs - Date.parse(item.date) <= days * 86400000);
-  const startMs = filtered.length ? Date.parse(filtered[0].date) : 0;
-  const duration = lastMs - startMs;
-  const timeRatios = filtered.map(item => duration ? (Date.parse(item.date) - startMs) / duration : 0.5);
-  const keys = [...new Set([...primaryTrendMetrics, ...Object.keys(trendMetricConfigs)])];
-  const series = keys.map(key => {
-    const cfg = trendMetricConfigs[key];
-    const valid = item => (typeof item[key] === 'number' || typeof item[key] === 'string')
-      && Number.isFinite(Number(item[key])) && Number(item[key]) > 0;
-    const first = filtered.find(valid);
-    const baseline = first ? { date: first.date, value: Number(first[key]) } : null;
-    const points = filtered.map((item, index) => !valid(item) ? null : {
-      date: item.date,
-      value: Number(item[key]),
-      change: Number(((Number(item[key]) / baseline.value - 1) * 100).toFixed(4)),
-      timeRatio: timeRatios[index],
-    });
-    return { key, ...cfg, baseline, points, latest: points.filter(Boolean).at(-1) || null, visible: selectedKeys.includes(key) };
-  });
-  const shown = series.filter(item => item.visible && item.latest);
-  let min = -1;
-  let max = 1;
-  for (const item of shown) for (const point of item.points) {
-    if (!point) continue;
-    min = Math.min(min, point.change);
-    max = Math.max(max, point.change);
-  }
-  const targetStep = (max - min) / 4;
-  const order = 10 ** Math.floor(Math.log10(targetStep));
-  const step = [1, 2, 2.5, 5, 10].map(value => value * order).find(value => value >= targetStep);
-  const firstTick = Math.floor(min / step);
-  const lastTick = Math.ceil(max / step);
-  const yMin = firstTick * step;
-  const yMax = lastTick * step;
-  const ticks = Array.from({ length: lastTick - firstTick + 1 }, (_, index) => (firstTick + index) * step);
-  const selectable = filtered.map((_, index) => index).filter(index => shown.some(item => item.points[index]));
-  return { logs: filtered, series, shown, yMin, yMax, ticks, timeRatios, selectable };
-}
-
-function renderOverviewValues(model, index) {
-  return model.shown.map(item => {
-    const point = item.points[index];
-    const value = point ? `${point.value}${item.unit ? ` <small>${item.unit}</small>` : ''}` : '<small>ไม่บันทึก</small>';
-    return `<div class="tracker-reading" style="--series-color: ${item.color}"><dt>${item.label}</dt><dd>${value}</dd></div>`;
-  }).join('');
-}
-
-function renderOverviewTrend(logs, rangeKey, selectedKeys = visibleTrendMetrics, model = buildOverviewTrend(logs, rangeKey, selectedKeys)) {
-  const available = model.series.filter(item => item.latest);
-  if (!available.length) return '<div class="tracker-chart-empty">ยังไม่มีข้อมูลร่างกายในช่วงเวลานี้</div>';
-  const format = value => Number(value.toFixed(2)).toString();
-  const signed = value => `${value > 0 ? '+' : ''}${format(value)}%`;
-  const selected = model.selectable.includes(currentTrendEntry) ? currentTrendEntry : model.selectable.at(-1);
-  const option = item => `
-    <label class="tracker-series-option" style="--series-color: ${item.color}">
-      <input id="trend-visible-${item.key}" type="checkbox" ${item.visible && item.latest ? 'checked' : ''} ${item.latest ? '' : 'disabled'} onchange="toggleTrendMetric('${item.key}', this.checked)">
-      <svg class="tracker-series-swatch" viewBox="0 0 30 12" aria-hidden="true"><line x1="0" y1="6" x2="30" y2="6" stroke="currentColor" stroke-width="3" stroke-dasharray="${item.dash}" /></svg>
-      <span>${item.label}</span>
-    </label>`;
-  const more = model.series.filter(item => !primaryTrendMetrics.includes(item.key));
-  const moreCount = more.filter(item => item.visible && item.latest).length;
-  const dateFormat = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  const counts = new Map();
-  for (const index of model.selectable) {
-    const date = model.logs[index].date;
-    counts.set(date, (counts.get(date) || 0) + 1);
-  }
-  const seen = new Map();
-  const dateOptions = model.selectable.map(index => {
-    const date = model.logs[index].date;
-    seen.set(date, (seen.get(date) || 0) + 1);
-    const sequence = counts.get(date) > 1 ? ` · ครั้งที่ ${seen.get(date)}` : '';
-    return `<option value="${index}" ${index === selected ? 'selected' : ''}>${dateFormat.format(new Date(date))}${sequence}</option>`;
-  }).join('');
-  // Both layouts share the same measurements and scale; only the SVG geometry changes.
-  function renderPlot(width, className) {
-    const height = width < 400 ? 218 : 238, left = 48, right = 24, top = 16, bottom = 34;
-    const plotW = width - left - right, plotH = height - top - bottom;
-    const x = point => Number((left + point.timeRatio * plotW).toFixed(2));
-    const y = value => Number((top + (model.yMax - value) / (model.yMax - model.yMin) * plotH).toFixed(2));
-    const grid = model.ticks.map(value => `<line class="tracker-grid-line${value === 0 ? ' is-baseline' : ''}" x1="${left}" y1="${y(value)}" x2="${width - right}" y2="${y(value)}"/><text x="${left - 8}" y="${y(value) + 4}" text-anchor="end" fill="var(--text-muted)" font-size="12">${signed(value)}</text>`).join('');
-    const dates = new Map(model.logs.map((log, index) => [log.date, model.timeRatios[index]]));
-    let previousLabelX = -Infinity;
-    const labels = [...dates].map(([date, timeRatio], index) => {
-      const labelX = x({ timeRatio });
-      if (index !== 0 && index !== dates.size - 1 && (labelX - previousLabelX < 76 || width - right - labelX < 76)) return '';
-      previousLabelX = labelX;
-      return `<text x="${labelX}" y="${height - 12}" text-anchor="middle" fill="var(--text-muted)" font-size="12">${date.slice(8)}-${date.slice(5, 7)}</text>`;
-    }).join('');
-    const lines = model.shown.map(item => {
-      let drawing = false;
-      const path = item.points.map(point => {
-        if (!point) { drawing = false; return ''; }
-        const command = drawing ? 'L' : 'M';
-        drawing = true;
-        return `${command}${x(point)},${y(point.change)}`;
-      }).join(' ');
-      const dots = item.points.map((point, index) => point ? `<circle class="tracker-trend-dot${index === selected ? ' is-selected' : ''}" data-trend-entry="${index}" data-change="${point.change}" cx="${x(point)}" cy="${y(point.change)}" fill="${item.color}"/>` : '').join('');
-      return `<g data-series="${item.key}"><path d="${path}" fill="none" stroke="${item.color}" stroke-width="2.5" stroke-dasharray="${item.dash}" stroke-linecap="round" stroke-linejoin="round"/>${dots}</g>`;
-    }).join(' ');
-    const cursorX = x({ timeRatio: model.timeRatios[selected] });
-    return `<svg class="${className}" viewBox="0 0 ${width} ${height}" role="img" aria-label="แนวโน้มค่าร่างกายเทียบครั้งแรกในช่วงที่เลือก">${grid}<line data-trend-cursor x1="${cursorX}" x2="${cursorX}" y1="${top}" y2="${height - bottom}"/>${lines}${labels}<rect data-trend-area x="${left}" y="0" width="${plotW}" height="${height - bottom + 12}" fill="transparent"/></svg>`;
-  }
-  const table = `<details class="tracker-overview-data"><summary>ค่าที่บันทึกทั้งหมด (${model.logs.length} ครั้ง)</summary><div class="tracker-overview-table" tabindex="0" role="region" aria-label="ค่าร่างกายตามวันที่"><table><caption>ค่าร่างกายตามวันที่บันทึก</caption><thead><tr><th scope="col">วันที่</th>${available.map(item => `<th scope="col">${item.label}${item.unit ? ` (${item.unit})` : ''}</th>`).join('')}</tr></thead><tbody>${model.logs.map((log, index) => `<tr><th scope="row">${log.date}</th>${available.map(item => `<td>${item.points[index] ? format(item.points[index].value) : '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
-  return `<div class="tracker-overview">
-    <div class="tracker-series-legend" role="group" aria-label="ตัวชี้วัดในกราฟภาพรวม">
-      <div class="tracker-series-main">${model.series.filter(item => primaryTrendMetrics.includes(item.key)).map(option).join('')}</div>
-      <details class="tracker-more-metrics" id="tracker-more-metrics" ${trendMoreMetricsOpen ? 'open' : ''}>
-        <summary>ตัวชี้วัดอื่น${moreCount ? ` (${moreCount})` : ''}</summary>
-        <div class="tracker-series-main">${more.map(option).join('')}</div>
-      </details>
-    </div>
-    <p class="tracker-overview-axis">การเปลี่ยนแปลงจากครั้งแรกในช่วงที่เลือก (%)</p>
-    ${model.shown.length ? `<div class="tracker-chart-svg-wrap tracker-overview-plot">${renderPlot(680, 'tracker-plot-wide')}${renderPlot(360, 'tracker-plot-compact')}</div>
-      <div class="tracker-readings">
-        <label class="tracker-date-label">ค่าที่วัด <select class="tracker-trend-select" data-trend-date aria-label="วันที่วัด">${dateOptions}</select></label>
-        <dl class="tracker-reading-grid" data-trend-readings aria-live="polite">${renderOverviewValues(model, selected)}</dl>
-      </div>` : '<div class="tracker-chart-empty">ไม่มีข้อมูลสำหรับตัวชี้วัดที่เลือก <button type="button" class="btn btn-secondary" onclick="showAllTrendMetrics()">แสดงทุกค่า</button></div>'}
-    ${table}
-  </div>`;
-}
-
-function bindOverviewDatePicker(root, model) {
-  const picker = root.querySelector('[data-trend-date]');
-  const readings = root.querySelector('[data-trend-readings]');
-  if (!picker || !readings) return;
-  const areas = [...root.querySelectorAll('[data-trend-area]')];
-  function selectEntry(index) {
-    if (!model.selectable.includes(index)) return;
-    currentTrendEntry = index;
-    picker.value = String(index);
-    readings.innerHTML = renderOverviewValues(model, index);
-    for (const area of areas) {
-      const svg = area.ownerSVGElement;
-      const cursor = svg.querySelector('[data-trend-cursor]');
-      const x = Number(area.getAttribute('x')) + Number(area.getAttribute('width')) * model.timeRatios[index];
-      cursor.setAttribute('x1', x);
-      cursor.setAttribute('x2', x);
-      svg.querySelectorAll('[data-trend-entry]').forEach(dot => dot.classList.toggle('is-selected', Number(dot.dataset.trendEntry) === index));
-    }
-  }
-  picker.addEventListener('change', () => selectEntry(Number(picker.value)));
-  for (const area of areas) {
-    area.addEventListener('click', event => {
-      const bounds = area.getBoundingClientRect();
-      const ratio = (event.clientX - bounds.left) / bounds.width;
-      const closest = model.selectable.reduce((best, index) => Math.abs(model.timeRatios[index] - ratio) <= Math.abs(model.timeRatios[best] - ratio) ? index : best);
-      selectEntry(closest);
-    });
-  }
-}
-
-function renderTrendChartSvg(logs, metricKey, rangeKey, overviewModel) {
-  if (metricKey === 'overview') return renderOverviewTrend(logs, rangeKey, visibleTrendMetrics, overviewModel);
+function renderTrendChartSvg(logs, metricKey, rangeKey) {
   const config = trendMetricConfigs[metricKey] || trendMetricConfigs.weight;
   const cfg = { ...config, label: `${config.label}${config.unit ? ` (${config.unit})` : ''}` };
 
@@ -3799,7 +3617,6 @@ function renderTrendChartSvg(logs, metricKey, rangeKey, overviewModel) {
 }
 
 function showPersonalProfile(empId, selectedGender = null) {
-  if (currentProfileEmpId !== empId) currentTrendEntry = null;
   currentProfileEmpId = empId;
   const rawEmp = employees.find(e => e.id === empId);
   if (!rawEmp) return;
@@ -4035,8 +3852,7 @@ function showPersonalProfile(empId, selectedGender = null) {
       </div>
     `;
 
-  const overviewModel = currentTrendMetric === 'overview' ? buildOverviewTrend(logs, currentTrendRange, visibleTrendMetrics) : null;
-  const trendChartSvg = renderTrendChartSvg(logs, currentTrendMetric, currentTrendRange, overviewModel);
+  const trendChartSvg = renderTrendChartSvg(logs, currentTrendMetric, currentTrendRange);
   const avatarInitials = String(emp.name || 'P').trim().slice(0, 2).toUpperCase();
   const isMobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches;
   const collapsibleOpen = isMobileViewport ? '' : 'open';
@@ -4180,7 +3996,6 @@ function showPersonalProfile(empId, selectedGender = null) {
           </div>
           <div class="tracker-trend-controls">
             <select id="tracker-trend-metric" class="tracker-trend-select" aria-label="มุมมองกราฟ" onchange="setTrendMetric(this.value)">
-              <option value="overview" ${currentTrendMetric === 'overview' ? 'selected' : ''}>ภาพรวม</option>
               ${Object.entries(trendMetricConfigs).map(([key, metric]) => `<option value="${key}" ${currentTrendMetric === key ? 'selected' : ''}>${metric.label}</option>`).join('')}
             </select>
             <div class="tracker-range-group" role="group" aria-label="ช่วงเวลา">
@@ -4326,8 +4141,6 @@ function showPersonalProfile(empId, selectedGender = null) {
   `;
 
   elements.personalProfileDisplay.style.display = 'block';
-
-  if (overviewModel?.shown.length) bindOverviewDatePicker(elements.personalProfileDisplay, overviewModel);
 
   const quickSelect = document.getElementById('personal-admin-quick-select');
   if (quickSelect && quickSelect.value !== emp.id) {
